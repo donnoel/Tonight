@@ -61,6 +61,10 @@ private struct RecommendationHistoryRow: View {
             Text(movieTitle)
                 .font(.headline)
 
+            Label(event.mood.title, systemImage: event.mood.systemImage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             Label(event.response.title, systemImage: event.response.systemImage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

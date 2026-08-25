@@ -7,7 +7,11 @@ struct TonightView: View {
     @Query(sort: \Movie.title) private var movies: [Movie]
     @Query(sort: \RecommendationEvent.recommendedAt, order: .reverse)
     private var events: [RecommendationEvent]
-    @AppStorage("tonightPreferredGenre") private var preferredGenreRawValue = ""
+    @AppStorage("tonightMood") private var moodRawValue = RecommendationMood.anything.rawValue
+    @AppStorage("tonightUnderTwoHours") private var underTwoHours = false
+    @AppStorage("tonightUnwatchedOnly") private var unwatchedOnly = false
+    @AppStorage("tonightSomethingOlder") private var somethingOlder = false
+    @AppStorage("tonightMoreAdventurous") private var moreAdventurous = false
     @State private var saveError: String?
 
     private var columns: [GridItem] {
@@ -55,7 +59,7 @@ struct TonightView: View {
                 .font(.largeTitle.bold())
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("Tonight weighs your taste, watch history, movie quality, and recent recommendations—then chooses only from your own library.")
+            Text("Tonight weighs your taste, watch history, movie quality, and recent recommendations then chooses only from your own library.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 760, alignment: .leading)
@@ -63,50 +67,95 @@ struct TonightView: View {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 12) {
                     moodMenu
+                    tuningMenu
                     recommendationButton
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
                     moodMenu
+                    tuningMenu
                     recommendationButton
                 }
             }
+
+            Text(selectedMood.detail)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 760, alignment: .leading)
         }
     }
 
     private var moodMenu: some View {
         Menu {
-            Button {
-                preferredGenreRawValue = ""
-            } label: {
-                Label(
-                    "Anything",
-                    systemImage: preferredGenre == nil ? "checkmark" : "sparkles"
-                )
-            }
-
-            if !availableGenres.isEmpty {
-                Divider()
-                ForEach(availableGenres, id: \.self) { genre in
-                    Button {
-                        preferredGenreRawValue = genre
-                    } label: {
-                        Label(
-                            genre,
-                            systemImage: preferredGenre == genre ? "checkmark" : "film"
-                        )
-                    }
+            ForEach(RecommendationMood.allCases) { mood in
+                Button {
+                    moodRawValue = mood.rawValue
+                } label: {
+                    Label(
+                        mood.title,
+                        systemImage: selectedMood == mood ? "checkmark" : mood.systemImage
+                    )
                 }
             }
         } label: {
             Label(
-                "Mood: \(preferredGenre ?? "Anything")",
-                systemImage: "line.3.horizontal.decrease.circle"
+                "Mood: \(selectedMood.title)",
+                systemImage: selectedMood.systemImage
             )
         }
         .buttonStyle(.bordered)
         .controlSize(.large)
-        .accessibilityHint("Filters the recommendation preference by genre")
+        .accessibilityHint("Chooses the feeling and pace for tonight’s recommendations")
+    }
+
+    private var tuningMenu: some View {
+        Menu {
+            tuningButton(
+                "Under Two Hours",
+                systemImage: "timer",
+                isEnabled: underTwoHours
+            ) {
+                underTwoHours.toggle()
+            }
+            tuningButton(
+                "Unwatched Only",
+                systemImage: "eye.slash",
+                isEnabled: unwatchedOnly
+            ) {
+                unwatchedOnly.toggle()
+            }
+            tuningButton(
+                "Something Older",
+                systemImage: "calendar",
+                isEnabled: somethingOlder
+            ) {
+                somethingOlder.toggle()
+            }
+            tuningButton(
+                "More Adventurous",
+                systemImage: "safari",
+                isEnabled: moreAdventurous
+            ) {
+                moreAdventurous.toggle()
+            }
+
+            if preferences.activeModifierCount > 0 {
+                Divider()
+                Button("Reset Tuning", role: .destructive) {
+                    resetTuning()
+                }
+            }
+        } label: {
+            Label(
+                preferences.activeModifierCount == 0
+                    ? "Tune Picks"
+                    : "Tune Picks (\(preferences.activeModifierCount))",
+                systemImage: "slider.horizontal.3"
+            )
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .accessibilityHint("Adds optional runtime, watch-state, age, and adventure preferences")
     }
 
     private var recommendationButton: some View {
@@ -141,15 +190,15 @@ struct TonightView: View {
             Text("Ready when you are")
                 .font(.title2.bold())
 
-            Text("\(eligibleMovies.count.formatted()) resolved \(eligibleMovies.count == 1 ? "movie is" : "movies are") ready. You’ll get a Best Match, a Wildcard, and a Forgotten One when enough choices are available.")
+            Text("\(eligibleMovies.count.formatted()) resolved \(eligibleMovies.count == 1 ? "movie is" : "movies are") ready. Tonight will combine one Best Fit with two rotating perspectives chosen for your mood.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 720, alignment: .leading)
 
             HStack(spacing: 24) {
-                conceptLabel("Best Match", systemImage: "sparkles")
-                conceptLabel("Wildcard", systemImage: "shuffle")
-                conceptLabel("Forgotten One", systemImage: "archivebox")
+                conceptLabel("Best Fit", systemImage: "sparkles")
+                conceptLabel("Fresh Angles", systemImage: "square.stack.3d.up")
+                conceptLabel("Less Repetition", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
             }
         }
         .padding(24)
@@ -179,7 +228,7 @@ struct TonightView: View {
                             rationale: RecommendationEngine.rationale(
                                 for: movie,
                                 kind: event.kind,
-                                preferredGenre: preferredGenre
+                                mood: event.mood
                             ),
                             onRespond: { response in
                                 respond(to: event, with: response)
@@ -197,14 +246,18 @@ struct TonightView: View {
         }
     }
 
-    private var availableGenres: [String] {
-        Set(eligibleMovies.flatMap(\.genres)).sorted {
-            $0.localizedStandardCompare($1) == .orderedAscending
-        }
+    private var selectedMood: RecommendationMood {
+        RecommendationMood(rawValue: moodRawValue) ?? .anything
     }
 
-    private var preferredGenre: String? {
-        availableGenres.contains(preferredGenreRawValue) ? preferredGenreRawValue : nil
+    private var preferences: RecommendationPreferences {
+        RecommendationPreferences(
+            mood: selectedMood,
+            underTwoHours: underTwoHours,
+            unwatchedOnly: unwatchedOnly,
+            somethingOlder: somethingOlder,
+            moreAdventurous: moreAdventurous
+        )
     }
 
     private var currentEvents: [RecommendationEvent] {
@@ -232,15 +285,29 @@ struct TonightView: View {
             .foregroundStyle(.secondary)
     }
 
+    private func tuningButton(
+        _ title: String,
+        systemImage: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: isEnabled ? "checkmark" : systemImage)
+        }
+    }
+
     private func generateRecommendations() {
         let now = Date.now
         let picks = RecommendationEngine.recommendations(
             from: movies,
-            preferredGenre: preferredGenre,
+            history: events,
+            preferences: preferences,
             now: now
         )
         guard !picks.isEmpty else {
-            saveError = "Tonight couldn’t find an eligible resolved movie. Check Library for unresolved or disliked titles."
+            saveError = preferences.activeModifierCount > 0
+                ? "No resolved movies match all of the current tuning choices. Remove one or more Tune Picks options and try again."
+                : "Tonight couldn’t find an eligible resolved movie. Check Library for unresolved or disliked titles."
             return
         }
 
@@ -255,12 +322,20 @@ struct TonightView: View {
                 RecommendationEvent(
                     movie: pick.movie,
                     recommendedAt: now,
-                    kind: pick.kind
+                    kind: pick.kind,
+                    mood: selectedMood
                 )
             )
         }
 
         saveChanges()
+    }
+
+    private func resetTuning() {
+        underTwoHours = false
+        unwatchedOnly = false
+        somethingOlder = false
+        moreAdventurous = false
     }
 
     private func respond(

@@ -19,15 +19,15 @@ Current scope:
 - Duplicate prevention and preserved unresolved/failed entries
 - Safe automatic retry and user-confirmed TMDB matching for unresolved entries
 - Local Library ordering by title, release year, or an explicitly reshuffled order
-- Local, deterministic Best Match, Wildcard, and Forgotten One selection
-- Genre mood preference, immediate refresh rotation, and explainable recommendation reasons
+- Local, explainable recommendation selection with controlled randomness
+- Human mood profiles, optional tuning choices, rotating recommendation lanes, and recent-session cooldown
 - Persisted recommendation responses and movie-level watched/liked/disliked taste signals
 - Functional Tonight, Library, History, and Settings screens
 
 Explicitly out of scope:
 
 - AI/LLM integration
-- Free-form mood interpretation, advanced collaborative filtering, or cloud-trained personalization
+- Free-form mood interpretation, collaborative filtering, or cloud-trained personalization
 - TMDB discovery outside imported titles
 - Streaming availability, accounts, CloudKit/iCloud, social features, reviews, trailers, external ratings, and purchase/rental links
 
@@ -37,8 +37,9 @@ Explicitly out of scope:
 - `AppRootView` uses `NavigationSplitView` on regular width and a native `TabView` adaptation on compact width.
 - The regular-width sidebar visibility is a display-only `AppStorage` preference and must restore its last visible or hidden state after relaunch.
 - SwiftData `Movie` records represent both enriched and unresolved personal-library entries.
-- `RecommendationEngine` ranks eligible resolved movies using local taste, watch state, TMDB quality evidence, library age, and recommendation recency while keeping the three recommendation kinds distinct.
-- `RecommendationEvent` records each generated pick and the user’s accepted, rejected, not-tonight, or watched response.
+- `RecommendationEngine` combines a human mood profile with runtime, watch state, era, language, quality evidence, cast/director familiarity, local response history, and controlled randomness from a credible shortlist.
+- Each recommendation set contains a Best Fit plus two rotating lanes such as Hidden Gem, Short & Sharp, Comfort Rewatch, Different Decade, Deep Cut, or Wildcard.
+- `RecommendationEvent` records each generated pick, its selected mood, and the user’s accepted, rejected, not-tonight, or watched response.
 - `MovieImportParser`, `MovieTitleNormalizer`, `LibraryDuplicateDetector`, `MovieMatcher`, and `LibrarySort` are deterministic logic boundaries.
 - `TMDBClient` owns URLSession requests and maps dedicated TMDB DTOs into rich local movie values.
 - `TMDBMatchResolver` combines deterministic search-result matching with a narrow alternative-title confirmation from the selected movie-details response.
@@ -67,8 +68,12 @@ Explicitly out of scope:
 - Library sorting and shuffling change presentation order only; they must not rewrite movie records or personal history.
 - Clearing the library requires explicit confirmation.
 - Recommendations must select only resolved, non-disliked records already present in the local library.
-- Best Match balances explicit taste, watch state, quality evidence, and recency; Wildcard favors a credible change of pace; Forgotten One resurfaces long-waiting, under-recommended titles.
-- Refreshing should rotate away from immediately repeated picks when the eligible library is large enough.
+- Mood profiles must describe a viewing feeling rather than act as exact genre filters; runtime, era, quality, familiarity, and watch state contribute alongside genre.
+- Under Two Hours and Unwatched Only are hard tuning filters; Something Older and More Adventurous are ranking and lane preferences.
+- Best Fit balances explicit taste, mood, watch state, quality evidence, and recency; the other two lanes must truthfully match their displayed perspective.
+- Refreshing should avoid movies from the five most recent recommendation sessions when the eligible library is large enough.
+- Not Tonight is a temporary, decaying penalty; Not Interested remains a user-controlled exclusion.
+- A recommendation set should reduce repeated genres, directors, principal cast, and decades when credible alternatives exist.
 - Recommendation responses and watched/liked/disliked taste signals must persist locally and remain user-controlled.
 
 ## TMDB boundary
@@ -111,8 +116,8 @@ Explicitly out of scope:
 - Bulk import: one-item failure does not prevent later entries, and unresolved input is preserved
 - Persistence/startup: saved library survives container recreation/relaunch
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
-- Recommendation selection: resolved-only eligibility, distinct picks, genre preference, disliked exclusion, refresh rotation, and forgotten-title resurfacing
-- Recommendation persistence: generated events, responses, and watched/liked/disliked signals survive relaunch
+- Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, five-session cooldown, and decaying Not Tonight behavior
+- Recommendation persistence: generated events with mood, responses, and watched/liked/disliked signals survive relaunch
 
 ## Build and run notes
 
@@ -135,7 +140,7 @@ Explicitly out of scope:
 - With a Keychain-configured credential, verify an obvious match, rich details/credits, poster/backdrop loading, unresolved preservation, duplicate re-import, and relaunch persistence.
 - Verify automatic retry resolves only unambiguous entries and the one-by-one queue supports editing a query, choosing a candidate, skipping, and relaunch persistence.
 - Verify Library A–Z, Z–A, year, and repeated shuffle ordering on both regular and compact widths.
-- Generate all three recommendation kinds from a varied resolved library, refresh to rotate picks, record each response type, and verify History and relaunch persistence.
+- Exercise every mood and tuning option against a varied resolved library, confirm rotating lanes remain truthful, refresh repeatedly to verify cooldown/diversity, record each response type, and verify History and relaunch persistence.
 - Re-check VoiceOver labels, Dynamic Type, light/dark appearance, and destructive confirmation.
 
 ## Output expectations per patch

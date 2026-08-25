@@ -3,6 +3,11 @@ import SwiftData
 
 enum RecommendationKind: String, Codable, CaseIterable, Sendable {
     case bestMatch
+    case hiddenGem
+    case shortAndSharp
+    case comfortRewatch
+    case differentDecade
+    case deepCut
     case wildcard
     case forgottenOne
 }
@@ -22,6 +27,7 @@ final class RecommendationEvent {
     var recommendedAt: Date
     var kindRawValue: String
     var responseRawValue: String
+    var moodRawValue: String?
 
     var kind: RecommendationKind {
         get { RecommendationKind(rawValue: kindRawValue) ?? .bestMatch }
@@ -33,11 +39,17 @@ final class RecommendationEvent {
         set { responseRawValue = newValue.rawValue }
     }
 
+    var mood: RecommendationMood {
+        get { moodRawValue.flatMap(RecommendationMood.init(rawValue:)) ?? .anything }
+        set { moodRawValue = newValue.rawValue }
+    }
+
     init(
         id: UUID = UUID(),
         movie: Movie? = nil,
         recommendedAt: Date = .now,
         kind: RecommendationKind,
+        mood: RecommendationMood = .anything,
         response: RecommendationResponse = .pending
     ) {
         self.id = id
@@ -45,6 +57,6 @@ final class RecommendationEvent {
         self.recommendedAt = recommendedAt
         self.kindRawValue = kind.rawValue
         self.responseRawValue = response.rawValue
+        self.moodRawValue = mood.rawValue
     }
 }
-
