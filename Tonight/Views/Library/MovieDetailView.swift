@@ -227,24 +227,12 @@ struct MovieDetailView: View {
 
     private var personalizationSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Your Taste")
+            Text("Watch Status")
                 .font(.headline)
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    watchedButton
-                    likedButton
-                    dislikedButton
-                }
+            watchedButton
 
-                VStack(alignment: .leading, spacing: 10) {
-                    watchedButton
-                    likedButton
-                    dislikedButton
-                }
-            }
-
-            Text("These choices stay on this device and help Tonight improve future recommendations.")
+            Text("Your watched status stays on this device and helps Tonight improve future recommendations.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -269,40 +257,6 @@ struct MovieDetailView: View {
         }
         .buttonStyle(.bordered)
         .accessibilityValue(movie.isWatched ? "Selected" : "Not selected")
-    }
-
-    private var likedButton: some View {
-        Button {
-            movie.isLiked.toggle()
-            if movie.isLiked {
-                movie.isDisliked = false
-            }
-            savePersonalization()
-        } label: {
-            Label(
-                movie.isLiked ? "Liked" : "Like",
-                systemImage: movie.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
-            )
-        }
-        .buttonStyle(.bordered)
-        .accessibilityValue(movie.isLiked ? "Selected" : "Not selected")
-    }
-
-    private var dislikedButton: some View {
-        Button {
-            movie.isDisliked.toggle()
-            if movie.isDisliked {
-                movie.isLiked = false
-            }
-            savePersonalization()
-        } label: {
-            Label(
-                movie.isDisliked ? "Not Interested" : "Not for Me",
-                systemImage: movie.isDisliked ? "hand.thumbsdown.fill" : "hand.thumbsdown"
-            )
-        }
-        .buttonStyle(.bordered)
-        .accessibilityValue(movie.isDisliked ? "Selected" : "Not selected")
     }
 
     private var saveErrorIsPresented: Binding<Bool> {
