@@ -12,6 +12,8 @@ struct TonightView: View {
     @AppStorage("tonightUnwatchedOnly") private var unwatchedOnly = false
     @AppStorage("tonightSomethingOlder") private var somethingOlder = false
     @AppStorage("tonightMoreAdventurous") private var moreAdventurous = false
+    @AppStorage("tonightAcceptedChoicesWatchedMigrationV1")
+    private var didMigrateAcceptedChoicesToWatched = false
     @State private var saveError: String?
 
     private var columns: [GridItem] {
@@ -50,6 +52,9 @@ struct TonightView: View {
             }
         } message: {
             Text(saveError ?? "Please try again.")
+        }
+        .onAppear {
+            reconcileAcceptedRecommendations()
         }
     }
 
@@ -512,7 +517,9 @@ struct TonightView: View {
             )
         }
 
-        saveChanges()
+        if saveChanges() {
+            TonightWidgetSnapshotPublisher.publish(picks: picks, generatedAt: now)
+        }
     }
 
     private func resetTuning() {
@@ -522,10 +529,35 @@ struct TonightView: View {
         moreAdventurous = false
     }
 
+    private func reconcileAcceptedRecommendations() {
+        guard !didMigrateAcceptedChoicesToWatched else {
+            TonightWidgetSnapshotPublisher.publish(events: currentEvents)
+            return
+        }
+
+        let acceptedEventsNeedingWatchState = events.filter {
+            $0.response == .accepted && $0.movie?.isWatched == false
+        }
+
+        for event in acceptedEventsNeedingWatchState {
+            event.response.applyMovieState(
+                to: event.movie,
+                at: event.recommendedAt
+            )
+        }
+
+        if acceptedEventsNeedingWatchState.isEmpty || saveChanges() {
+            didMigrateAcceptedChoicesToWatched = true
+        }
+
+        TonightWidgetSnapshotPublisher.publish(events: currentEvents)
+    }
+
     private func respond(
         to event: RecommendationEvent,
         with response: RecommendationResponse
     ) {
+        let responseDate = Date.now
         event.response = response
 
         if response == .accepted {
@@ -533,24 +565,26 @@ struct TonightView: View {
                 otherEvent.id != event.id && otherEvent.response == .pending {
                 otherEvent.response = .notTonight
             }
-        } else if response == .watched {
-            event.movie?.isWatched = true
-            event.movie?.dateWatched = event.movie?.dateWatched ?? .now
-            event.movie?.lastWatchedDate = .now
-        } else if response == .rejected {
-            event.movie?.isLiked = false
-            event.movie?.isDisliked = true
         }
 
-        saveChanges()
+        response.applyMovieState(to: event.movie, at: responseDate)
+
+        if saveChanges(),
+           response.removesMovieFromActivePicks,
+           let movieID = event.movie?.id {
+            TonightWidgetSnapshotPublisher.removeMovie(id: movieID)
+        }
     }
 
-    private func saveChanges() {
+    @discardableResult
+    private func saveChanges() -> Bool {
         do {
             try modelContext.save()
+            return true
         } catch {
             modelContext.rollback()
             saveError = "Your changes couldn’t be saved. Nothing was intentionally removed from your library."
+            return false
         }
     }
 }

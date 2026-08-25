@@ -10,6 +10,12 @@ Use the Library sort menu to order movies A–Z, Z–A, by release year (oldest 
 
 On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
 
+## Tonight's Pick widget
+
+The medium **Tonight's Pick** widget presents one clear recommendation from the latest successfully saved set; tapping it opens the Tonight screen. The shared snapshot retains alternates so marking the displayed movie watched or not interested can promote the next eligible pick immediately.
+
+The widget reads only a display-ready binary property-list snapshot in the `group.com.donnoel.Tonight` App Group. It does not access SwiftData, make TMDB API requests, or receive the TMDB credential. Poster data is downloaded by the main app and copied into that local snapshot when available.
+
 ## Apple $4.99 movie deals
 
 **Deals** shows Apple’s current U.S. **Buy for $4.99** movie collection without adding those titles to the personal Library. The adaptive grid includes the verified deal price, TMDB artwork and metadata when available, and an **In Library** badge for movies Tonight already knows you own. Filters show all deals, titles not already in the Library, or deals ranked with the same local taste signals used by Tonight’s recommendation engine.

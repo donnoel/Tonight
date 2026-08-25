@@ -35,6 +35,20 @@
                ReferencedContainer = "container:Tonight.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "6F48D9546F57E186F31FB6EA"
+               BuildableName = "TonightWidgetExtension.appex"
+               BlueprintName = "TonightWidgetExtension"
+               ReferencedContainer = "container:Tonight.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

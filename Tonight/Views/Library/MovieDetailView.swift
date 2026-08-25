@@ -248,7 +248,9 @@ struct MovieDetailView: View {
                 movie.dateWatched = nil
                 movie.lastWatchedDate = nil
             }
-            savePersonalization()
+            if savePersonalization(), movie.isWatched {
+                TonightWidgetSnapshotPublisher.removeMovie(id: movie.id)
+            }
         } label: {
             Label(
                 movie.isWatched ? "Watched" : "Mark Watched",
@@ -294,12 +296,15 @@ struct MovieDetailView: View {
         return "\(hours)h \(remaining)m"
     }
 
-    private func savePersonalization() {
+    @discardableResult
+    private func savePersonalization() -> Bool {
         do {
             try modelContext.save()
+            return true
         } catch {
             modelContext.rollback()
             saveError = "Your preference couldn’t be saved. The rest of your library is unchanged."
+            return false
         }
     }
 

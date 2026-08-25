@@ -22,6 +22,7 @@ Current scope:
 - Local, explainable recommendation selection with controlled randomness
 - Human mood profiles, optional tuning choices, rotating recommendation lanes, and recent-session cooldown
 - Persisted recommendation responses and movie-level watched/liked/disliked taste signals
+- A medium WidgetKit widget showing the top persisted Tonight recommendation
 - A disposable, cached Apple $4.99 Deals catalog with TMDB enrichment, ownership badges, and taste-based ranking
 - Functional Tonight, Library, Deals, History, and Settings screens
 
@@ -41,6 +42,7 @@ Explicitly out of scope:
 - `RecommendationEngine` combines a human mood profile with runtime, watch state, era, language, quality evidence, cast/director familiarity, local response history, and controlled randomness from a credible shortlist.
 - Each recommendation set contains a Best Fit plus two rotating lanes such as Hidden Gem, Short & Sharp, Comfort Rewatch, Different Decade, Deep Cut, or Wildcard.
 - `RecommendationEvent` records each generated pick, its selected mood, and the user’s accepted, rejected, not-tonight, or watched response.
+- The `TonightWidgetExtension` reads a compact App Group snapshot published by the app; it never opens SwiftData or receives the TMDB credential.
 - `MovieImportParser`, `MovieTitleNormalizer`, `LibraryDuplicateDetector`, `MovieMatcher`, and `LibrarySort` are deterministic logic boundaries.
 - `TMDBClient` owns URLSession requests and maps dedicated TMDB DTOs into rich local movie values.
 - `TMDBMatchResolver` combines deterministic search-result matching with a narrow alternative-title confirmation from the selected movie-details response.
@@ -83,6 +85,8 @@ Explicitly out of scope:
 - Not Tonight is a temporary, decaying penalty; Not Interested remains a user-controlled exclusion.
 - A recommendation set should reduce repeated genres, directors, principal cast, and decades when credible alternatives exist.
 - Recommendation responses and watched/liked/disliked taste signals must persist locally and remain user-controlled.
+- Choosing a recommendation for tonight must immediately mark that movie watched while preserving the accepted response in History.
+- The widget must show the top eligible pick from the latest successfully saved recommendation set, promote an alternate after watched or rejected movies are removed, and degrade to a useful empty state when no snapshot is available.
 
 ## TMDB boundary
 
@@ -100,6 +104,7 @@ Explicitly out of scope:
 - Keep TMDB request/DTO work outside views and safe to call with async/await.
 - Save useful progress during a bulk import so one later failure does not roll back earlier successes.
 - Preserve and update personal history fields deliberately: watched state/dates, rating, liked/disliked, recommendation count, and recommendation dates.
+- Share only display-ready recommendation snapshots with the widget through `group.com.donnoel.Tonight`; the app’s SwiftData store remains authoritative.
 - Do not add CloudKit or account assumptions to the model until separately designed.
 
 ## UX and accessibility rules
@@ -126,6 +131,7 @@ Explicitly out of scope:
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
 - Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, five-session cooldown, and decaying Not Tonight behavior
 - Recommendation persistence: generated events with mood, responses, and watched/liked/disliked signals survive relaunch
+- Widget snapshot persistence: binary property-list round trip, pick removal, empty state, artwork fallback, and app-to-widget refresh
 - Apple deal parsing: expected collection identity, verified $4.99 purchase links, order, duplicate IDs, changed markup, and valid empty catalogs using local fixtures rather than the live site
 - Deals behavior: disposable cache round-trip, cached fallback, missing-credential preservation, bounded TMDB handoff, In Library detection, and recommendation candidate ranking
 
@@ -133,6 +139,7 @@ Explicitly out of scope:
 
 - Project: `Tonight.xcodeproj`
 - Scheme: `Tonight`
+- Widget target: `TonightWidgetExtension` (`systemMedium` only)
 - Platforms: iPadOS and iOS (`TARGETED_DEVICE_FAMILY = 1,2`)
 - Deployment target: iOS 18.0
 - Toolchain baseline at project creation: Xcode 26.6 / Swift 6.3.3

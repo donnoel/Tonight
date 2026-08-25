@@ -63,6 +63,13 @@ struct AppRootView: View {
             DebugLibrarySeeder.installIfRequested(in: modelContext)
         }
         #endif
+        .onOpenURL { url in
+            guard url.scheme?.lowercased() == "tonight",
+                  url.host?.lowercased() == "picks" else {
+                return
+            }
+            selection = .tonight
+        }
     }
 
     private var regularWidthLayout: some View {

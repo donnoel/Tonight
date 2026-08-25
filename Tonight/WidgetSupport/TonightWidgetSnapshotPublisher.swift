@@ -1,0 +1,189 @@
+import Foundation
+import OSLog
+import WidgetKit
+
+@MainActor
+enum TonightWidgetSnapshotPublisher {
+    private static let logger = Logger(
+        subsystem: "com.donnoel.Tonight",
+        category: "TonightWidget"
+    )
+    private static var artworkTask: Task<Void, Never>?
+
+    static func publish(picks: [RecommendationPick], generatedAt: Date) {
+        publish(
+            snapshot: TonightWidgetSnapshot(
+                generatedAt: generatedAt,
+                picks: picks.prefix(3).map {
+                    widgetPick(
+                        movie: $0.movie,
+                        kind: $0.kind,
+                        rationale: $0.rationale
+                    )
+                }
+            )
+        )
+    }
+
+    static func publish(events: [RecommendationEvent]) {
+        let sortedEvents = events
+            .filter { event in
+                guard let movie = event.movie else { return false }
+                return !movie.isWatched && !movie.isDisliked
+            }
+            .sorted { $0.kind.sortOrder < $1.kind.sortOrder }
+        let generatedAt = sortedEvents.first?.recommendedAt
+            ?? events.first?.recommendedAt
+            ?? .now
+
+        publish(
+            snapshot: TonightWidgetSnapshot(
+                generatedAt: generatedAt,
+                picks: sortedEvents.prefix(3).compactMap { event in
+                    guard let movie = event.movie else { return nil }
+                    return widgetPick(
+                        movie: movie,
+                        kind: event.kind,
+                        rationale: RecommendationEngine.rationale(
+                            for: movie,
+                            kind: event.kind,
+                            mood: event.mood
+                        )
+                    )
+                }
+            )
+        )
+    }
+
+    static func removeMovie(id: UUID) {
+        artworkTask?.cancel()
+        guard let store = try? TonightWidgetSnapshotStore(),
+              let snapshot = try? store.load() else {
+            return
+        }
+        persist(snapshot.removingMovie(id: id), using: store)
+    }
+
+    private static func publish(snapshot: TonightWidgetSnapshot) {
+        artworkTask?.cancel()
+
+        guard let store = try? TonightWidgetSnapshotStore() else {
+            logger.error("The Tonight widget App Group is unavailable.")
+            return
+        }
+
+        let existingSnapshot = try? store.load()
+        var artworkByID: [UUID: (URL?, Data)] = [:]
+        for pick in existingSnapshot?.picks ?? [] {
+            if let artworkData = pick.artworkData {
+                artworkByID[pick.id] = (pick.artworkURL, artworkData)
+            }
+        }
+        var snapshot = snapshot
+        for index in snapshot.picks.indices {
+            let pick = snapshot.picks[index]
+            if let existingArtwork = artworkByID[pick.id],
+               existingArtwork.0 == pick.artworkURL {
+                snapshot.picks[index].artworkData = existingArtwork.1
+            }
+        }
+
+        persist(snapshot, using: store)
+
+        guard snapshot.picks.contains(where: { $0.artworkData == nil && $0.artworkURL != nil }) else {
+            return
+        }
+
+        artworkTask = Task { @MainActor in
+            var enrichedSnapshot = snapshot
+
+            for index in enrichedSnapshot.picks.indices where
+                enrichedSnapshot.picks[index].artworkData == nil {
+                guard !Task.isCancelled,
+                      let url = enrichedSnapshot.picks[index].artworkURL else {
+                    continue
+                }
+
+                do {
+                    guard let data = try await TonightWidgetArtworkLoader.load(from: url),
+                          !Task.isCancelled else {
+                        continue
+                    }
+                    enrichedSnapshot.picks[index].artworkData = data
+                } catch is CancellationError {
+                    return
+                } catch {
+                    logger.error(
+                        "Widget artwork download failed: \(error.localizedDescription, privacy: .public)"
+                    )
+                }
+            }
+
+            guard !Task.isCancelled,
+                  let latestSnapshot = try? store.load(),
+                  latestSnapshot.generatedAt == enrichedSnapshot.generatedAt else {
+                return
+            }
+            persist(enrichedSnapshot, using: store)
+        }
+    }
+
+    private static func persist(
+        _ snapshot: TonightWidgetSnapshot,
+        using store: TonightWidgetSnapshotStore
+    ) {
+        do {
+            try store.save(snapshot)
+            WidgetCenter.shared.reloadTimelines(ofKind: TonightWidgetSnapshotStore.widgetKind)
+        } catch {
+            logger.error(
+                "Widget snapshot update failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    private static func widgetPick(
+        movie: Movie,
+        kind: RecommendationKind,
+        rationale: String
+    ) -> TonightWidgetPick {
+        TonightWidgetPick(
+            id: movie.id,
+            kindTitle: kind.title,
+            title: movie.title,
+            metadata: metadata(for: movie),
+            rationale: rationale,
+            artworkURL: TMDBImageURL.make(path: movie.posterPath, size: .posterCard),
+            artworkData: nil
+        )
+    }
+
+    private static func metadata(for movie: Movie) -> String {
+        var components: [String] = []
+        if let releaseYear = movie.releaseYear {
+            components.append(String(releaseYear))
+        }
+        if let runtimeMinutes = movie.runtimeMinutes {
+            let hours = runtimeMinutes / 60
+            let minutes = runtimeMinutes % 60
+            components.append(hours == 0 ? "\(minutes)m" : "\(hours)h \(minutes)m")
+        }
+        if let genre = movie.genres.first {
+            components.append(genre)
+        }
+        return components.joined(separator: " · ")
+    }
+}
+
+nonisolated enum TonightWidgetArtworkLoader {
+    static func load(from url: URL) async throws -> Data? {
+        let (data, response) = try await URLSession.shared.data(from: url)
+        guard data.count <= 2_000_000,
+              let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode),
+              response.mimeType?.hasPrefix("image/") == true else {
+            return nil
+        }
+        return data
+    }
+}

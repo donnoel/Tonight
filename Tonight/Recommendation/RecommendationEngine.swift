@@ -768,6 +768,29 @@ extension RecommendationKind {
 }
 
 extension RecommendationResponse {
+    var removesMovieFromActivePicks: Bool {
+        switch self {
+        case .accepted, .rejected, .watched: true
+        case .pending, .notTonight: false
+        }
+    }
+
+    func applyMovieState(to movie: Movie?, at date: Date) {
+        guard let movie else { return }
+
+        switch self {
+        case .accepted, .watched:
+            movie.isWatched = true
+            movie.dateWatched = movie.dateWatched ?? date
+            movie.lastWatchedDate = date
+        case .rejected:
+            movie.isLiked = false
+            movie.isDisliked = true
+        case .pending, .notTonight:
+            break
+        }
+    }
+
     var title: String {
         switch self {
         case .pending: "Awaiting your choice"

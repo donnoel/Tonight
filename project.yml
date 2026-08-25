@@ -23,11 +23,16 @@ targets:
     platform: iOS
     sources:
       - path: Tonight
+      - path: Shared
+    dependencies:
+      - target: TonightWidgetExtension
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.donnoel.Tonight
         PRODUCT_NAME: Tonight
         INFOPLIST_FILE: Tonight/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Tonight/Resources/Tonight.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -37,7 +42,32 @@ targets:
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: H7LG8SK72M
+        REGISTER_APP_GROUPS: YES
         DEVELOPMENT_ASSET_PATHS: '"Tonight/Preview Content"'
+  TonightWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TonightWidgetExtension
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.donnoel.Tonight.Widget
+        PRODUCT_NAME: TonightWidgetExtension
+        INFOPLIST_FILE: TonightWidgetExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TonightWidgetExtension/TonightWidgetExtension.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        SUPPORTS_MACCATALYST: false
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: H7LG8SK72M
+        REGISTER_APP_GROUPS: YES
   TonightTests:
     type: bundle.unit-test
     platform: iOS
@@ -54,6 +84,7 @@ schemes:
     build:
       targets:
         Tonight: all
+        TonightWidgetExtension: all
         TonightTests: [test]
     run:
       config: Debug

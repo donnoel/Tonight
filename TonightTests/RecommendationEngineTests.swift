@@ -86,6 +86,17 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertEqual(picks.map(\.movie.id), [unwatched.id])
     }
 
+    func testAcceptedRecommendationMarksMovieWatched() {
+        let chosen = movie(title: "Chosen", genres: ["Drama"])
+
+        RecommendationResponse.accepted.applyMovieState(to: chosen, at: now)
+
+        XCTAssertTrue(chosen.isWatched)
+        XCTAssertEqual(chosen.dateWatched, now)
+        XCTAssertEqual(chosen.lastWatchedDate, now)
+        XCTAssertTrue(RecommendationResponse.accepted.removesMovieFromActivePicks)
+    }
+
     func testFiveRecentSessionsAreExcludedWhenFreshChoicesExist() {
         let recentMovies = (1...5).map {
             movie(title: "Recent \($0)", genres: ["Drama"])
