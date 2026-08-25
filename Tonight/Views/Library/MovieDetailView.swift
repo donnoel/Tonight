@@ -1,10 +1,22 @@
 import SwiftData
 import SwiftUI
+import StoreKit
+
+struct MovieDealContext {
+    let appleURL: URL
+    let price: String
+    let isInLibrary: Bool
+    let lastRefreshed: Date
+    let recommendationRationale: String?
+}
 
 struct MovieDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var saveError: String?
+    @State private var isUSStorefront = Locale.current.region?.identifier == "US"
     let movie: Movie
+    var showsPersonalization = true
+    var dealContext: MovieDealContext?
 
     var body: some View {
         ScrollView {
@@ -39,6 +51,13 @@ struct MovieDetailView: View {
             }
         } message: {
             Text(saveError ?? "Please try again.")
+        }
+        .task(id: dealContext?.appleURL) {
+            guard dealContext != nil else { return }
+            if let storefront = await Storefront.current, !Task.isCancelled {
+                isUSStorefront = storefront.countryCode == "USA"
+                    || storefront.countryCode == "US"
+            }
         }
     }
 
@@ -119,7 +138,13 @@ struct MovieDetailView: View {
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
             }
 
-            personalizationSection
+            if let dealContext {
+                dealSection(dealContext)
+            }
+
+            if showsPersonalization {
+                personalizationSection
+            }
 
             if !movie.overviewText.isEmpty {
                 detailSection(title: "Overview") {
@@ -147,6 +172,57 @@ struct MovieDetailView: View {
                 }
             }
         }
+    }
+
+    private func dealSection(_ context: MovieDealContext) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Label("\(context.price) Purchase", systemImage: "tag.fill")
+                    .font(.headline)
+                    .foregroundStyle(.tint)
+
+                if context.isInLibrary {
+                    Label("In Library", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
+            }
+
+            Text("Listed in Apple’s U.S. Buy for $4.99 collection as of \(context.lastRefreshed.formatted(date: .abbreviated, time: .shortened)). Confirm the price with Apple before purchasing.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            if let rationale = context.recommendationRationale {
+                Label {
+                    Text(rationale)
+                } icon: {
+                    Image(systemName: "sparkles")
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            }
+
+            if isUSStorefront {
+                Link(destination: context.appleURL) {
+                    Label(
+                        context.isInLibrary ? "View on Apple TV" : "Buy on Apple TV",
+                        systemImage: "arrow.up.right.square"
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint("Leaves Tonight and opens Apple’s movie page")
+            } else {
+                Label(
+                    "Purchase link available in the U.S. Apple storefront",
+                    systemImage: "globe.americas.fill"
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .contain)
     }
 
     private var personalizationSection: some View {

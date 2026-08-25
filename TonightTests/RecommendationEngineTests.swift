@@ -305,6 +305,50 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertEqual(event.mood, .anything)
     }
 
+    func testDealRankingUsesThePersonalLibraryAsItsTasteProfile() {
+        let likedThriller = movie(title: "Liked Thriller", genres: ["Thriller"])
+        likedThriller.isLiked = true
+        let matchingDeal = movie(
+            title: "Matching Deal",
+            genres: ["Thriller"],
+            voteAverage: 6.5
+        )
+        let unrelatedDeal = movie(
+            title: "Unrelated Deal",
+            genres: ["Comedy"],
+            voteAverage: 8.5
+        )
+
+        let rankings = RecommendationEngine.rankDeals(
+            candidates: [
+                DealRecommendationCandidate(id: "match", movie: matchingDeal),
+                DealRecommendationCandidate(id: "other", movie: unrelatedDeal)
+            ],
+            tasteLibrary: [likedThriller],
+            now: now
+        )
+
+        XCTAssertEqual(rankings.first?.id, "match")
+        XCTAssertTrue(rankings.first?.rationale.contains("thriller") == true)
+    }
+
+    func testDealRankingExcludesADealTheUserMarkedNotInterested() {
+        let dislikedDeal = movie(title: "Disliked Deal", genres: ["Drama"])
+        dislikedDeal.isDisliked = true
+        let eligibleDeal = movie(title: "Eligible Deal", genres: ["Drama"])
+
+        let rankings = RecommendationEngine.rankDeals(
+            candidates: [
+                DealRecommendationCandidate(id: "disliked", movie: dislikedDeal),
+                DealRecommendationCandidate(id: "eligible", movie: eligibleDeal)
+            ],
+            tasteLibrary: [dislikedDeal],
+            now: now
+        )
+
+        XCTAssertEqual(rankings.map(\.id), ["eligible"])
+    }
+
     private func movie(
         title: String,
         genres: [String],

@@ -78,6 +78,50 @@ struct RecommendationPick: Identifiable {
 }
 
 enum RecommendationEngine {
+    static func rankDeals(
+        candidates: [DealRecommendationCandidate],
+        tasteLibrary: [Movie],
+        history: [RecommendationEvent] = [],
+        now: Date = .now
+    ) -> [DealRecommendationRank] {
+        let eligible = candidates.filter {
+            $0.movie.resolutionStatus == .resolved && !$0.movie.isDisliked
+        }
+        guard !eligible.isEmpty else { return [] }
+
+        let profile = tasteProfile(
+            from: tasteLibrary,
+            history: history,
+            mood: .anything
+        )
+        let movies = eligible.map(\.movie)
+        let genreFrequencies = genreFrequencies(in: movies)
+        let preferences = RecommendationPreferences()
+
+        return eligible.map { candidate in
+            let score = baseScore(
+                for: candidate.movie,
+                profile: profile,
+                genreFrequencies: genreFrequencies,
+                preferences: preferences,
+                historyPenalty: 0,
+                now: now
+            )
+            return DealRecommendationRank(
+                id: candidate.id,
+                score: score,
+                rationale: dealRationale(
+                    for: candidate.movie,
+                    profile: profile
+                )
+            )
+        }
+        .sorted { left, right in
+            if left.score != right.score { return left.score > right.score }
+            return left.id < right.id
+        }
+    }
+
     static func recommendations(
         from movies: [Movie],
         history: [RecommendationEvent] = [],
@@ -515,6 +559,45 @@ enum RecommendationEngine {
         }
 
         return profile
+    }
+
+    private static func dealRationale(
+        for movie: Movie,
+        profile: TasteProfile
+    ) -> String {
+        let favoredGenres = movie.genres
+            .filter { profile.genres[$0.lowercased(), default: 0] > 0 }
+            .sorted {
+                profile.genres[$0.lowercased(), default: 0]
+                    > profile.genres[$1.lowercased(), default: 0]
+            }
+        let directorMatch = movie.director.flatMap { director in
+            profile.people[director.lowercased(), default: 0] > 0 ? director : nil
+        }
+        let decadeMatch = movie.releaseYear.flatMap { year -> Int? in
+            let decade = (year / 10) * 10
+            return profile.decades[decade, default: 0] > 0 ? decade : nil
+        }
+
+        if let directorMatch, let genre = favoredGenres.first {
+            return "Recommended because \(genre.lowercased()) and director \(directorMatch) both match movies you have responded to positively."
+        }
+        if favoredGenres.count >= 2 {
+            return "Recommended because its \(favoredGenres[0].lowercased()) and \(favoredGenres[1].lowercased()) signals match movies you have responded to positively."
+        }
+        if let directorMatch {
+            return "Recommended because director \(directorMatch) matches movies you have responded to positively."
+        }
+        if let genre = favoredGenres.first {
+            return "Recommended because its \(genre.lowercased()) profile matches movies you have responded to positively."
+        }
+        if let decadeMatch {
+            return "Recommended because movies from the \(decadeMatch)s have matched your positive taste signals."
+        }
+        if let rating = movie.tmdbVoteAverage, rating >= 7 {
+            return "A strong deal candidate supported by a \(rating.formatted(.number.precision(.fractionLength(1)))) TMDB rating."
+        }
+        return "A current deal ranked from the metadata available while Tonight learns more about your taste."
     }
 
     private static func historyPenalties(

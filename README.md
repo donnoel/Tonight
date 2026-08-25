@@ -10,6 +10,14 @@ Use the Library sort menu to order movies A–Z, Z–A, by release year (oldest 
 
 On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
 
+## Apple $4.99 movie deals
+
+**Deals** shows Apple’s current U.S. **Buy for $4.99** movie collection without adding those titles to the personal Library. The adaptive grid includes the verified deal price, TMDB artwork and metadata when available, and an **In Library** badge for movies Tonight already knows you own. Filters show all deals, titles not already in the Library, or deals ranked with the same local taste signals used by Tonight’s recommendation engine.
+
+The catalog is read from Apple’s public, unauthenticated Apple TV collection page. Apple does not document this collection as a catalog API, so `AppleMovieDealsProvider` contains the page URL and minimal parsing assumptions in one replaceable boundary. Only U.S. movie links carrying the collection’s $4.99 purchase-price context are accepted. The app opens Apple’s page for any transaction; Tonight never processes a purchase.
+
+Deal results and temporary TMDB matches are cached locally for six hours. A cached catalog appears immediately and remains usable with its last refresh time if Apple or TMDB is temporarily unavailable. The cache is disposable and is never coupled to SwiftData Library records. Unmatched Apple titles remain visible rather than disappearing.
+
 ## Requirements
 
 - Xcode 26 or later
@@ -40,17 +48,18 @@ xcodebuild -project Tonight.xcodeproj -scheme Tonight \
   -destination 'platform=iOS Simulator,name=Local CI iPhone,OS=26.4' test
 ```
 
-Debug builds also accept `-TonightSeedPreviewLibrary` and `-TonightSeedUnresolvedLibrary` as explicit launch arguments. They insert local fixtures only when requested, allowing detail, persistence, and matching-flow smoke checks without adding sample data to normal app launches.
+Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLibrary`, and `-TonightOpenDeals` as explicit launch arguments. The first two insert local fixtures only when requested; the third opens Deals directly for layout and retrieval smokes without changing normal app launches.
 
 ## Architecture
 
 - `Models/`: SwiftData `Movie` and persisted `RecommendationEvent`
 - `Recommendation/`: deterministic, explainable local scoring and three-pick selection
+- `Deals/`: isolated Apple collection retrieval/parsing, disposable caching, bounded TMDB enrichment, ownership matching, and Deals screen state
 - `Import/`: parsing, collector-suffix search cleanup, normalization, duplicate detection, progress state, and reliable per-title persistence
 - `Library/`: unresolved matching coordination and deterministic presentation ordering
 - `TMDB/`: Bearer-authenticated URLSession client, DTOs, match scoring, rich model mapping, and centralized artwork URLs
-- `Views/`: adaptive app shell, poster library, persisted detail, import/review/progress, unresolved-match queue, History, and Settings
+- `Views/`: adaptive app shell, poster Library and Deals grids, persisted/reused detail, import/review/progress, unresolved-match queue, History, and Settings
 
 TMDB requests use `GET /3/search/movie` and `GET /3/movie/{id}?append_to_response=credits,alternative_titles`. The details response supplies runtime, genres, ratings, language, artwork paths, director, primary cast, and the alternative titles used for narrow fallback confirmation without redundant requests.
 
-General TMDB discovery, streaming availability, accounts, cloud sync, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.
+General TMDB discovery outside the Deals enrichment context, streaming availability, accounts, cloud sync, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.

@@ -4,6 +4,7 @@ import SwiftData
 enum AppSection: String, CaseIterable, Identifiable {
     case tonight
     case library
+    case deals
     case history
     case settings
 
@@ -13,6 +14,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .tonight: "Tonight"
         case .library: "Library"
+        case .deals: "Deals"
         case .history: "History"
         case .settings: "Settings"
         }
@@ -22,6 +24,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .tonight: "moon.stars.fill"
         case .library: "rectangle.stack.fill"
+        case .deals: "tag.fill"
         case .history: "clock.arrow.circlepath"
         case .settings: "gearshape.fill"
         }
@@ -38,7 +41,14 @@ struct AppRootView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("sidebarVisibility") private var sidebarVisibilityRawValue =
         SidebarVisibilityPreference.visible.rawValue
-    @State private var selection: AppSection? = .tonight
+    @State private var selection: AppSection? = {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-TonightOpenDeals") {
+            return .deals
+        }
+        #endif
+        return .tonight
+    }()
 
     var body: some View {
         Group {
@@ -114,6 +124,8 @@ struct AppRootView: View {
             TonightView()
         case .library:
             LibraryView()
+        case .deals:
+            DealsView()
         case .history:
             HistoryView()
         case .settings:

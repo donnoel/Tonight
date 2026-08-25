@@ -4,7 +4,7 @@
 
 Tonight is a personal movie recommendation app. Its defining product rule is that recommendations come from the user's own imported movie library. TMDB enriches that library with metadata and artwork; it never decides what the user owns and must not become the library source of truth.
 
-Success for the current milestone means the established library remains reliable while Tonight produces explainable, responsive recommendations from resolved movies the user owns and learns from their local taste and response history.
+Success for the current milestone means the established library remains reliable while Tonight produces explainable, responsive recommendations from resolved movies the user owns and can separately rank Apple’s current U.S. $4.99 purchase collection without treating deals as owned movies.
 
 ## Current product phase
 
@@ -22,14 +22,15 @@ Current scope:
 - Local, explainable recommendation selection with controlled randomness
 - Human mood profiles, optional tuning choices, rotating recommendation lanes, and recent-session cooldown
 - Persisted recommendation responses and movie-level watched/liked/disliked taste signals
-- Functional Tonight, Library, History, and Settings screens
+- A disposable, cached Apple $4.99 Deals catalog with TMDB enrichment, ownership badges, and taste-based ranking
+- Functional Tonight, Library, Deals, History, and Settings screens
 
 Explicitly out of scope:
 
 - AI/LLM integration
 - Free-form mood interpretation, collaborative filtering, or cloud-trained personalization
-- TMDB discovery outside imported titles
-- Streaming availability, accounts, CloudKit/iCloud, social features, reviews, trailers, external ratings, and purchase/rental links
+- TMDB discovery outside imported titles and the explicit current Apple Deals enrichment context
+- Streaming availability, accounts, CloudKit/iCloud, social features, reviews, trailers, external ratings, and purchase/rental links outside the explicit Apple $4.99 deal link
 
 ## Architecture snapshot
 
@@ -43,6 +44,9 @@ Explicitly out of scope:
 - `MovieImportParser`, `MovieTitleNormalizer`, `LibraryDuplicateDetector`, `MovieMatcher`, and `LibrarySort` are deterministic logic boundaries.
 - `TMDBClient` owns URLSession requests and maps dedicated TMDB DTOs into rich local movie values.
 - `TMDBMatchResolver` combines deterministic search-result matching with a narrow alternative-title confirmation from the selected movie-details response.
+- `AppleMovieDealsProvider` is the only boundary that knows Apple’s public collection URL and page structure; it emits normalized deal records and verifies the collection/link price context.
+- `MovieDealsRepository` loads the disposable cache, reuses existing library/cached metadata, and performs bounded TMDB enrichment outside views.
+- `DealsViewModel` loads cached results immediately, enforces a six-hour refresh lifetime, and preserves cached results with a visible warning when refresh fails.
 - `ImportViewModel` coordinates review state, per-entry progress, partial failure handling, and SwiftData insertion.
 - `UnresolvedMatchViewModel` retries only unambiguous results and coordinates editable, user-confirmed matching into existing movie records.
 - Views read already-persisted details and never refetch TMDB merely because a detail screen opens.
@@ -67,7 +71,11 @@ Explicitly out of scope:
 - Stored rich metadata should power library/detail UI without redundant detail requests.
 - Library sorting and shuffling change presentation order only; they must not rewrite movie records or personal history.
 - Clearing the library requires explicit confirmation.
-- Recommendations must select only resolved, non-disliked records already present in the local library.
+- Normal Tonight recommendations must select only resolved, non-disliked records already present in the local library.
+- Deal recommendations are the sole exception: their candidate pool is the current Apple $4.99 catalog, while the personal library and recommendation history remain the taste source.
+- Deal refreshes must never insert, update, or delete personal-library records.
+- Apple deals without a confident TMDB match remain visible; one failed enrichment must not prevent the remaining catalog from loading.
+- An In Library badge may use exact TMDB identity or a unique normalized title/year fallback, but must not guess when ownership is ambiguous.
 - Mood profiles must describe a viewing feeling rather than act as exact genre filters; runtime, era, quality, familiarity, and watch state contribute alongside genre.
 - Under Two Hours and Unwatched Only are hard tuning filters; Something Older and More Adventurous are ranking and lane preferences.
 - Best Fit balances explicit taste, mood, watch state, quality evidence, and recency; the other two lanes must truthfully match their displayed perspective.
@@ -118,6 +126,8 @@ Explicitly out of scope:
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
 - Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, five-session cooldown, and decaying Not Tonight behavior
 - Recommendation persistence: generated events with mood, responses, and watched/liked/disliked signals survive relaunch
+- Apple deal parsing: expected collection identity, verified $4.99 purchase links, order, duplicate IDs, changed markup, and valid empty catalogs using local fixtures rather than the live site
+- Deals behavior: disposable cache round-trip, cached fallback, missing-credential preservation, bounded TMDB handoff, In Library detection, and recommendation candidate ranking
 
 ## Build and run notes
 
@@ -141,6 +151,7 @@ Explicitly out of scope:
 - Verify automatic retry resolves only unambiguous entries and the one-by-one queue supports editing a query, choosing a candidate, skipping, and relaunch persistence.
 - Verify Library A–Z, Z–A, year, and repeated shuffle ordering on both regular and compact widths.
 - Exercise every mood and tuning option against a varied resolved library, confirm rotating lanes remain truthful, refresh repeatedly to verify cooldown/diversity, record each response type, and verify History and relaunch persistence.
+- Open Deals on iPad and iPhone, verify the live or cached catalog, poster enrichment, All/Not in Library/Recommended filters, manual refresh, Apple link behavior, and graceful offline/format-change messaging.
 - Re-check VoiceOver labels, Dynamic Type, light/dark appearance, and destructive confirmation.
 
 ## Output expectations per patch
