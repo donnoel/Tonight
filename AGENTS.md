@@ -36,7 +36,7 @@ This is an Apple-platform app repository. Work from concrete repository evidence
 - Use stable identity and lazy containers for the poster library.
 - Preserve cancellation as a normal async outcome and make partial bulk-import failure non-fatal.
 - Add abstractions only when they reduce real coupling, duplication, or test friction.
-- Never add recommendation scoring or fake recommendation behavior as part of foundation work.
+- Keep recommendation scoring local, deterministic, explainable, and limited to resolved movies in the user’s own library; never substitute fake picks or general TMDB discovery.
 
 ## Validation
 

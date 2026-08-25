@@ -4,11 +4,11 @@
 
 Tonight is a personal movie recommendation app. Its defining product rule is that recommendations come from the user's own imported movie library. TMDB enriches that library with metadata and artwork; it never decides what the user owns and must not become the library source of truth.
 
-Success for the foundation milestone means a user can paste and review a substantial title list, import obvious TMDB matches without losing ambiguous or failed entries, browse the persisted collection as artwork, inspect rich movie details, and relaunch without losing the library.
+Success for the current milestone means the established library remains reliable while Tonight produces explainable, responsive recommendations from resolved movies the user owns and learns from their local taste and response history.
 
 ## Current product phase
 
-Tonight is in its initial library foundation milestone.
+Tonight is in its first recommendation milestone, built on the completed local-library foundation.
 
 Current scope:
 
@@ -19,13 +19,15 @@ Current scope:
 - Duplicate prevention and preserved unresolved/failed entries
 - Safe automatic retry and user-confirmed TMDB matching for unresolved entries
 - Local Library ordering by title, release year, or an explicitly reshuffled order
-- Foundation screens for Tonight, Library, History, and Settings
-- Persisted recommendation-event schema without recommendation behavior
+- Local, deterministic Best Match, Wildcard, and Forgotten One selection
+- Genre mood preference, immediate refresh rotation, and explainable recommendation reasons
+- Persisted recommendation responses and movie-level watched/liked/disliked taste signals
+- Functional Tonight, Library, History, and Settings screens
 
 Explicitly out of scope:
 
-- Recommendation scoring or selection
 - AI/LLM integration
+- Free-form mood interpretation, advanced collaborative filtering, or cloud-trained personalization
 - TMDB discovery outside imported titles
 - Streaming availability, accounts, CloudKit/iCloud, social features, reviews, trailers, external ratings, and purchase/rental links
 
@@ -35,7 +37,8 @@ Explicitly out of scope:
 - `AppRootView` uses `NavigationSplitView` on regular width and a native `TabView` adaptation on compact width.
 - The regular-width sidebar visibility is a display-only `AppStorage` preference and must restore its last visible or hidden state after relaunch.
 - SwiftData `Movie` records represent both enriched and unresolved personal-library entries.
-- `RecommendationEvent` is persistence groundwork only; no event generation is implemented yet.
+- `RecommendationEngine` ranks eligible resolved movies using local taste, watch state, TMDB quality evidence, library age, and recommendation recency while keeping the three recommendation kinds distinct.
+- `RecommendationEvent` records each generated pick and the user’s accepted, rejected, not-tonight, or watched response.
 - `MovieImportParser`, `MovieTitleNormalizer`, `LibraryDuplicateDetector`, `MovieMatcher`, and `LibrarySort` are deterministic logic boundaries.
 - `TMDBClient` owns URLSession requests and maps dedicated TMDB DTOs into rich local movie values.
 - `TMDBMatchResolver` combines deterministic search-result matching with a narrow alternative-title confirmation from the selected movie-details response.
@@ -63,7 +66,10 @@ Explicitly out of scope:
 - Stored rich metadata should power library/detail UI without redundant detail requests.
 - Library sorting and shuffling change presentation order only; they must not rewrite movie records or personal history.
 - Clearing the library requires explicit confirmation.
-- Recommendation UI may describe Best Match, Wildcard, and Forgotten One, but must not fabricate recommendations before the engine exists.
+- Recommendations must select only resolved, non-disliked records already present in the local library.
+- Best Match balances explicit taste, watch state, quality evidence, and recency; Wildcard favors a credible change of pace; Forgotten One resurfaces long-waiting, under-recommended titles.
+- Refreshing should rotate away from immediately repeated picks when the eligible library is large enough.
+- Recommendation responses and watched/liked/disliked taste signals must persist locally and remain user-controlled.
 
 ## TMDB boundary
 
@@ -80,7 +86,7 @@ Explicitly out of scope:
 - Keep SwiftData access and UI-observed import state on the main actor.
 - Keep TMDB request/DTO work outside views and safe to call with async/await.
 - Save useful progress during a bulk import so one later failure does not roll back earlier successes.
-- Preserve fields reserved for future personal history: watched state/dates, rating, liked/disliked, recommendation count, and recommendation dates.
+- Preserve and update personal history fields deliberately: watched state/dates, rating, liked/disliked, recommendation count, and recommendation dates.
 - Do not add CloudKit or account assumptions to the model until separately designed.
 
 ## UX and accessibility rules
@@ -105,6 +111,8 @@ Explicitly out of scope:
 - Bulk import: one-item failure does not prevent later entries, and unresolved input is preserved
 - Persistence/startup: saved library survives container recreation/relaunch
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
+- Recommendation selection: resolved-only eligibility, distinct picks, genre preference, disliked exclusion, refresh rotation, and forgotten-title resurfacing
+- Recommendation persistence: generated events, responses, and watched/liked/disliked signals survive relaunch
 
 ## Build and run notes
 
@@ -127,6 +135,7 @@ Explicitly out of scope:
 - With a Keychain-configured credential, verify an obvious match, rich details/credits, poster/backdrop loading, unresolved preservation, duplicate re-import, and relaunch persistence.
 - Verify automatic retry resolves only unambiguous entries and the one-by-one queue supports editing a query, choosing a candidate, skipping, and relaunch persistence.
 - Verify Library A–Z, Z–A, year, and repeated shuffle ordering on both regular and compact widths.
+- Generate all three recommendation kinds from a varied resolved library, refresh to rotate picks, record each response type, and verify History and relaunch persistence.
 - Re-check VoiceOver labels, Dynamic Type, light/dark appearance, and destructive confirmation.
 
 ## Output expectations per patch

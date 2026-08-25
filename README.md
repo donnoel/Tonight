@@ -1,6 +1,8 @@
 # Tonight
 
-Tonight is an iPad-first personal movie-library app built with SwiftUI and SwiftData. The imported library is the source of truth for movies the user owns; TMDB is used only to enrich those entries with metadata and artwork.
+Tonight is an iPad-first personal movie recommendation app built with SwiftUI and SwiftData. The imported library is the source of truth for movies the user owns; TMDB is used only to enrich those entries with metadata and artwork.
+
+The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally and appear in History.
 
 Ambiguous titles and special editions remain visible as **Needs Match**. Use **Match Movies** from the Library toolbar to retry safe matches in a batch, then review the remaining TMDB candidates one by one. Automatic matching recognizes common canonical-title variations, collector-edition suffixes, and uniquely confirmed TMDB alternative titles while keeping genuine remake ambiguity for confirmation. A confirmed match enriches the existing local record without replacing personal history.
 
@@ -42,7 +44,8 @@ Debug builds also accept `-TonightSeedPreviewLibrary` and `-TonightSeedUnresolve
 
 ## Architecture
 
-- `Models/`: SwiftData `Movie` and future-facing `RecommendationEvent`
+- `Models/`: SwiftData `Movie` and persisted `RecommendationEvent`
+- `Recommendation/`: deterministic, explainable local scoring and three-pick selection
 - `Import/`: parsing, collector-suffix search cleanup, normalization, duplicate detection, progress state, and reliable per-title persistence
 - `Library/`: unresolved matching coordination and deterministic presentation ordering
 - `TMDB/`: Bearer-authenticated URLSession client, DTOs, match scoring, rich model mapping, and centralized artwork URLs
@@ -50,4 +53,4 @@ Debug builds also accept `-TonightSeedPreviewLibrary` and `-TonightSeedUnresolve
 
 TMDB requests use `GET /3/search/movie` and `GET /3/movie/{id}?append_to_response=credits,alternative_titles`. The details response supplies runtime, genres, ratings, language, artwork paths, director, primary cast, and the alternative titles used for narrow fallback confirmation without redundant requests.
 
-Recommendation logic, discovery, streaming availability, accounts, cloud sync, and AI are intentionally deferred.
+General TMDB discovery, streaming availability, accounts, cloud sync, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.

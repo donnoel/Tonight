@@ -1,6 +1,9 @@
+import SwiftData
 import SwiftUI
 
 struct MovieDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+    @State private var saveError: String?
     let movie: Movie
 
     var body: some View {
@@ -30,6 +33,13 @@ struct MovieDetailView: View {
         .ignoresSafeArea(edges: .top)
         .navigationTitle(movie.title)
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Couldn’t Save Your Taste", isPresented: saveErrorIsPresented) {
+            Button("OK", role: .cancel) {
+                saveError = nil
+            }
+        } message: {
+            Text(saveError ?? "Please try again.")
+        }
     }
 
     private var backdrop: some View {
@@ -109,6 +119,8 @@ struct MovieDetailView: View {
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
             }
 
+            personalizationSection
+
             if !movie.overviewText.isEmpty {
                 detailSection(title: "Overview") {
                     Text(movie.overviewText)
@@ -137,6 +149,95 @@ struct MovieDetailView: View {
         }
     }
 
+    private var personalizationSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Your Taste")
+                .font(.headline)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    watchedButton
+                    likedButton
+                    dislikedButton
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    watchedButton
+                    likedButton
+                    dislikedButton
+                }
+            }
+
+            Text("These choices stay on this device and help Tonight improve future recommendations.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var watchedButton: some View {
+        Button {
+            movie.isWatched.toggle()
+            if movie.isWatched {
+                movie.dateWatched = movie.dateWatched ?? .now
+                movie.lastWatchedDate = .now
+            } else {
+                movie.dateWatched = nil
+                movie.lastWatchedDate = nil
+            }
+            savePersonalization()
+        } label: {
+            Label(
+                movie.isWatched ? "Watched" : "Mark Watched",
+                systemImage: movie.isWatched ? "eye.circle.fill" : "eye.circle"
+            )
+        }
+        .buttonStyle(.bordered)
+        .accessibilityValue(movie.isWatched ? "Selected" : "Not selected")
+    }
+
+    private var likedButton: some View {
+        Button {
+            movie.isLiked.toggle()
+            if movie.isLiked {
+                movie.isDisliked = false
+            }
+            savePersonalization()
+        } label: {
+            Label(
+                movie.isLiked ? "Liked" : "Like",
+                systemImage: movie.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
+            )
+        }
+        .buttonStyle(.bordered)
+        .accessibilityValue(movie.isLiked ? "Selected" : "Not selected")
+    }
+
+    private var dislikedButton: some View {
+        Button {
+            movie.isDisliked.toggle()
+            if movie.isDisliked {
+                movie.isLiked = false
+            }
+            savePersonalization()
+        } label: {
+            Label(
+                movie.isDisliked ? "Not Interested" : "Not for Me",
+                systemImage: movie.isDisliked ? "hand.thumbsdown.fill" : "hand.thumbsdown"
+            )
+        }
+        .buttonStyle(.bordered)
+        .accessibilityValue(movie.isDisliked ? "Selected" : "Not selected")
+    }
+
+    private var saveErrorIsPresented: Binding<Bool> {
+        Binding(
+            get: { saveError != nil },
+            set: { isPresented in
+                if !isPresented { saveError = nil }
+            }
+        )
+    }
+
     private var summaryLine: String {
         var values: [String] = []
         if let year = movie.releaseYear {
@@ -163,6 +264,15 @@ struct MovieDetailView: View {
         return "\(hours)h \(remaining)m"
     }
 
+    private func savePersonalization() {
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            saveError = "Your preference couldn’t be saved. The rest of your library is unchanged."
+        }
+    }
+
     private func detailSection<Content: View>(
         title: String,
         @ViewBuilder content: () -> Content
@@ -176,4 +286,3 @@ struct MovieDetailView: View {
         .accessibilityElement(children: .combine)
     }
 }
-
