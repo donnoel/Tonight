@@ -1,0 +1,62 @@
+name: Tonight
+options:
+  bundleIdPrefix: com.donnoel
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    SWIFT_STRICT_CONCURRENCY: complete
+    IPHONEOS_DEPLOYMENT_TARGET: 18.0
+targets:
+  Tonight:
+    type: application
+    platform: iOS
+    sources:
+      - path: Tonight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.donnoel.Tonight
+        PRODUCT_NAME: Tonight
+        INFOPLIST_FILE: Tonight/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: false
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: H7LG8SK72M
+        DEVELOPMENT_ASSET_PATHS: '"Tonight/Preview Content"'
+  TonightTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TonightTests
+    dependencies:
+      - target: Tonight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.donnoel.TonightTests
+        GENERATE_INFOPLIST_FILE: true
+schemes:
+  Tonight:
+    build:
+      targets:
+        Tonight: all
+        TonightTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - TonightTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
