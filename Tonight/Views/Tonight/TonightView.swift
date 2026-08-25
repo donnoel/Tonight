@@ -17,13 +17,17 @@ struct TonightView: View {
     private var columns: [GridItem] {
         Array(
             repeating: GridItem(.flexible(), spacing: 20, alignment: .top),
-            count: horizontalSizeClass == .regular ? 3 : 1
+            count: 3
         )
+    }
+
+    private var usesCompactLayout: Bool {
+        horizontalSizeClass != .regular
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 30) {
+            VStack(alignment: .leading, spacing: usesCompactLayout ? 20 : 30) {
                 hero
 
                 if eligibleMovies.isEmpty {
@@ -35,10 +39,11 @@ struct TonightView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 28)
-            .padding(.vertical, 32)
+            .padding(.horizontal, usesCompactLayout ? 20 : 28)
+            .padding(.vertical, usesCompactLayout ? 16 : 32)
         }
         .navigationTitle("Tonight")
+        .navigationBarTitleDisplayMode(usesCompactLayout ? .inline : .automatic)
         .alert("Couldn’t Save Recommendations", isPresented: saveErrorIsPresented) {
             Button("OK", role: .cancel) {
                 saveError = nil
@@ -48,7 +53,16 @@ struct TonightView: View {
         }
     }
 
+    @ViewBuilder
     private var hero: some View {
+        if usesCompactLayout {
+            compactHero
+        } else {
+            regularHero
+        }
+    }
+
+    private var regularHero: some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "moon.stars.fill")
                 .font(.system(size: 42))
@@ -85,18 +99,51 @@ struct TonightView: View {
         }
     }
 
-    private var moodMenu: some View {
-        Menu {
-            ForEach(RecommendationMood.allCases) { mood in
-                Button {
-                    moodRawValue = mood.rawValue
-                } label: {
-                    Label(
-                        mood.title,
-                        systemImage: selectedMood == mood ? "checkmark" : mood.systemImage
-                    )
+    private var compactHero: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: "moon.stars.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+
+                Text("What are you in the mood for?")
+                    .font(.title2.bold())
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("Personalized picks from movies already in your library.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    compactMoodMenu
+                    compactTuningMenu(showsTitle: true)
+                    if !currentEvents.isEmpty {
+                        compactRefreshButton
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    compactMoodMenu
+                    compactTuningMenu(showsTitle: false)
+                    if !currentEvents.isEmpty {
+                        compactRefreshButton
+                    }
                 }
             }
+
+            if currentEvents.isEmpty {
+                recommendationButton
+            }
+        }
+        .accessibilityIdentifier("tonight.compact.header")
+    }
+
+    private var moodMenu: some View {
+        Menu {
+            moodMenuContent
         } label: {
             Label(
                 "Mood: \(selectedMood.title)",
@@ -108,43 +155,36 @@ struct TonightView: View {
         .accessibilityHint("Chooses the feeling and pace for tonight’s recommendations")
     }
 
+    private var compactMoodMenu: some View {
+        Menu {
+            moodMenuContent
+        } label: {
+            Label(selectedMood.title, systemImage: selectedMood.systemImage)
+                .lineLimit(1)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .accessibilityLabel("Mood: \(selectedMood.title)")
+        .accessibilityHint("Chooses the feeling and pace for tonight’s recommendations")
+    }
+
+    @ViewBuilder
+    private var moodMenuContent: some View {
+        ForEach(RecommendationMood.allCases) { mood in
+            Button {
+                moodRawValue = mood.rawValue
+            } label: {
+                Label(
+                    mood.title,
+                    systemImage: selectedMood == mood ? "checkmark" : mood.systemImage
+                )
+            }
+        }
+    }
+
     private var tuningMenu: some View {
         Menu {
-            tuningButton(
-                "Under Two Hours",
-                systemImage: "timer",
-                isEnabled: underTwoHours
-            ) {
-                underTwoHours.toggle()
-            }
-            tuningButton(
-                "Unwatched Only",
-                systemImage: "eye.slash",
-                isEnabled: unwatchedOnly
-            ) {
-                unwatchedOnly.toggle()
-            }
-            tuningButton(
-                "Something Older",
-                systemImage: "calendar",
-                isEnabled: somethingOlder
-            ) {
-                somethingOlder.toggle()
-            }
-            tuningButton(
-                "More Adventurous",
-                systemImage: "safari",
-                isEnabled: moreAdventurous
-            ) {
-                moreAdventurous.toggle()
-            }
-
-            if preferences.activeModifierCount > 0 {
-                Divider()
-                Button("Reset Tuning", role: .destructive) {
-                    resetTuning()
-                }
-            }
+            tuningMenuContent
         } label: {
             Label(
                 preferences.activeModifierCount == 0
@@ -158,6 +198,70 @@ struct TonightView: View {
         .accessibilityHint("Adds optional runtime, watch-state, age, and adventure preferences")
     }
 
+    private func compactTuningMenu(showsTitle: Bool) -> some View {
+        Menu {
+            tuningMenuContent
+        } label: {
+            if showsTitle {
+                Label(
+                    preferences.activeModifierCount == 0
+                        ? "Tune"
+                        : "Tune (\(preferences.activeModifierCount))",
+                    systemImage: "slider.horizontal.3"
+                )
+            } else {
+                Image(systemName: "slider.horizontal.3")
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .accessibilityLabel(
+            preferences.activeModifierCount == 0
+                ? "Tune Picks"
+                : "Tune Picks, \(preferences.activeModifierCount) active"
+        )
+        .accessibilityHint("Adds optional runtime, watch-state, age, and adventure preferences")
+    }
+
+    @ViewBuilder
+    private var tuningMenuContent: some View {
+        tuningButton(
+            "Under Two Hours",
+            systemImage: "timer",
+            isEnabled: underTwoHours
+        ) {
+            underTwoHours.toggle()
+        }
+        tuningButton(
+            "Unwatched Only",
+            systemImage: "eye.slash",
+            isEnabled: unwatchedOnly
+        ) {
+            unwatchedOnly.toggle()
+        }
+        tuningButton(
+            "Something Older",
+            systemImage: "calendar",
+            isEnabled: somethingOlder
+        ) {
+            somethingOlder.toggle()
+        }
+        tuningButton(
+            "More Adventurous",
+            systemImage: "safari",
+            isEnabled: moreAdventurous
+        ) {
+            moreAdventurous.toggle()
+        }
+
+        if preferences.activeModifierCount > 0 {
+            Divider()
+            Button("Reset Tuning", role: .destructive) {
+                resetTuning()
+            }
+        }
+    }
+
     private var recommendationButton: some View {
         Button {
             generateRecommendations()
@@ -169,6 +273,19 @@ struct TonightView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
+        .accessibilityHint("Creates new recommendations from resolved movies in your library")
+    }
+
+    private var compactRefreshButton: some View {
+        Button {
+            generateRecommendations()
+        } label: {
+            Image(systemName: "arrow.clockwise")
+                .frame(minWidth: 20, minHeight: 20)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .accessibilityLabel("Refresh Picks")
         .accessibilityHint("Creates new recommendations from resolved movies in your library")
     }
 
@@ -206,7 +323,16 @@ struct TonightView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
     }
 
+    @ViewBuilder
     private var currentRecommendations: some View {
+        if usesCompactLayout {
+            compactRecommendations
+        } else {
+            regularRecommendations
+        }
+    }
+
+    private var regularRecommendations: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Your Picks")
@@ -234,6 +360,64 @@ struct TonightView: View {
                                 respond(to: event, with: response)
                             }
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    private var compactRecommendations: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Your Picks")
+                    .font(.title3.bold())
+
+                Spacer()
+
+                Text("\(eligibleMovies.count.formatted()) movies")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let event = currentEvents.first,
+               let movie = event.movie {
+                CompactPrimaryRecommendationCard(
+                    event: event,
+                    movie: movie,
+                    rationale: RecommendationEngine.rationale(
+                        for: movie,
+                        kind: event.kind,
+                        mood: event.mood
+                    ),
+                    onRespond: { response in
+                        respond(to: event, with: response)
+                    }
+                )
+            }
+
+            let secondaryEvents = Array(currentEvents.dropFirst())
+            if !secondaryEvents.isEmpty {
+                Text("More Picks")
+                    .font(.headline)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 12) {
+                        ForEach(secondaryEvents) { event in
+                            if let movie = event.movie {
+                                CompactSecondaryRecommendationCard(
+                                    event: event,
+                                    movie: movie,
+                                    rationale: RecommendationEngine.rationale(
+                                        for: movie,
+                                        kind: event.kind,
+                                        mood: event.mood
+                                    ),
+                                    onRespond: { response in
+                                        respond(to: event, with: response)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -414,45 +598,198 @@ private struct RecommendationCard: View {
 
             Spacer(minLength: 0)
 
-            if event.response == .pending {
-                HStack(spacing: 10) {
-                    Button("Choose") {
-                        onRespond(.accepted)
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Menu {
-                        Button {
-                            onRespond(.notTonight)
-                        } label: {
-                            Label("Not Tonight", systemImage: "moon.zzz")
-                        }
-
-                        Button {
-                            onRespond(.watched)
-                        } label: {
-                            Label("Already Watched", systemImage: "eye.circle")
-                        }
-
-                        Button {
-                            onRespond(.rejected)
-                        } label: {
-                            Label("Not Interested", systemImage: "hand.thumbsdown")
-                        }
-                    } label: {
-                        Label("More Responses", systemImage: "ellipsis.circle")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            } else {
-                Label(event.response.title, systemImage: event.response.systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
+            RecommendationResponseControls(
+                event: event,
+                compact: false,
+                onRespond: onRespond
+            )
         }
         .frame(maxWidth: .infinity, minHeight: 610, alignment: .topLeading)
         .padding(20)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
         .accessibilityElement(children: .contain)
+    }
+}
+
+private struct CompactPrimaryRecommendationCard: View {
+    let event: RecommendationEvent
+    let movie: Movie
+    let rationale: String
+    let onRespond: (RecommendationResponse) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(event.kind.title, systemImage: event.kind.systemImage)
+                .font(.headline)
+                .foregroundStyle(.tint)
+
+            NavigationLink {
+                MovieDetailView(movie: movie)
+            } label: {
+                ZStack(alignment: .bottomLeading) {
+                    RemoteArtworkView(
+                        url: TMDBImageURL.make(
+                            path: movie.backdropPath ?? movie.posterPath,
+                            size: movie.backdropPath == nil ? .posterDetail : .backdrop
+                        ),
+                        aspectRatio: 16 / 9,
+                        cornerRadius: 16
+                    )
+
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.82)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(movie.title)
+                            .font(.title2.bold())
+                            .lineLimit(2)
+
+                        Text(movie.releaseYear.map(String.init) ?? "Year unknown")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.82))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(14)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                "\(movie.title), \(movie.releaseYear.map(String.init) ?? "year unknown")"
+            )
+            .accessibilityHint("Opens movie details")
+
+            Text(rationale)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            RecommendationResponseControls(
+                event: event,
+                compact: true,
+                onRespond: onRespond
+            )
+        }
+        .padding(16)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tonight.best-fit.card")
+    }
+}
+
+private struct CompactSecondaryRecommendationCard: View {
+    let event: RecommendationEvent
+    let movie: Movie
+    let rationale: String
+    let onRespond: (RecommendationResponse) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(event.kind.title, systemImage: event.kind.systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.tint)
+
+            NavigationLink {
+                MovieDetailView(movie: movie)
+            } label: {
+                VStack(alignment: .leading, spacing: 8) {
+                    RemoteArtworkView(
+                        url: TMDBImageURL.make(
+                            path: movie.backdropPath ?? movie.posterPath,
+                            size: movie.backdropPath == nil ? .posterDetail : .backdrop
+                        ),
+                        aspectRatio: 16 / 9,
+                        cornerRadius: 14
+                    )
+
+                    Text(movie.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+
+                    Text(movie.releaseYear.map(String.init) ?? "Year unknown")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens movie details")
+
+            Text(rationale)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+
+            RecommendationResponseControls(
+                event: event,
+                compact: true,
+                onRespond: onRespond
+            )
+        }
+        .frame(width: 236)
+        .frame(minHeight: 300, alignment: .topLeading)
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct RecommendationResponseControls: View {
+    let event: RecommendationEvent
+    let compact: Bool
+    let onRespond: (RecommendationResponse) -> Void
+
+    var body: some View {
+        if event.response == .pending {
+            HStack(spacing: 10) {
+                Button("Choose") {
+                    onRespond(.accepted)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Menu {
+                    Button {
+                        onRespond(.notTonight)
+                    } label: {
+                        Label("Not Tonight", systemImage: "moon.zzz")
+                    }
+
+                    Button {
+                        onRespond(.watched)
+                    } label: {
+                        Label("Already Watched", systemImage: "eye.circle")
+                    }
+
+                    Button {
+                        onRespond(.rejected)
+                    } label: {
+                        Label("Not Interested", systemImage: "hand.thumbsdown")
+                    }
+                } label: {
+                    if compact {
+                        Image(systemName: "ellipsis.circle")
+                    } else {
+                        Label("More Responses", systemImage: "ellipsis.circle")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("More Responses")
+                .accessibilityHint("Shows options for skipping, watched, or not interested")
+            }
+            .controlSize(compact ? .large : .regular)
+        } else {
+            Label(event.response.title, systemImage: event.response.systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
     }
 }
