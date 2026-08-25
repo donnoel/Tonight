@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct TonightView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Movie.title) private var movies: [Movie]
     @Query(sort: \RecommendationEvent.recommendedAt, order: .reverse)
@@ -9,9 +10,12 @@ struct TonightView: View {
     @AppStorage("tonightPreferredGenre") private var preferredGenreRawValue = ""
     @State private var saveError: String?
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 250, maximum: 360), spacing: 20, alignment: .top)
-    ]
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: 20, alignment: .top),
+            count: horizontalSizeClass == .regular ? 3 : 1
+        )
+    }
 
     var body: some View {
         ScrollView {
@@ -26,7 +30,7 @@ struct TonightView: View {
                     currentRecommendations
                 }
             }
-            .frame(maxWidth: 1120, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 28)
             .padding(.vertical, 32)
         }
