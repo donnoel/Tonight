@@ -248,7 +248,7 @@ struct MovieDetailView: View {
 
             watchedButton
 
-            Text("Your watched status stays on this device and helps Tonight improve future recommendations.")
+            Text("Your watched status syncs through private iCloud and helps Tonight improve future recommendations.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

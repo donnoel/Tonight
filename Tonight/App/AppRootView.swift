@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 enum AppSection: String, CaseIterable, Identifiable {
     case tonight
@@ -37,8 +38,15 @@ private enum SidebarVisibilityPreference: String {
 }
 
 struct AppRootView: View {
+    private static let logger = Logger(
+        subsystem: "com.donnoel.Tonight",
+        category: "LibrarySync"
+    )
+
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
+    @Query private var movies: [Movie]
+    @Query private var recommendationEvents: [RecommendationEvent]
     @AppStorage("sidebarVisibility") private var sidebarVisibilityRawValue =
         SidebarVisibilityPreference.visible.rawValue
     @State private var selection: AppSection? = {
@@ -63,6 +71,19 @@ struct AppRootView: View {
             DebugLibrarySeeder.installIfRequested(in: modelContext)
         }
         #endif
+        .task {
+            reconcileSyncedLibrary()
+            refreshWidgetFromSyncedHistory()
+        }
+        .onChange(of: movies.count) {
+            reconcileSyncedLibrary()
+        }
+        .onChange(of: recommendationEvents.count) {
+            reconcileSyncedLibrary()
+        }
+        .onChange(of: widgetSyncSignature) {
+            refreshWidgetFromSyncedHistory()
+        }
         .onOpenURL { url in
             guard url.scheme?.lowercased() == "tonight",
                   url.host?.lowercased() == "picks" else {
@@ -70,6 +91,38 @@ struct AppRootView: View {
             }
             selection = .tonight
         }
+    }
+
+    private func reconcileSyncedLibrary() {
+        do {
+            try LibrarySyncReconciler.reconcile(in: modelContext)
+        } catch {
+            Self.logger.error(
+                "Synced library reconciliation failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    private var widgetSyncSignature: [String] {
+        recommendationEvents.map { event in
+            let movie = event.movie
+            return [
+                event.id.uuidString,
+                event.responseRawValue,
+                movie?.id.uuidString ?? "",
+                movie?.title ?? "",
+                movie?.posterPath ?? "",
+                movie?.isWatched == true ? "watched" : "unwatched",
+                movie?.isDisliked == true ? "disliked" : "eligible",
+            ].joined(separator: "|")
+        }
+        .sorted()
+    }
+
+    private func refreshWidgetFromSyncedHistory() {
+        guard let latestDate = recommendationEvents.map(\.recommendedAt).max() else { return }
+        let latestEvents = recommendationEvents.filter { $0.recommendedAt == latestDate }
+        TonightWidgetSnapshotPublisher.publish(events: latestEvents)
     }
 
     private var regularWidthLayout: some View {
