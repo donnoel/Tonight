@@ -97,6 +97,57 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertTrue(RecommendationResponse.accepted.removesMovieFromActivePicks)
     }
 
+    func testActiveEventsHideWatchedMoviesWhenUnwatchedOnlyIsEnabled() {
+        let watchedResponseMovie = movie(title: "Already Watched", genres: ["Comedy"])
+        watchedResponseMovie.isWatched = true
+        let watchedResponse = RecommendationEvent(
+            movie: watchedResponseMovie,
+            recommendedAt: now,
+            kind: .shortAndSharp,
+            response: .watched
+        )
+
+        let watchedElsewhereMovie = movie(title: "Marked in Details", genres: ["Drama"])
+        watchedElsewhereMovie.isWatched = true
+        let watchedElsewhere = RecommendationEvent(
+            movie: watchedElsewhereMovie,
+            recommendedAt: now,
+            kind: .hiddenGem
+        )
+
+        let unwatchedMovie = movie(title: "Still Unwatched", genres: ["Thriller"])
+        let unwatched = RecommendationEvent(
+            movie: unwatchedMovie,
+            recommendedAt: now,
+            kind: .bestMatch
+        )
+
+        let active = RecommendationEngine.activeEvents(
+            from: [watchedResponse, watchedElsewhere, unwatched],
+            preferences: RecommendationPreferences(unwatchedOnly: true)
+        )
+
+        XCTAssertEqual(active.map(\.movie?.id), [unwatchedMovie.id])
+    }
+
+    func testActiveEventsKeepChosenMovieVisibleAsConfirmation() {
+        let chosenMovie = movie(title: "Chosen", genres: ["Drama"])
+        chosenMovie.isWatched = true
+        let chosen = RecommendationEvent(
+            movie: chosenMovie,
+            recommendedAt: now,
+            kind: .bestMatch,
+            response: .accepted
+        )
+
+        let active = RecommendationEngine.activeEvents(
+            from: [chosen],
+            preferences: RecommendationPreferences(unwatchedOnly: true)
+        )
+
+        XCTAssertEqual(active.map(\.movie?.id), [chosenMovie.id])
+    }
+
     func testFiveRecentSessionsAreExcludedWhenFreshChoicesExist() {
         let recentMovies = (1...5).map {
             movie(title: "Recent \($0)", genres: ["Drama"])

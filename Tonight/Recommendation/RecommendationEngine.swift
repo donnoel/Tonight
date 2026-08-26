@@ -129,12 +129,7 @@ enum RecommendationEngine {
         now: Date = .now,
         seed: UInt64? = nil
     ) -> [RecommendationPick] {
-        let eligible = movies.filter {
-            $0.resolutionStatus == .resolved
-                && !$0.isDisliked
-                && (!preferences.underTwoHours || ($0.runtimeMinutes ?? .max) <= 120)
-                && (!preferences.unwatchedOnly || !$0.isWatched)
-        }
+        let eligible = movies.filter { isEligible($0, preferences: preferences) }
         guard !eligible.isEmpty else { return [] }
 
         let recentIDs = recentSessionMovieIDs(from: history, now: now)
@@ -233,6 +228,47 @@ enum RecommendationEngine {
         }
 
         return picks
+    }
+
+    static func isEligible(
+        _ movie: Movie,
+        preferences: RecommendationPreferences
+    ) -> Bool {
+        movie.resolutionStatus == .resolved
+            && !movie.isDisliked
+            && (!preferences.underTwoHours || (movie.runtimeMinutes ?? .max) <= 120)
+            && (!preferences.unwatchedOnly || !movie.isWatched)
+    }
+
+    static func activeEvents(
+        from events: [RecommendationEvent],
+        preferences: RecommendationPreferences
+    ) -> [RecommendationEvent] {
+        guard let latestDate = events.compactMap({ event in
+            event.movie == nil ? nil : event.recommendedAt
+        }).max() else {
+            return []
+        }
+
+        return events
+            .filter { event in
+                guard event.recommendedAt == latestDate,
+                      let movie = event.movie else {
+                    return false
+                }
+
+                if event.response == .accepted {
+                    return true
+                }
+
+                guard event.response != .watched,
+                      event.response != .rejected else {
+                    return false
+                }
+
+                return isEligible(movie, preferences: preferences)
+            }
+            .sorted { $0.kind.sortOrder < $1.kind.sortOrder }
     }
 
     static func rationale(

@@ -296,15 +296,21 @@ struct TonightView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No Movies Ready Yet", systemImage: "film.stack")
+            Label(emptyStateTitle, systemImage: "film.stack")
         } description: {
             if movies.isEmpty {
                 Text("Import movies in Library, then return here for recommendations.")
-            } else {
+            } else if resolvedMovies.isEmpty {
                 Text("Resolve at least one TMDB match in Library so Tonight has movie details to work with.")
+            } else {
+                Text("No resolved movies match the current Tune Picks options. Adjust the tuning and try again.")
             }
         }
         .frame(maxWidth: .infinity, minHeight: 320)
+    }
+
+    private var emptyStateTitle: String {
+        resolvedMovies.isEmpty ? "No Movies Ready Yet" : "No Movies Match Tuning"
     }
 
     private var readyState: some View {
@@ -429,9 +435,15 @@ struct TonightView: View {
         }
     }
 
-    private var eligibleMovies: [Movie] {
+    private var resolvedMovies: [Movie] {
         movies.filter {
             $0.resolutionStatus == .resolved && !$0.isDisliked
+        }
+    }
+
+    private var eligibleMovies: [Movie] {
+        movies.filter {
+            RecommendationEngine.isEligible($0, preferences: preferences)
         }
     }
 
@@ -450,13 +462,10 @@ struct TonightView: View {
     }
 
     private var currentEvents: [RecommendationEvent] {
-        guard let latestDate = events.first(where: { $0.movie != nil })?.recommendedAt else {
-            return []
-        }
-
-        return events
-            .filter { $0.movie != nil && $0.recommendedAt == latestDate }
-            .sorted { $0.kind.sortOrder < $1.kind.sortOrder }
+        RecommendationEngine.activeEvents(
+            from: events,
+            preferences: preferences
+        )
     }
 
     private var saveErrorIsPresented: Binding<Bool> {
