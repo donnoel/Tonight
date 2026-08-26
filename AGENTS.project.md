@@ -22,6 +22,7 @@ Current scope:
 - Local, explainable recommendation selection with controlled randomness
 - Human mood profiles, optional tuning choices, rotating recommendation lanes, and recent-session cooldown
 - Persisted recommendation responses and movie-level watched/liked/disliked taste signals
+- iCloud key-value sync for watched/unwatched state only; the library and recommendation history remain local
 - A medium WidgetKit widget showing the top persisted Tonight recommendation
 - A disposable, cached Apple $4.99 Deals catalog with TMDB enrichment, ownership badges, and taste-based ranking
 - Functional Tonight, Library, Deals, History, and Settings screens
@@ -31,7 +32,7 @@ Explicitly out of scope:
 - AI/LLM integration
 - Free-form mood interpretation, collaborative filtering, or cloud-trained personalization
 - TMDB discovery outside imported titles and the explicit current Apple Deals enrichment context
-- Streaming availability, accounts, CloudKit/iCloud, social features, reviews, trailers, external ratings, and purchase/rental links outside the explicit Apple $4.99 deal link
+- Streaming availability, accounts, whole-library CloudKit sync, social features, reviews, trailers, external ratings, and purchase/rental links outside the explicit Apple $4.99 deal link
 
 ## Architecture snapshot
 
@@ -42,6 +43,7 @@ Explicitly out of scope:
 - `RecommendationEngine` combines a human mood profile with runtime, watch state, era, language, quality evidence, cast/director familiarity, local response history, and controlled randomness from a credible shortlist.
 - Each recommendation set contains a Best Fit plus two rotating lanes such as Hidden Gem, Short & Sharp, Comfort Rewatch, Different Decade, Deep Cut, or Wildcard.
 - `RecommendationEvent` records each generated pick, its selected mood, and the user’s accepted, rejected, not-tonight, or watched response.
+- `WatchedStateSyncCoordinator` exchanges only compact watched-state records through iCloud key-value storage and reconciles them by TMDB identity or normalized title/year.
 - The `TonightWidgetExtension` reads a compact App Group snapshot published by the app; it never opens SwiftData or receives the TMDB credential.
 - `MovieImportParser`, `MovieTitleNormalizer`, `LibraryDuplicateDetector`, `MovieMatcher`, and `LibrarySort` are deterministic logic boundaries.
 - `TMDBClient` owns URLSession requests and maps dedicated TMDB DTOs into rich local movie values.
@@ -105,7 +107,8 @@ Explicitly out of scope:
 - Save useful progress during a bulk import so one later failure does not roll back earlier successes.
 - Preserve and update personal history fields deliberately: watched state/dates, rating, liked/disliked, recommendation count, and recommendation dates.
 - Share only display-ready recommendation snapshots with the widget through `group.com.donnoel.Tonight`; the app’s SwiftData store remains authoritative.
-- Do not add CloudKit or account assumptions to the model until separately designed.
+- Keep the imported library, recommendation history, settings, and TMDB credential out of iCloud; watched-state sync is the only cloud-backed state.
+- Do not add CloudKit or whole-library sync assumptions to the model until separately designed.
 
 ## UX and accessibility rules
 
@@ -132,6 +135,7 @@ Explicitly out of scope:
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
 - Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, five-session cooldown, and decaying Not Tonight behavior
 - Recommendation persistence: generated events with mood, responses, and watched/liked/disliked signals survive relaunch
+- Watched-state sync: TMDB and title/year identity matching, newest-change-wins resolution, unwatch propagation, legacy watched bootstrap, and unrelated remote records preserved
 - Widget snapshot persistence: binary property-list round trip, pick removal, empty state, artwork fallback, and app-to-widget refresh
 - Apple deal parsing: expected collection identity, verified $4.99 purchase links, order, duplicate IDs, changed markup, and valid empty catalogs using local fixtures rather than the live site
 - Deals behavior: disposable cache round-trip, cached fallback, missing-credential preservation, bounded TMDB handoff, In Library detection, and recommendation candidate ranking

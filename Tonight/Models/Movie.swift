@@ -33,6 +33,7 @@ final class Movie {
 
     var isWatched: Bool
     var dateWatched: Date?
+    var watchedStateModifiedAt: Date?
     var userRating: Double?
     var isLiked: Bool
     var isDisliked: Bool
@@ -92,6 +93,7 @@ final class Movie {
         self.resolutionNote = resolutionNote
         self.isWatched = false
         self.dateWatched = nil
+        self.watchedStateModifiedAt = nil
         self.userRating = nil
         self.isLiked = false
         self.isDisliked = false
@@ -101,4 +103,3 @@ final class Movie {
         self.lastRecommendedDate = nil
     }
 }
-

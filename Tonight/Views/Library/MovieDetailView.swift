@@ -248,7 +248,7 @@ struct MovieDetailView: View {
 
             watchedButton
 
-            Text("Your watched status stays on this device and helps Tonight improve future recommendations.")
+            Text("Your watched status syncs through iCloud and helps Tonight improve future recommendations.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -256,16 +256,21 @@ struct MovieDetailView: View {
 
     private var watchedButton: some View {
         Button {
+            let changedAt = Date.now
             movie.isWatched.toggle()
             if movie.isWatched {
-                movie.dateWatched = movie.dateWatched ?? .now
-                movie.lastWatchedDate = .now
+                movie.dateWatched = movie.dateWatched ?? changedAt
+                movie.lastWatchedDate = changedAt
             } else {
                 movie.dateWatched = nil
                 movie.lastWatchedDate = nil
             }
-            if savePersonalization(), movie.isWatched {
-                TonightWidgetSnapshotPublisher.removeMovie(id: movie.id)
+            movie.watchedStateModifiedAt = changedAt
+            if savePersonalization() {
+                WatchedStateSyncCoordinator.shared.localStateDidSave(for: movie)
+                if movie.isWatched {
+                    TonightWidgetSnapshotPublisher.removeMovie(id: movie.id)
+                }
             }
         } label: {
             Label(

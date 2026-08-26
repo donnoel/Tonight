@@ -60,9 +60,7 @@ enum LocalLibraryDuplicateRepair {
     ) {
         canonical.importedTitle = preferredText(canonical.importedTitle, duplicate.importedTitle)
         canonical.importedYear = canonical.importedYear ?? duplicate.importedYear
-        canonical.isWatched = canonical.isWatched || duplicate.isWatched
-        canonical.dateWatched = latest(canonical.dateWatched, duplicate.dateWatched)
-        canonical.lastWatchedDate = latest(canonical.lastWatchedDate, duplicate.lastWatchedDate)
+        mergeWatchedState(from: duplicate, into: canonical)
         canonical.userRating = canonical.userRating ?? duplicate.userRating
         canonical.isDisliked = canonical.isDisliked || duplicate.isDisliked
         canonical.isLiked = !canonical.isDisliked && (canonical.isLiked || duplicate.isLiked)
@@ -97,6 +95,47 @@ enum LocalLibraryDuplicateRepair {
 
     private static func preferredText(_ lhs: String, _ rhs: String) -> String {
         lhs.isEmpty ? rhs : lhs
+    }
+
+    private static func mergeWatchedState(from source: Movie, into destination: Movie) {
+        let sourceTimestamp = watchedStateTimestamp(for: source)
+        let destinationTimestamp = watchedStateTimestamp(for: destination)
+
+        if let sourceTimestamp {
+            if let destinationTimestamp {
+                if sourceTimestamp > destinationTimestamp {
+                    copyWatchedState(from: source, to: destination, modifiedAt: sourceTimestamp)
+                    return
+                }
+            } else {
+                copyWatchedState(from: source, to: destination, modifiedAt: sourceTimestamp)
+                return
+            }
+        }
+        if let destinationTimestamp {
+            destination.watchedStateModifiedAt = destinationTimestamp
+            return
+        }
+
+        destination.isWatched = destination.isWatched || source.isWatched
+        destination.dateWatched = latest(destination.dateWatched, source.dateWatched)
+        destination.lastWatchedDate = latest(destination.lastWatchedDate, source.lastWatchedDate)
+    }
+
+    private static func watchedStateTimestamp(for movie: Movie) -> Date? {
+        movie.watchedStateModifiedAt
+            ?? (movie.isWatched ? movie.lastWatchedDate ?? movie.dateWatched : nil)
+    }
+
+    private static func copyWatchedState(
+        from source: Movie,
+        to destination: Movie,
+        modifiedAt: Date
+    ) {
+        destination.isWatched = source.isWatched
+        destination.dateWatched = source.isWatched ? source.dateWatched : nil
+        destination.lastWatchedDate = source.isWatched ? source.lastWatchedDate : nil
+        destination.watchedStateModifiedAt = modifiedAt
     }
 
     private static func latest(_ lhs: Date?, _ rhs: Date?) -> Date? {

@@ -557,6 +557,11 @@ struct TonightView: View {
 
         if acceptedEventsNeedingWatchState.isEmpty || saveChanges() {
             didMigrateAcceptedChoicesToWatched = true
+            for event in acceptedEventsNeedingWatchState {
+                if let movie = event.movie {
+                    WatchedStateSyncCoordinator.shared.localStateDidSave(for: movie)
+                }
+            }
         }
 
         TonightWidgetSnapshotPublisher.publish(events: currentEvents)
@@ -578,10 +583,15 @@ struct TonightView: View {
 
         response.applyMovieState(to: event.movie, at: responseDate)
 
-        if saveChanges(),
-           response.removesMovieFromActivePicks,
-           let movieID = event.movie?.id {
-            TonightWidgetSnapshotPublisher.removeMovie(id: movieID)
+        if saveChanges() {
+            if response == .accepted || response == .watched,
+               let movie = event.movie {
+                WatchedStateSyncCoordinator.shared.localStateDidSave(for: movie)
+            }
+            if response.removesMovieFromActivePicks,
+               let movieID = event.movie?.id {
+                TonightWidgetSnapshotPublisher.removeMovie(id: movieID)
+            }
         }
     }
 

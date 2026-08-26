@@ -4,6 +4,8 @@ Tonight is an iPad-first personal movie recommendation app built with SwiftUI an
 
 The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally and appear in History.
 
+Watched status syncs between the user’s Apple devices through iCloud key-value storage. Choosing a Tonight recommendation and using **Mark Watched** both update the same watched state; the imported library, recommendation history, settings, artwork, and TMDB credential remain local to each device.
+
 Ambiguous titles and special editions remain visible as **Needs Match**. Select one of those movies and use **Find TMDB Match** on its detail screen to associate the correct artwork and metadata directly, or use **Match Movies** from the Library toolbar to retry safe matches in a batch before reviewing the remainder. Automatic matching recognizes common canonical-title variations, collector-edition suffixes, and uniquely confirmed TMDB alternative titles while keeping genuine remake ambiguity for confirmation. A confirmed match enriches the existing local record without replacing personal history.
 
 Library search matches titles, years, genres, directors, and cast. **Library Options** can show all, unwatched, or watched movies and sort by title, release year, date added, runtime, rating, or last watched in either direction. Shuffle remains a one-tap toolbar action. These choices only change the grid presentation and never modify the stored collection.
@@ -63,9 +65,10 @@ Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLi
 - `Deals/`: isolated Apple collection retrieval/parsing, disposable caching, bounded TMDB enrichment, ownership matching, and Deals screen state
 - `Import/`: parsing, collector-suffix search cleanup, normalization, duplicate detection, progress state, and reliable per-title persistence
 - `Library/`: unresolved matching coordination and deterministic presentation ordering
+- `Sync/`: compact watched-state-only iCloud reconciliation with deterministic movie identity and conflict handling
 - `TMDB/`: Bearer-authenticated URLSession client, DTOs, match scoring, rich model mapping, and centralized artwork URLs
 - `Views/`: adaptive app shell, poster Library and Deals grids, persisted/reused detail, import/review/progress, unresolved-match queue, History, and Settings
 
 TMDB requests use `GET /3/search/movie` and `GET /3/movie/{id}?append_to_response=credits,alternative_titles`. The details response supplies runtime, genres, ratings, language, artwork paths, director, primary cast, and the alternative titles used for narrow fallback confirmation without redundant requests.
 
-General TMDB discovery outside the Deals enrichment context, streaming availability, accounts, cloud sync, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.
+General TMDB discovery outside the Deals enrichment context, streaming availability, accounts, whole-library cloud sync, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.

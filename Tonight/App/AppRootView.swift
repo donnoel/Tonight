@@ -45,6 +45,7 @@ struct AppRootView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("sidebarVisibility") private var sidebarVisibilityRawValue =
         SidebarVisibilityPreference.visible.rawValue
     @State private var selection: AppSection? = {
@@ -71,6 +72,18 @@ struct AppRootView: View {
         #endif
         .task {
             repairDuplicateImports()
+            WatchedStateSyncCoordinator.shared.start(in: modelContext)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            WatchedStateSyncCoordinator.shared.reconcile(in: modelContext)
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSUbiquitousKeyValueStore.didChangeExternallyNotification
+            )
+        ) { _ in
+            WatchedStateSyncCoordinator.shared.reconcile(in: modelContext)
         }
         .onOpenURL { url in
             guard url.scheme?.lowercased() == "tonight",

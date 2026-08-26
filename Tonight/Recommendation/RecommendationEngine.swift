@@ -819,6 +819,7 @@ extension RecommendationResponse {
             movie.isWatched = true
             movie.dateWatched = movie.dateWatched ?? date
             movie.lastWatchedDate = date
+            movie.watchedStateModifiedAt = date
         case .rejected:
             movie.isLiked = false
             movie.isDisliked = true

@@ -94,6 +94,7 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertTrue(chosen.isWatched)
         XCTAssertEqual(chosen.dateWatched, now)
         XCTAssertEqual(chosen.lastWatchedDate, now)
+        XCTAssertEqual(chosen.watchedStateModifiedAt, now)
         XCTAssertTrue(RecommendationResponse.accepted.removesMovieFromActivePicks)
     }
 

@@ -226,6 +226,7 @@ final class ImportViewModel {
             failed: entries.count { $0.state == .failed }
         )
         phase = .completed
+        WatchedStateSyncCoordinator.shared.reconcile(in: modelContext)
     }
 
     private func persist(_ movie: Movie, in context: ModelContext, index: Int) -> Bool {

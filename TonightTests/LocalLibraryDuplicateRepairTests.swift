@@ -14,6 +14,7 @@ final class LocalLibraryDuplicateRepairTests: XCTestCase {
         )
         unresolved.isWatched = true
         unresolved.dateWatched = Date(timeIntervalSince1970: 200)
+        unresolved.watchedStateModifiedAt = Date(timeIntervalSince1970: 300)
         unresolved.userRating = 4.5
         let resolved = Movie(
             tmdbID: 8077,
@@ -47,6 +48,7 @@ final class LocalLibraryDuplicateRepairTests: XCTestCase {
         XCTAssertEqual(savedMovie.resolutionStatus, .resolved)
         XCTAssertEqual(savedMovie.posterPath, "/poster.jpg")
         XCTAssertTrue(savedMovie.isWatched)
+        XCTAssertEqual(savedMovie.watchedStateModifiedAt, Date(timeIntervalSince1970: 300))
         XCTAssertEqual(savedMovie.userRating, 4.5)
         XCTAssertTrue(savedEvent.movie === savedMovie)
         XCTAssertEqual(
@@ -90,6 +92,44 @@ final class LocalLibraryDuplicateRepairTests: XCTestCase {
 
         XCTAssertEqual(summary.consolidatedMovies, 0)
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Movie>()), 3)
+    }
+
+    @MainActor
+    func testConsolidationPreservesNewerExplicitUnwatchedState() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let watchedDuplicate = Movie(
+            title: "Alien 3",
+            importedTitle: "Alien 3",
+            resolutionStatus: .unresolved
+        )
+        watchedDuplicate.isWatched = true
+        watchedDuplicate.dateWatched = Date(timeIntervalSince1970: 100)
+        watchedDuplicate.lastWatchedDate = Date(timeIntervalSince1970: 100)
+        watchedDuplicate.watchedStateModifiedAt = Date(timeIntervalSince1970: 100)
+        let resolved = Movie(
+            tmdbID: 8077,
+            title: "Alien³",
+            importedTitle: "Alien 3",
+            releaseYear: 1992,
+            resolutionStatus: .resolved
+        )
+        resolved.isWatched = false
+        resolved.watchedStateModifiedAt = Date(timeIntervalSince1970: 200)
+        context.insert(watchedDuplicate)
+        context.insert(resolved)
+        try context.save()
+
+        try LocalLibraryDuplicateRepair.consolidate(
+            watchedDuplicate,
+            into: resolved,
+            in: context
+        )
+
+        XCTAssertFalse(resolved.isWatched)
+        XCTAssertNil(resolved.dateWatched)
+        XCTAssertNil(resolved.lastWatchedDate)
+        XCTAssertEqual(resolved.watchedStateModifiedAt, Date(timeIntervalSince1970: 200))
     }
 
     @MainActor
