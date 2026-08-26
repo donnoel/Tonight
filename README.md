@@ -1,6 +1,6 @@
 # Tonight
 
-Tonight is an iPad-first personal movie recommendation app built with SwiftUI and SwiftData. The imported library is the source of truth for movies the user owns; TMDB is used only to enrich those entries with metadata and artwork. The private iCloud library keeps iPhone and iPad aligned for movie details and matches, watched state, recommendation history, and meaningful browsing preferences.
+Tonight is an iPad-first personal movie recommendation app built with SwiftUI and SwiftData. The imported library is the source of truth for movies the user owns; TMDB is used only to enrich those entries with metadata and artwork.
 
 The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally and appear in History.
 
@@ -9,14 +9,6 @@ Ambiguous titles and special editions remain visible as **Needs Match**. Select 
 Library search matches titles, years, genres, directors, and cast. **Library Options** can show all, unwatched, or watched movies and sort by title, release year, date added, runtime, rating, or last watched in either direction. Shuffle remains a one-tap toolbar action. These choices only change the grid presentation and never modify the stored collection.
 
 On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
-
-## iPhone and iPad sync
-
-SwiftData records sync through the user’s private `iCloud.com.donnoel.Tonight` CloudKit database. This includes the complete owned library, unresolved and confirmed TMDB matches, watched state, personal recommendation signals, and History. Tonight also uses iCloud key-value storage for mood/tuning and Library sort/filter choices. Existing overlapping libraries are reconciled after sync using stable movie identity, TMDB identity, then the same normalized title/year fallback used by import duplicate detection.
-
-Sync is local-first and eventually consistent: either device remains usable offline and iCloud delivers saved changes when available. Settings reports Apple Account availability, not a misleading “fully synced” state because CloudKit controls delivery timing.
-
-The TMDB credential deliberately remains in each device’s `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` Keychain. Disposable Deals cache files, widget artwork snapshots, and device-specific presentation such as iPad sidebar visibility also remain local. When synced watch or recommendation changes reach the running app, it republishes the latest eligible pick into that device’s widget snapshot.
 
 ## Tonight's Pick widget
 
@@ -76,4 +68,4 @@ Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLi
 
 TMDB requests use `GET /3/search/movie` and `GET /3/movie/{id}?append_to_response=credits,alternative_titles`. The details response supplies runtime, genres, ratings, language, artwork paths, director, primary cast, and the alternative titles used for narrow fallback confirmation without redundant requests.
 
-General TMDB discovery outside the Deals enrichment context, streaming availability, shared app accounts, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.
+General TMDB discovery outside the Deals enrichment context, streaming availability, accounts, cloud sync, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.

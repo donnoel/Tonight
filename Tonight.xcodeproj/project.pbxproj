@@ -14,11 +14,9 @@
 		1AF5CC7C0FB16DD0BCF06A52 /* LibraryDuplicateDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A96BD2898FC4EF76837426F /* LibraryDuplicateDetector.swift */; };
 		1D100CD3E61672ED86CD7A95 /* TonightWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53BA1F5047C503ECD58D363 /* TonightWidgetSnapshot.swift */; };
 		1FCCFC0919EBBEF596BABD6A /* MatchLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52737890FEE329F8FE1F07D9 /* MatchLibraryView.swift */; };
-		223C80FB726D2B9C6769B658 /* LibrarySyncReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0633AE536855C3B104A172 /* LibrarySyncReconciler.swift */; };
 		2246A84BFF70A8144376E6E2 /* MovieDealsCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3935F73E07F23F696F689A9B /* MovieDealsCache.swift */; };
 		25834F881E78DC7738F1F69B /* DealsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAC7C05A4311FF057F1F809C /* DealsViewModelTests.swift */; };
 		25FE557880D1E920EA71CDA6 /* LibraryImportEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FFFF80D221B57587B2F412 /* LibraryImportEntry.swift */; };
-		28C2308978AC27CE3C01E342 /* TonightModelContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29CD8943860048AD984E438 /* TonightModelContainer.swift */; };
 		2C56C3566A94C0F98067AE02 /* TonightWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7476838787AC3CDF8D64806 /* TonightWidgetBundle.swift */; };
 		2DCFAB41BEC9A1B01A55877E /* RecommendationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F38372B6C80159C4F399E8 /* RecommendationEngineTests.swift */; };
 		2FC2053A4A6883D494838A4C /* AppleMovieDealsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4064933EE42E3F529BD05818 /* AppleMovieDealsProvider.swift */; };
@@ -58,17 +56,14 @@
 		D689ED9D2032D32A5CB9FBDA /* DealsTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 898664A0692D587A6BBA4F7C /* DealsTestSupport.swift */; };
 		D85CB583812F9113FF59E31A /* MovieImportParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15169B32FDFCBAD57BA2C1D /* MovieImportParser.swift */; };
 		D95725DD046E4D1514ECD007 /* TonightPicksWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8DDB0921934E94066C553F7 /* TonightPicksWidget.swift */; };
-		DD477DBFCD28EC35D199A6E2 /* ICloudAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22ECF3142480BE3E08C842A4 /* ICloudAccountService.swift */; };
 		DDFF347FF92FA8B9959A5550 /* UnresolvedMatchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EF8B2978B6D4330CE6E024E /* UnresolvedMatchViewModel.swift */; };
 		E4D82AC6CE8D4BBDB9231251 /* MovieTitleNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD2098D804B99E3925E0E230 /* MovieTitleNormalizer.swift */; };
-		E5203A912F5602ADA59E3A2A /* CloudSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80453237E4A82698D372B99A /* CloudSyncTests.swift */; };
 		E5509D47E80563205B8956C7 /* LibrarySortTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D5FAA817484101F39E2F6C /* LibrarySortTests.swift */; };
 		E8589831CA4F9022680095DE /* ImportLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C683C9BA8ED1F7D42F4DE39 /* ImportLibraryView.swift */; };
 		F2850FD8A672266F1DB38288 /* TonightWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A93441D4E2F0D3E2663A2CB1 /* TonightWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F5298568BEAC9AEF2B48E319 /* TonightWidgetSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA281305CF418AD51D5837CA /* TonightWidgetSnapshotPublisher.swift */; };
 		FAA92D3DE5C1A0738020B615 /* MovieFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8A2417CE6AD332F4479AFEA /* MovieFactoryTests.swift */; };
 		FD95F1D65CB9F20DA1CDBE6B /* MovieSearchQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52AFE73666620DB9DEF0D8AB /* MovieSearchQuery.swift */; };
-		FE6E41BD0CACFF3B2247AA4C /* SyncedPreferencesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA2ECEF538F25BCEC56484F /* SyncedPreferencesCoordinator.swift */; };
 		FE8180B1AD3299CB6FE7B2E9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2DD1F1507CB8FFE86243FA1A /* Assets.xcassets */; };
 		FF3C1129D3E2F2C85EAA744D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6835FA6367F16268D90D191A /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -106,12 +101,10 @@
 
 /* Begin PBXFileReference section */
 		06BD1EDE67712EC46E2FB62C /* DebugLibrarySeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLibrarySeeder.swift; sourceTree = "<group>"; };
-		0A0633AE536855C3B104A172 /* LibrarySyncReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncReconciler.swift; sourceTree = "<group>"; };
 		0ACE76128CC27409697502B5 /* MovieDateParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieDateParser.swift; sourceTree = "<group>"; };
 		0AFF371A7DC034A964406ECE /* MovieImportParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieImportParserTests.swift; sourceTree = "<group>"; };
 		10222A546DECE7A4E8C08DB8 /* MovieFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieFactory.swift; sourceTree = "<group>"; };
 		1EA09265B06EEE4851809278 /* DealLibraryMatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DealLibraryMatcherTests.swift; sourceTree = "<group>"; };
-		22ECF3142480BE3E08C842A4 /* ICloudAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudAccountService.swift; sourceTree = "<group>"; };
 		23F4994F3FA9AC84B799BABC /* MovieSearchQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieSearchQueryTests.swift; sourceTree = "<group>"; };
 		273C7F6468F6814164BAD49D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2A4CE5AC06A3181ED4590A48 /* RecommendationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationEvent.swift; sourceTree = "<group>"; };
@@ -134,7 +127,6 @@
 		7072E59A90770D067AE674ED /* DealsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DealsView.swift; sourceTree = "<group>"; };
 		74D987373D1685B6D9435AA4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7AA694AF5EE3381F8C9906EC /* MovieDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieDetailView.swift; sourceTree = "<group>"; };
-		80453237E4A82698D372B99A /* CloudSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncTests.swift; sourceTree = "<group>"; };
 		821E2FA69C6A22F3E76E808B /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		8857001DC42E1BB90C2EEF55 /* RecommendationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationEngine.swift; sourceTree = "<group>"; };
 		898664A0692D587A6BBA4F7C /* DealsTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DealsTestSupport.swift; sourceTree = "<group>"; };
@@ -161,10 +153,8 @@
 		C23F68853A01857EBCCE7373 /* MovieMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieMatcher.swift; sourceTree = "<group>"; };
 		C6D5FAA817484101F39E2F6C /* LibrarySortTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySortTests.swift; sourceTree = "<group>"; };
 		CA281305CF418AD51D5837CA /* TonightWidgetSnapshotPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonightWidgetSnapshotPublisher.swift; sourceTree = "<group>"; };
-		CAA2ECEF538F25BCEC56484F /* SyncedPreferencesCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncedPreferencesCoordinator.swift; sourceTree = "<group>"; };
 		CF1D291C187C0180BF490204 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		D1D4574B7ADA247716529B80 /* Tonight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Tonight.entitlements; sourceTree = "<group>"; };
-		D29CD8943860048AD984E438 /* TonightModelContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonightModelContainer.swift; sourceTree = "<group>"; };
 		D590D4BE90B9BE12306B9364 /* TonightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TonightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6F38372B6C80159C4F399E8 /* RecommendationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationEngineTests.swift; sourceTree = "<group>"; };
 		EE342E95922E3B534A976777 /* MovieDealsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieDealsRepository.swift; sourceTree = "<group>"; };
@@ -183,14 +173,6 @@
 				97081DF7F284EAA2A95B0157 /* TonightView.swift */,
 			);
 			path = Tonight;
-			sourceTree = "<group>";
-		};
-		40BD07930301F286159E04AC /* Persistence */ = {
-			isa = PBXGroup;
-			children = (
-				D29CD8943860048AD984E438 /* TonightModelContainer.swift */,
-			);
-			path = Persistence;
 			sourceTree = "<group>";
 		};
 		45ADE486B1662A2103C6BABC /* Deals */ = {
@@ -217,7 +199,6 @@
 			isa = PBXGroup;
 			children = (
 				9A6FC42107D3A4E3C6D83CE9 /* AppleMovieDealsParserTests.swift */,
-				80453237E4A82698D372B99A /* CloudSyncTests.swift */,
 				1EA09265B06EEE4851809278 /* DealLibraryMatcherTests.swift */,
 				898664A0692D587A6BBA4F7C /* DealsTestSupport.swift */,
 				BAC7C05A4311FF057F1F809C /* DealsViewModelTests.swift */,
@@ -402,26 +383,14 @@
 				8E624DCF6C7A057F5A3D4C94 /* Import */,
 				A640B48906774C3878897D22 /* Library */,
 				9DC52588B243D835DE331E7C /* Models */,
-				40BD07930301F286159E04AC /* Persistence */,
 				BC9A80B7CC65DE053A7ACC11 /* Preview Content */,
 				D7D351EE54565304FDBC7CD5 /* Recommendation */,
 				8CABD4B38AE509C2903759CE /* Resources */,
-				EAE5C4B506F23E3532CCA27B /* Sync */,
 				76F07616A8B4459F11806A85 /* TMDB */,
 				4DD78A47901A6635388191D6 /* Views */,
 				B2C660508B9C8D33A354FC91 /* WidgetSupport */,
 			);
 			path = Tonight;
-			sourceTree = "<group>";
-		};
-		EAE5C4B506F23E3532CCA27B /* Sync */ = {
-			isa = PBXGroup;
-			children = (
-				22ECF3142480BE3E08C842A4 /* ICloudAccountService.swift */,
-				0A0633AE536855C3B104A172 /* LibrarySyncReconciler.swift */,
-				CAA2ECEF538F25BCEC56484F /* SyncedPreferencesCoordinator.swift */,
-			);
-			path = Sync;
 			sourceTree = "<group>";
 		};
 		F1B39D0D6773BE3D714C3FAE /* History */ = {
@@ -578,7 +547,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				4A1AA86AB82B2FB7E2ECE8B5 /* AppleMovieDealsParserTests.swift in Sources */,
-				E5203A912F5602ADA59E3A2A /* CloudSyncTests.swift in Sources */,
 				BC5F067C8B529E0338CAA259 /* DealLibraryMatcherTests.swift in Sources */,
 				D689ED9D2032D32A5CB9FBDA /* DealsTestSupport.swift in Sources */,
 				25834F881E78DC7738F1F69B /* DealsViewModelTests.swift in Sources */,
@@ -607,13 +575,11 @@
 				6515A0613CF5FEF02C50A70F /* DealsViewModel.swift in Sources */,
 				CDC0E739824508BFE0EA7066 /* DebugLibrarySeeder.swift in Sources */,
 				32EF50F2494055B303CB1C9F /* HistoryView.swift in Sources */,
-				DD477DBFCD28EC35D199A6E2 /* ICloudAccountService.swift in Sources */,
 				E8589831CA4F9022680095DE /* ImportLibraryView.swift in Sources */,
 				7ACBF5074EAAD678B9F95F45 /* ImportViewModel.swift in Sources */,
 				1AF5CC7C0FB16DD0BCF06A52 /* LibraryDuplicateDetector.swift in Sources */,
 				25FE557880D1E920EA71CDA6 /* LibraryImportEntry.swift in Sources */,
 				141851EEE27777811CF02BAA /* LibrarySort.swift in Sources */,
-				223C80FB726D2B9C6769B658 /* LibrarySyncReconciler.swift in Sources */,
 				B9C2A0699EF8AF6A74B1ED28 /* LibraryView.swift in Sources */,
 				1FCCFC0919EBBEF596BABD6A /* MatchLibraryView.swift in Sources */,
 				D67CF163603C681EE9480C79 /* Movie.swift in Sources */,
@@ -630,14 +596,12 @@
 				7C77E439AA3B29E239DF4F1A /* RecommendationEvent.swift in Sources */,
 				8ACF3D3B8A917FFCCD217695 /* RemoteArtworkView.swift in Sources */,
 				5E1F127C5383F959223C903B /* SettingsView.swift in Sources */,
-				FE6E41BD0CACFF3B2247AA4C /* SyncedPreferencesCoordinator.swift in Sources */,
 				35F9A9583936100DED1E6BC6 /* TMDBClient.swift in Sources */,
 				9592020A7AA2B54EC774C943 /* TMDBCredentialStore.swift in Sources */,
 				104BD56AA1FB328335A30B67 /* TMDBDTOs.swift in Sources */,
 				4B0FC3212F93F6F823B7CE78 /* TMDBImageURL.swift in Sources */,
 				4972410F25B73D3CEB51938E /* TMDBMatchResolver.swift in Sources */,
 				334DFF278A110A3217BB74CD /* TonightApp.swift in Sources */,
-				28C2308978AC27CE3C01E342 /* TonightModelContainer.swift in Sources */,
 				AB3ED62C5B7C4D71313918A2 /* TonightView.swift in Sources */,
 				1D100CD3E61672ED86CD7A95 /* TonightWidgetSnapshot.swift in Sources */,
 				F5298568BEAC9AEF2B48E319 /* TonightWidgetSnapshotPublisher.swift in Sources */,

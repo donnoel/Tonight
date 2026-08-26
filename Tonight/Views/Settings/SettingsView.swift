@@ -27,7 +27,6 @@ private enum SettingsAlert: Identifiable {
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var movies: [Movie]
-    @State private var iCloudAvailability: ICloudAccountAvailability = .checking
     @State private var credentialStatus: CredentialStatus = .loading
     @State private var tokenInput = ""
     @State private var isSavingCredential = false
@@ -57,24 +56,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section {
-                HStack {
-                    Text("Library Sync")
-                    Spacer()
-                    iCloudStatusLabel
-                }
-
-                if iCloudAvailability != .available && iCloudAvailability != .checking {
-                    Button("Check Again") {
-                        Task { await refreshICloudAvailability() }
-                    }
-                }
-            } header: {
-                Text("iCloud")
-            } footer: {
-                Text("Your library, TMDB matches, watched status, recommendation history, and shared browsing choices sync privately between devices using the same Apple Account. Changes may take a moment to arrive.")
-            }
-
             Section {
                 HStack {
                     Text("Authentication")
@@ -153,16 +134,14 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .task {
-            async let credentialRefresh: Void = refreshCredentialStatus()
-            async let iCloudRefresh: Void = refreshICloudAvailability()
-            _ = await (credentialRefresh, iCloudRefresh)
+            await refreshCredentialStatus()
         }
         .alert(item: $presentedAlert) { destination in
             switch destination {
             case .clearLibrary:
                 Alert(
                     title: Text("Clear Library?"),
-                    message: Text("This permanently removes all movies, including unresolved imports, from iCloud and your connected devices."),
+                    message: Text("This permanently removes all movies, including unresolved imports, from this device."),
                     primaryButton: .destructive(Text("Clear Library"), action: clearLibrary),
                     secondaryButton: .cancel()
                 )
@@ -182,31 +161,6 @@ struct SettingsView: View {
                     dismissButton: .default(Text("OK"))
                 )
             }
-        }
-    }
-
-    @ViewBuilder
-    private var iCloudStatusLabel: some View {
-        switch iCloudAvailability {
-        case .checking:
-            ProgressView()
-                .controlSize(.small)
-                .accessibilityLabel("Checking iCloud")
-        case .available:
-            Label("Available", systemImage: "checkmark.icloud.fill")
-                .foregroundStyle(.green)
-        case .noAccount:
-            Label("Sign In Required", systemImage: "person.crop.circle.badge.exclamationmark")
-                .foregroundStyle(.secondary)
-        case .restricted:
-            Label("Restricted", systemImage: "lock.icloud.fill")
-                .foregroundStyle(.secondary)
-        case .temporarilyUnavailable:
-            Label("Temporarily Unavailable", systemImage: "icloud.slash")
-                .foregroundStyle(.secondary)
-        case .unavailable:
-            Label("Unavailable", systemImage: "exclamationmark.icloud")
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -242,11 +196,6 @@ struct SettingsView: View {
             credentialStatus = .notConfigured
             presentedAlert = .error("Tonight could not read the TMDB credential from Keychain.")
         }
-    }
-
-    private func refreshICloudAvailability() async {
-        iCloudAvailability = .checking
-        iCloudAvailability = await ICloudAccountService.shared.availability()
     }
 
     private func saveCredential() async {
@@ -291,7 +240,7 @@ struct SettingsView: View {
             try modelContext.save()
         } catch {
             modelContext.rollback()
-            presentedAlert = .error("Tonight could not clear the library.")
+            presentedAlert = .error("Tonight could not clear the local library.")
         }
     }
 }

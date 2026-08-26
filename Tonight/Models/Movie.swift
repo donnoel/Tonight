@@ -9,40 +9,37 @@ enum MovieResolutionStatus: String, Codable, CaseIterable, Sendable {
 
 @Model
 final class Movie {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID
     var tmdbID: Int?
-    var title: String = ""
+    var title: String
     var originalTitle: String?
-    var normalizedTitle: String = ""
-    var importedTitle: String = ""
+    var normalizedTitle: String
+    var importedTitle: String
     var importedYear: Int?
     var releaseDate: Date?
     var releaseYear: Int?
-    var overviewText: String = ""
+    var overviewText: String
     var posterPath: String?
     var backdropPath: String?
     var runtimeMinutes: Int?
-    var genres: [String] = []
+    var genres: [String]
     var tmdbVoteAverage: Double?
     var tmdbVoteCount: Int?
     var director: String?
-    var primaryCast: [String] = []
+    var primaryCast: [String]
     var originalLanguage: String?
-    var resolutionStatusRawValue: String = MovieResolutionStatus.unresolved.rawValue
+    var resolutionStatusRawValue: String
     var resolutionNote: String?
 
-    var isWatched: Bool = false
+    var isWatched: Bool
     var dateWatched: Date?
     var userRating: Double?
-    var isLiked: Bool = false
-    var isDisliked: Bool = false
-    var dateAdded: Date = Date.now
+    var isLiked: Bool
+    var isDisliked: Bool
+    var dateAdded: Date
     var lastWatchedDate: Date?
-    var recommendationCount: Int = 0
+    var recommendationCount: Int
     var lastRecommendedDate: Date?
-
-    @Relationship(deleteRule: .nullify, inverse: \RecommendationEvent.movie)
-    var recommendationEvents: [RecommendationEvent]? = []
 
     var resolutionStatus: MovieResolutionStatus {
         get { MovieResolutionStatus(rawValue: resolutionStatusRawValue) ?? .unresolved }
@@ -104,3 +101,4 @@ final class Movie {
         self.lastRecommendedDate = nil
     }
 }
+

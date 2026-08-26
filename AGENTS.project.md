@@ -13,7 +13,7 @@ Tonight is in its first recommendation milestone, built on the completed local-l
 Current scope:
 
 - Native SwiftUI app for iPad and iPhone, with iPad-first navigation and layout
-- Local-first SwiftData movie library backed by the user’s private iCloud database
+- Local SwiftData movie library
 - Paste, parse, review, and bulk-import workflow
 - Bearer-token TMDB search, matching, details, credits, and artwork enrichment
 - Duplicate prevention and preserved unresolved/failed entries
@@ -31,12 +31,11 @@ Explicitly out of scope:
 - AI/LLM integration
 - Free-form mood interpretation, collaborative filtering, or cloud-trained personalization
 - TMDB discovery outside imported titles and the explicit current Apple Deals enrichment context
-- Streaming availability, shared app accounts, social features, reviews, trailers, external ratings, and purchase/rental links outside the explicit Apple $4.99 deal link
+- Streaming availability, accounts, CloudKit/iCloud, social features, reviews, trailers, external ratings, and purchase/rental links outside the explicit Apple $4.99 deal link
 
 ## Architecture snapshot
 
 - `TonightApp` owns the root SwiftData model container for `Movie` and `RecommendationEvent`.
-- `TonightModelContainer` preserves the default local store while enabling the private `iCloud.com.donnoel.Tonight` CloudKit database; `LibrarySyncReconciler` merges overlapping pre-sync libraries without discarding watch or match history.
 - `AppRootView` uses `NavigationSplitView` on regular width and a native `TabView` adaptation on compact width.
 - The regular-width sidebar visibility is a display-only `AppStorage` preference and must restore its last visible or hidden state after relaunch.
 - SwiftData `Movie` records represent both enriched and unresolved personal-library entries.
@@ -44,7 +43,6 @@ Explicitly out of scope:
 - Each recommendation set contains a Best Fit plus two rotating lanes such as Hidden Gem, Short & Sharp, Comfort Rewatch, Different Decade, Deep Cut, or Wildcard.
 - `RecommendationEvent` records each generated pick, its selected mood, and the user’s accepted, rejected, not-tonight, or watched response.
 - The `TonightWidgetExtension` reads a compact App Group snapshot published by the app; it never opens SwiftData or receives the TMDB credential.
-- When synced movie or recommendation state arrives while the app is running, the app republishes the latest eligible recommendation snapshot so the local widget follows the shared library.
 - `MovieImportParser`, `MovieTitleNormalizer`, `LibraryDuplicateDetector`, `MovieMatcher`, and `LibrarySort` are deterministic logic boundaries.
 - `TMDBClient` owns URLSession requests and maps dedicated TMDB DTOs into rich local movie values.
 - `TMDBMatchResolver` combines deterministic search-result matching with a narrow alternative-title confirmation from the selected movie-details response.
@@ -86,7 +84,7 @@ Explicitly out of scope:
 - Refreshing should avoid movies from the five most recent recommendation sessions when the eligible library is large enough.
 - Not Tonight is a temporary, decaying penalty; Not Interested remains a user-controlled exclusion.
 - A recommendation set should reduce repeated genres, directors, principal cast, and decades when credible alternatives exist.
-- Recommendation responses and watched/liked/disliked taste signals must persist locally, sync privately through iCloud, and remain user-controlled.
+- Recommendation responses and watched/liked/disliked taste signals must persist locally and remain user-controlled.
 - Choosing a recommendation for tonight must immediately mark that movie watched while preserving the accepted response in History.
 - The widget must show the top eligible pick from the latest successfully saved recommendation set, promote an alternate after watched or rejected movies are removed, and degrade to a useful empty state when no snapshot is available.
 
@@ -106,9 +104,8 @@ Explicitly out of scope:
 - Keep TMDB request/DTO work outside views and safe to call with async/await.
 - Save useful progress during a bulk import so one later failure does not roll back earlier successes.
 - Preserve and update personal history fields deliberately: watched state/dates, rating, liked/disliked, recommendation count, and recommendation dates.
-- Share only display-ready recommendation snapshots with the widget through `group.com.donnoel.Tonight`; the app’s local-first, private-CloudKit SwiftData store remains authoritative.
-- Sync the complete owned library and recommendation history between devices signed into the same Apple Account. Sync mood/tuning and Library sort/filter choices through iCloud key-value storage, but keep the TMDB Keychain credential, disposable caches, widget files, and device-specific presentation local.
-- Treat iCloud delivery as eventually consistent and never claim an “up to date” state that CloudKit cannot prove. If the synced store cannot open, show an honest unavailable state rather than silently replacing it with an empty store.
+- Share only display-ready recommendation snapshots with the widget through `group.com.donnoel.Tonight`; the app’s SwiftData store remains authoritative.
+- Do not add CloudKit or account assumptions to the model until separately designed.
 
 ## UX and accessibility rules
 
@@ -132,7 +129,6 @@ Explicitly out of scope:
 - Library browsing: metadata search, watched-state filters, title/year/added/runtime/rating/last-watched ordering with missing values last, and stable explicit shuffle ranks
 - Bulk import: one-item failure does not prevent later entries, and unresolved input is preserved
 - Persistence/startup: saved library survives container recreation/relaunch
-- iCloud migration: the default local store URL is preserved, the schema remains CloudKit-compatible, and overlapping pre-sync libraries/history reconcile without losing watched or matched state
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
 - Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, five-session cooldown, and decaying Not Tonight behavior
 - Recommendation persistence: generated events with mood, responses, and watched/liked/disliked signals survive relaunch

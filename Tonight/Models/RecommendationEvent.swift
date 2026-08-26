@@ -22,11 +22,11 @@ enum RecommendationResponse: String, Codable, CaseIterable, Sendable {
 
 @Model
 final class RecommendationEvent {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID
     var movie: Movie?
-    var recommendedAt: Date = Date.now
-    var kindRawValue: String = RecommendationKind.bestMatch.rawValue
-    var responseRawValue: String = RecommendationResponse.pending.rawValue
+    var recommendedAt: Date
+    var kindRawValue: String
+    var responseRawValue: String
     var moodRawValue: String?
 
     var kind: RecommendationKind {
