@@ -13,6 +13,7 @@ struct MovieDealContext {
 struct MovieDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var saveError: String?
+    @State private var movieToMatch: Movie?
     @State private var isUSStorefront = Locale.current.region?.identifier == "US"
     let movie: Movie
     var showsPersonalization = true
@@ -51,6 +52,9 @@ struct MovieDetailView: View {
             }
         } message: {
             Text(saveError ?? "Please try again.")
+        }
+        .sheet(item: $movieToMatch) { unresolvedMovie in
+            MatchLibraryView(movie: unresolvedMovie)
         }
         .task(id: dealContext?.appleURL) {
             guard dealContext != nil else { return }
@@ -123,17 +127,29 @@ struct MovieDetailView: View {
     private var metadataAndOverview: some View {
         VStack(alignment: .leading, spacing: 22) {
             if movie.resolutionStatus != .resolved {
-                Label {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("TMDB match needed")
-                            .font(.headline)
-                        Text(movie.resolutionNote ?? "This imported title is preserved in your library.")
-                            .font(.subheadline)
+                VStack(alignment: .leading, spacing: 14) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("TMDB match needed")
+                                .font(.headline)
+                            Text(movie.resolutionNote ?? "This imported title is preserved in your library.")
+                                .font(.subheadline)
+                        }
+                    } icon: {
+                        Image(systemName: "questionmark.circle.fill")
                     }
-                } icon: {
-                    Image(systemName: "questionmark.circle.fill")
+                    .foregroundStyle(.secondary)
+
+                    if showsPersonalization {
+                        Button {
+                            movieToMatch = movie
+                        } label: {
+                            Label("Find TMDB Match", systemImage: "link.badge.plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityHint("Searches TMDB so you can associate artwork and movie details")
+                    }
                 }
-                .foregroundStyle(.secondary)
                 .padding()
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
             }

@@ -4,6 +4,7 @@ import SwiftUI
 private enum LibrarySheet: String, Identifiable {
     case importLibrary
     case matchLibrary
+    case libraryOptions
 
     var id: String { rawValue }
 }
@@ -11,7 +12,12 @@ private enum LibrarySheet: String, Identifiable {
 struct LibraryView: View {
     @Query(sort: \Movie.title) private var movies: [Movie]
     @State private var presentedSheet: LibrarySheet?
-    @State private var sortOption = LibrarySortOption.titleAscending
+    @AppStorage("librarySortField") private var sortField = LibrarySortField.title
+    @AppStorage("librarySortDirection")
+    private var sortDirection = LibrarySortDirection.ascending
+    @AppStorage("libraryFilter") private var filterOption = LibraryFilterOption.all
+    @State private var searchText = ""
+    @State private var isShuffled = false
     @State private var shuffleRanks: [UUID: Int] = [:]
 
     private var unresolvedCount: Int {
@@ -19,7 +25,24 @@ struct LibraryView: View {
     }
 
     private var displayedMovies: [Movie] {
-        LibrarySort.movies(movies, by: sortOption, shuffleRanks: shuffleRanks)
+        let filteredMovies = LibraryFilter.movies(
+            movies,
+            showing: filterOption,
+            matching: searchText
+        )
+
+        if isShuffled {
+            return LibrarySort.shuffledMovies(
+                filteredMovies,
+                shuffleRanks: shuffleRanks
+            )
+        }
+
+        return LibrarySort.movies(
+            filteredMovies,
+            by: sortField,
+            direction: sortDirection
+        )
     }
 
     private let columns = [
@@ -39,6 +62,8 @@ struct LibraryView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
+            } else if displayedMovies.isEmpty {
+                filteredEmptyState
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 28) {
@@ -57,10 +82,33 @@ struct LibraryView: View {
             }
         }
         .navigationTitle("Library")
+        .searchable(text: $searchText, prompt: "Search your library")
         .toolbar {
             if !movies.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
-                    sortMenu
+                    Button {
+                        shuffleMovies()
+                    } label: {
+                        Label(
+                            isShuffled ? "Shuffle Again" : "Shuffle Library",
+                            systemImage: "shuffle"
+                        )
+                    }
+                    .accessibilityHint("Randomizes the current Library results")
+                }
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        presentedSheet = .libraryOptions
+                    } label: {
+                        Label(
+                            "Library Options: \(libraryOrderSummary)",
+                            systemImage: filterOption == .all
+                                ? "line.3.horizontal.decrease.circle"
+                                : "line.3.horizontal.decrease.circle.fill"
+                        )
+                    }
+                    .accessibilityHint("Changes Library filtering and sorting")
                 }
             }
 
@@ -91,6 +139,14 @@ struct LibraryView: View {
                 ImportLibraryView()
             case .matchLibrary:
                 MatchLibraryView()
+            case .libraryOptions:
+                LibraryOptionsSheet(
+                    sortField: sortFieldSelection,
+                    sortDirection: sortDirectionSelection,
+                    filterOption: $filterOption,
+                    showingCount: displayedMovies.count,
+                    totalCount: movies.count
+                )
             }
         }
         .onChange(of: movies.map(\.id), initial: true) { _, movieIDs in
@@ -98,35 +154,52 @@ struct LibraryView: View {
         }
     }
 
-    private var sortMenu: some View {
-        Menu {
-            sortButton(.titleAscending)
-            sortButton(.titleDescending)
-            sortButton(.releaseYear)
-            Divider()
-            Button {
-                shuffleMovies()
-            } label: {
+    @ViewBuilder
+    private var filteredEmptyState: some View {
+        if !searchText.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+        } else {
+            ContentUnavailableView {
                 Label(
-                    sortOption == .shuffled ? "Shuffle Again" : "Shuffle",
-                    systemImage: sortOption == .shuffled ? "checkmark" : "shuffle"
+                    filterOption == .watched ? "No Watched Movies" : "No Unwatched Movies",
+                    systemImage: filterOption == .watched ? "eye.slash" : "eye"
+                )
+            } description: {
+                Text(
+                    filterOption == .watched
+                        ? "Movies you mark watched will appear here."
+                        : "Every movie in your library is currently marked watched."
                 )
             }
-        } label: {
-            Label("Sort Library: \(sortOption.title)", systemImage: "arrow.up.arrow.down")
         }
-        .accessibilityHint("Changes the order of movies without changing your library")
     }
 
-    private func sortButton(_ option: LibrarySortOption) -> some View {
-        Button {
-            sortOption = option
-        } label: {
-            Label(
-                option.title,
-                systemImage: sortOption == option ? "checkmark" : option.systemImage
-            )
+    private var sortFieldSelection: Binding<LibrarySortField> {
+        Binding(
+            get: { sortField },
+            set: { newField in
+                sortField = newField
+                sortDirection = newField.defaultDirection
+                isShuffled = false
+            }
+        )
+    }
+
+    private var sortDirectionSelection: Binding<LibrarySortDirection> {
+        Binding(
+            get: { sortDirection },
+            set: { newDirection in
+                sortDirection = newDirection
+                isShuffled = false
+            }
+        )
+    }
+
+    private var libraryOrderSummary: String {
+        if isShuffled {
+            return "Shuffled"
         }
+        return "\(filterOption.title), \(sortField.title), \(sortField.directionTitle(for: sortDirection))"
     }
 
     private func shuffleMovies() {
@@ -135,7 +208,7 @@ struct LibraryView: View {
                 (movie.id, index)
             }
         )
-        sortOption = .shuffled
+        isShuffled = true
     }
 
     private func updateShuffleRanks(for movieIDs: [UUID]) {
@@ -147,6 +220,67 @@ struct LibraryView: View {
             shuffleRanks[id] = nextRank
             nextRank += 1
         }
+    }
+}
+
+private struct LibraryOptionsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var sortField: LibrarySortField
+    @Binding var sortDirection: LibrarySortDirection
+    @Binding var filterOption: LibraryFilterOption
+    let showingCount: Int
+    let totalCount: Int
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Show") {
+                    Picker("Movies to Show", selection: $filterOption) {
+                        ForEach(LibraryFilterOption.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text("Showing \(showingCount) of \(totalCount) movies")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                }
+
+                Section("Sort By") {
+                    Picker("Sort By", selection: $sortField) {
+                        ForEach(LibrarySortField.allCases) { field in
+                            Label(field.title, systemImage: field.systemImage)
+                                .tag(field)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+
+                Section("Direction") {
+                    Picker("Direction", selection: $sortDirection) {
+                        ForEach(LibrarySortDirection.allCases) { direction in
+                            Text(sortField.directionTitle(for: direction))
+                                .tag(direction)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+            .navigationTitle("Library Options")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationSizing(.page)
     }
 }
 

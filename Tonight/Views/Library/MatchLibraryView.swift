@@ -15,9 +15,22 @@ struct MatchLibraryView: View {
     @State private var skippedMovieIDs = Set<UUID>()
     @State private var selectedCandidate: TMDBSearchCandidate?
     @State private var automaticTask: Task<Void, Never>?
+    private let targetMovie: Movie?
+
+    init(movie: Movie? = nil) {
+        targetMovie = movie
+        _mode = State(initialValue: movie == nil ? .overview : .review)
+    }
 
     private var unresolvedMovies: [Movie] {
-        movies.filter { $0.resolutionStatus != .resolved }
+        if let targetMovie {
+            return targetMovie.resolutionStatus == .resolved ? [] : [targetMovie]
+        }
+        return movies.filter { $0.resolutionStatus != .resolved }
+    }
+
+    private var isSingleMovieMode: Bool {
+        targetMovie != nil
     }
 
     private var currentMovie: Movie? {
@@ -42,7 +55,7 @@ struct MatchLibraryView: View {
                     }
                 }
             }
-            .navigationTitle("Match Movies")
+            .navigationTitle(isSingleMovieMode ? "Match Movie" : "Match Movies")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
         }
@@ -98,7 +111,10 @@ struct MatchLibraryView: View {
             }
         }
 
-        if mode == .review, !model.isRetryingAutomatically, currentMovie != nil {
+        if mode == .review,
+           !isSingleMovieMode,
+           !model.isRetryingAutomatically,
+           currentMovie != nil {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Skip") {
                     if let currentMovie {
@@ -217,7 +233,7 @@ struct MatchLibraryView: View {
                 } header: {
                     Text("Imported Title")
                 } footer: {
-                    Text("\(unresolvedMovies.count) still need matches. Choosing a result moves to the next movie.")
+                    Text(reviewFooter)
                 }
 
                 Section("Search TMDB") {
@@ -303,8 +319,18 @@ struct MatchLibraryView: View {
         selectedCandidate = nil
         guard let movie = currentMovie else { return }
         Task {
-            _ = await model.apply(candidate, to: movie, in: modelContext)
+            let didApply = await model.apply(candidate, to: movie, in: modelContext)
+            if didApply, isSingleMovieMode {
+                dismiss()
+            }
         }
+    }
+
+    private var reviewFooter: String {
+        if isSingleMovieMode {
+            return "Choose the correct TMDB result to add artwork and details while preserving your personal history."
+        }
+        return "\(unresolvedMovies.count) still need matches. Choosing a result moves to the next movie."
     }
 
     private func matchConfirmationLabel(for candidate: TMDBSearchCandidate) -> String {

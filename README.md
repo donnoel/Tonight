@@ -4,9 +4,9 @@ Tonight is an iPad-first personal movie recommendation app built with SwiftUI an
 
 The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally and appear in History.
 
-Ambiguous titles and special editions remain visible as **Needs Match**. Use **Match Movies** from the Library toolbar to retry safe matches in a batch, then review the remaining TMDB candidates one by one. Automatic matching recognizes common canonical-title variations, collector-edition suffixes, and uniquely confirmed TMDB alternative titles while keeping genuine remake ambiguity for confirmation. A confirmed match enriches the existing local record without replacing personal history.
+Ambiguous titles and special editions remain visible as **Needs Match**. Select one of those movies and use **Find TMDB Match** on its detail screen to associate the correct artwork and metadata directly, or use **Match Movies** from the Library toolbar to retry safe matches in a batch before reviewing the remainder. Automatic matching recognizes common canonical-title variations, collector-edition suffixes, and uniquely confirmed TMDB alternative titles while keeping genuine remake ambiguity for confirmation. A confirmed match enriches the existing local record without replacing personal history.
 
-Use the Library sort menu to order movies A–Z, Z–A, by release year (oldest first, with unknown years last), or in a newly shuffled order. These choices only change the grid presentation and never modify the stored collection.
+Library search matches titles, years, genres, directors, and cast. **Library Options** can show all, unwatched, or watched movies and sort by title, release year, date added, runtime, rating, or last watched in either direction. Shuffle remains a one-tap toolbar action. These choices only change the grid presentation and never modify the stored collection.
 
 On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
 

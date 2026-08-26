@@ -18,7 +18,7 @@ Current scope:
 - Bearer-token TMDB search, matching, details, credits, and artwork enrichment
 - Duplicate prevention and preserved unresolved/failed entries
 - Safe automatic retry and user-confirmed TMDB matching for unresolved entries
-- Local Library ordering by title, release year, or an explicitly reshuffled order
+- Local Library search, watched-state filtering, multi-field ordering, and an explicitly reshuffled order
 - Local, explainable recommendation selection with controlled randomness
 - Human mood profiles, optional tuning choices, rotating recommendation lanes, and recent-session cooldown
 - Persisted recommendation responses and movie-level watched/liked/disliked taste signals
@@ -111,7 +111,7 @@ Explicitly out of scope:
 
 - Prioritize artwork, typography, generous regular-width spacing, and native navigation.
 - Use an adaptive poster grid; unresolved entries need a clear non-artwork state.
-- Keep A–Z, Z–A, chronological year, and shuffle available from a native, accessible Library toolbar menu.
+- Keep Shuffle directly available in the Library toolbar; present watched-state filtering and multi-field sorting with contextual direction labels in a native, accessible options sheet.
 - Keep configured TMDB settings compact; reveal the secure token field only while adding or explicitly updating the credential.
 - Honor the user’s last iPad sidebar visibility instead of forcing the sidebar open on every launch.
 - Keep import progress textual as well as visual so status never relies only on color or an icon.
@@ -125,7 +125,8 @@ Explicitly out of scope:
 - Duplicate detection: TMDB ID first, normalized title/year fallback
 - TMDB matching: exact and canonical-equivalent titles, mainstream/obscure duplicate ranking, remakes/ambiguous titles, supplied-year selection, alternative-title confirmation, and no-match behavior
 - Unresolved matching: safe title cleanup, unique exact results, ambiguous-result confirmation, and in-place enrichment
-- Library ordering: title directions, known-year chronology with unknown years last, and stable explicit shuffle ranks
+- Unresolved detail recovery: a selected unmatched library movie opens its prefilled manual TMDB search and returns enriched without replacing personal history
+- Library browsing: metadata search, watched-state filters, title/year/added/runtime/rating/last-watched ordering with missing values last, and stable explicit shuffle ranks
 - Bulk import: one-item failure does not prevent later entries, and unresolved input is preserved
 - Persistence/startup: saved library survives container recreation/relaunch
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
@@ -156,7 +157,7 @@ Explicitly out of scope:
 - Verify the missing-token path without a credential.
 - With a Keychain-configured credential, verify an obvious match, rich details/credits, poster/backdrop loading, unresolved preservation, duplicate re-import, and relaunch persistence.
 - Verify automatic retry resolves only unambiguous entries and the one-by-one queue supports editing a query, choosing a candidate, skipping, and relaunch persistence.
-- Verify Library A–Z, Z–A, year, and repeated shuffle ordering on both regular and compact widths.
+- Verify Library search, watched-state filters, every sort field and direction, and repeated shuffle ordering on both regular and compact widths.
 - Exercise every mood and tuning option against a varied resolved library, confirm rotating lanes remain truthful, refresh repeatedly to verify cooldown/diversity, record each response type, and verify History and relaunch persistence.
 - Open Deals on iPad and iPhone, verify the live or cached catalog, poster enrichment, All/Not in Library/Recommended filters, manual refresh, Apple link behavior, and graceful offline/format-change messaging.
 - Re-check VoiceOver labels, Dynamic Type, light/dark appearance, and destructive confirmation.
