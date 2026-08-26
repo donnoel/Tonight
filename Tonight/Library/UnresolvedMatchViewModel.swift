@@ -10,15 +10,12 @@ struct AutomaticMatchSummary: Equatable, Sendable {
 
 private enum UnresolvedMatchError: LocalizedError {
     case missingCredential
-    case duplicate
     case localSave
 
     var errorDescription: String? {
         switch self {
         case .missingCredential:
             "Add your TMDB Read Access Token in Settings before matching movies."
-        case .duplicate:
-            "That TMDB movie is already matched to another item in your library."
         case .localSave:
             "Tonight could not save this match to the local library."
         }
@@ -90,10 +87,21 @@ final class UnresolvedMatchViewModel {
 
         do {
             let allMovies = try modelContext.fetch(FetchDescriptor<Movie>())
-            guard !allMovies.contains(where: {
+            if let existingMatch = allMovies.first(where: {
                 $0.id != movie.id && $0.tmdbID == candidate.id
-            }) else {
-                throw UnresolvedMatchError.duplicate
+            }) {
+                do {
+                    try LocalLibraryDuplicateRepair.consolidate(
+                        movie,
+                        into: existingMatch,
+                        in: modelContext
+                    )
+                } catch {
+                    modelContext.rollback()
+                    throw UnresolvedMatchError.localSave
+                }
+                candidates = []
+                return true
             }
 
             let client = try await makeClient()

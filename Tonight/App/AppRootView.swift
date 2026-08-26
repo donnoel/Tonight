@@ -1,5 +1,6 @@
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
     case tonight
@@ -37,6 +38,11 @@ private enum SidebarVisibilityPreference: String {
 }
 
 struct AppRootView: View {
+    private static let logger = Logger(
+        subsystem: "com.donnoel.Tonight",
+        category: "LocalLibraryRepair"
+    )
+
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
     @AppStorage("sidebarVisibility") private var sidebarVisibilityRawValue =
@@ -63,12 +69,26 @@ struct AppRootView: View {
             DebugLibrarySeeder.installIfRequested(in: modelContext)
         }
         #endif
+        .task {
+            repairDuplicateImports()
+        }
         .onOpenURL { url in
             guard url.scheme?.lowercased() == "tonight",
                   url.host?.lowercased() == "picks" else {
                 return
             }
             selection = .tonight
+        }
+    }
+
+    private func repairDuplicateImports() {
+        do {
+            _ = try LocalLibraryDuplicateRepair.repair(in: modelContext)
+        } catch {
+            modelContext.rollback()
+            Self.logger.error(
+                "Duplicate import repair failed: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 

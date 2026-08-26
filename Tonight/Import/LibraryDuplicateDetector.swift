@@ -13,8 +13,8 @@ struct MovieIdentity: Equatable, Sendable {
 
     init(movie: Movie) {
         self.tmdbID = movie.tmdbID
-        self.normalizedTitle = movie.normalizedTitle
-        self.releaseYear = movie.releaseYear ?? movie.importedYear
+        self.normalizedTitle = MovieTitleNormalizer.normalize(movie.importedTitle)
+        self.releaseYear = movie.importedYear
     }
 }
 
@@ -29,4 +29,3 @@ enum LibraryDuplicateDetector {
         }
     }
 }
-

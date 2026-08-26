@@ -37,5 +37,22 @@ final class LibraryDuplicateDetectorTests: XCTestCase {
 
         XCTAssertFalse(LibraryDuplicateDetector.contains(candidate, in: existing))
     }
-}
 
+    func testStoredMovieUsesImportedIdentityAfterTMDBEnrichment() {
+        let movie = Movie(
+            tmdbID: 8077,
+            title: "Alien³",
+            importedTitle: "Alien 3",
+            releaseYear: 1992,
+            resolutionStatus: .resolved
+        )
+        let existing = [MovieIdentity(movie: movie)]
+        let repeatedImport = MovieIdentity(
+            tmdbID: nil,
+            title: "Alien 3",
+            releaseYear: nil
+        )
+
+        XCTAssertTrue(LibraryDuplicateDetector.contains(repeatedImport, in: existing))
+    }
+}
