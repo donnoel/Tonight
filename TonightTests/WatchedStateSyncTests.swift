@@ -187,6 +187,66 @@ final class WatchedStateSyncTests: XCTestCase {
         XCTAssertFalse(context.hasChanges)
     }
 
+    func testKnownIDMatchesAcrossRenamedTitlesWithoutMergingConflictingIDs() {
+        let first = syncedState(tmdbID: 1, title: "Original", year: 2000,
+                                isWatched: true, modifiedAt: earlier)
+        let renamed = syncedState(tmdbID: 1, title: "Renamed", year: 2001,
+                                  isWatched: false, modifiedAt: later)
+        let unrelated = syncedState(tmdbID: 2, title: "Renamed", year: 2001,
+                                    isWatched: true, modifiedAt: earlier)
+        let resolution = WatchedStateSyncResolver.resolve(
+            remoteSnapshot: WatchedStateSyncSnapshot(records: [first, renamed, unrelated]),
+            localStates: []
+        )
+        XCTAssertEqual(resolution.snapshot.records, [renamed, unrelated])
+    }
+
+    func testFallbackRecordCannotBridgeTwoConflictingKnownIDs() {
+        let first = syncedState(tmdbID: 1, title: "Same", year: 2000,
+                                isWatched: true, modifiedAt: earlier)
+        let second = syncedState(tmdbID: 2, title: "Same", year: 2000,
+                                 isWatched: true, modifiedAt: earlier)
+        let fallback = syncedState(tmdbID: nil, title: "Same", year: 2000,
+                                   isWatched: false, modifiedAt: later)
+        let resolution = WatchedStateSyncResolver.resolve(
+            remoteSnapshot: WatchedStateSyncSnapshot(records: [first, second, fallback]),
+            localStates: []
+        )
+        XCTAssertEqual(resolution.snapshot.records.count, 3)
+        XCTAssertTrue(resolution.snapshot.records.contains(fallback))
+    }
+
+    func testEqualTimestampUnwatchWinsAndReconciliationIsIdempotent() {
+        let watched = syncedState(tmdbID: 1, title: "Same", year: nil,
+                                  isWatched: true, modifiedAt: later)
+        let unwatched = syncedState(tmdbID: nil, title: "Same", year: nil,
+                                    isWatched: false, modifiedAt: later)
+        for records in [[watched, unwatched], [unwatched, watched]] {
+            let result = WatchedStateSyncResolver.resolve(
+                remoteSnapshot: WatchedStateSyncSnapshot(records: records), localStates: []
+            )
+            XCTAssertEqual(result.snapshot.records, [unwatched])
+            XCTAssertEqual(WatchedStateSyncResolver.resolve(
+                remoteSnapshot: result.snapshot, localStates: []
+            ).snapshot, result.snapshot)
+        }
+    }
+
+    func testLargeDistinctCatalogPreservesEveryRecord() {
+        let records = (1...2_000).map { (id: Int) in
+            syncedState(tmdbID: id, title: "Movie \(id)", year: 2000,
+                        isWatched: true, modifiedAt: earlier)
+        }
+        let result = WatchedStateSyncResolver.resolve(
+            remoteSnapshot: WatchedStateSyncSnapshot(records: records), localStates: []
+        )
+        XCTAssertEqual(result.snapshot.records.count, records.count)
+        XCTAssertEqual(Set(result.snapshot.records.compactMap(\.identity.tmdbID)), Set(1...2_000))
+        XCTAssertEqual(WatchedStateSyncResolver.resolve(
+            remoteSnapshot: result.snapshot, localStates: []
+        ).snapshot, result.snapshot)
+    }
+
     private func makeMovie(tmdbID: Int?, title: String, year: Int?) -> Movie {
         Movie(
             tmdbID: tmdbID,

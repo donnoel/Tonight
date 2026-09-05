@@ -49,6 +49,21 @@ final class DealLibraryMatcherTests: XCTestCase {
         XCTAssertNil(DealLibraryMatcher.movie(for: item, in: [first, second]))
     }
 
+    func testReusableIndexPreservesExactIDPriorityAndAmbiguousYearFallback() {
+        let first = movie(id: 1, title: "Same", year: 2000)
+        let second = movie(id: 2, title: "Same", year: 2000)
+        let index = DealLibraryIndex([first, second])
+        let exact = DealsTestSupport.cachedItem(
+            metadata: DealsTestSupport.metadata(id: 2, title: "Same", year: 2000)
+        )
+        let ambiguous = DealsTestSupport.cachedItem(
+            metadata: DealsTestSupport.metadata(id: 3, title: "Same", year: 2000)
+        )
+        XCTAssertTrue(index.movie(for: exact) === second)
+        XCTAssertNil(index.movie(for: ambiguous))
+        XCTAssertTrue(index.movie(for: exact) === second)
+    }
+
     private func movie(id: Int, title: String, year: Int) -> Movie {
         Movie(
             tmdbID: id,

@@ -68,8 +68,9 @@ final class DealsViewModel {
         library: [Movie],
         history: [RecommendationEvent]
     ) {
+        let libraryIndex = DealLibraryIndex(library)
         let candidates = (snapshot?.items ?? []).compactMap { item -> DealRecommendationCandidate? in
-            if let libraryMovie = DealLibraryMatcher.movie(for: item, in: library) {
+            if let libraryMovie = libraryIndex.movie(for: item) {
                 return DealRecommendationCandidate(id: item.id, movie: libraryMovie)
             }
             guard let metadata = item.metadata else { return nil }

@@ -107,7 +107,7 @@ enum WatchedStateSyncResolver {
         remoteSnapshot: WatchedStateSyncSnapshot,
         localStates: [LocalWatchedState]
     ) -> WatchedStateSyncResolution {
-        var mergedRecords: [SyncedWatchedState] = []
+        var mergedRecords = RecordIndex()
         for record in remoteSnapshot.records {
             upsert(record, into: &mergedRecords)
         }
@@ -148,7 +148,7 @@ enum WatchedStateSyncResolver {
             }
         }
 
-        mergedRecords.sort {
+        let sortedRecords = mergedRecords.orderedRecords.sorted {
             if $0.identity.sortKey != $1.identity.sortKey {
                 return $0.identity.sortKey < $1.identity.sortKey
             }
@@ -156,18 +156,16 @@ enum WatchedStateSyncResolver {
         }
 
         return WatchedStateSyncResolution(
-            snapshot: WatchedStateSyncSnapshot(records: mergedRecords),
+            snapshot: WatchedStateSyncSnapshot(records: sortedRecords),
             localUpdates: localUpdates
         )
     }
 
     private static func upsert(
         _ incoming: SyncedWatchedState,
-        into records: inout [SyncedWatchedState]
+        into records: inout RecordIndex
     ) {
-        let matchingIndices = records.indices.filter {
-            records[$0].identity.matches(incoming.identity)
-        }
+        let matchingIndices = records.matchingIndices(for: incoming.identity)
         guard !matchingIndices.isEmpty else {
             records.append(incoming)
             return
@@ -194,12 +192,73 @@ enum WatchedStateSyncResolver {
 
     private static func preferredUnambiguousRecord(
         matching identity: WatchedStateIdentity,
-        in records: [SyncedWatchedState]
+        in records: RecordIndex
     ) -> SyncedWatchedState? {
-        let candidates = records.filter { $0.identity.matches(identity) }
+        let candidates = records.matchingIndices(for: identity).map { records[$0] }
         let knownTMDBIDs = Set(candidates.compactMap(\.identity.tmdbID))
         guard identity.tmdbID != nil || knownTMDBIDs.count <= 1 else { return nil }
         return candidates.max(by: { prefers($1, over: $0) })
+    }
+
+    /// Integer slots retain insertion order for otherwise tied records. Title buckets
+    /// keep unknown-ID fallback matches separate from conflicting known identities.
+    private struct RecordIndex {
+        private struct TitleKey: Hashable {
+            let title: String
+            let year: Int?
+
+            init(_ identity: WatchedStateIdentity) {
+                title = identity.normalizedTitle
+                year = identity.releaseYear
+            }
+        }
+
+        private var records: [Int: SyncedWatchedState] = [:]
+        private var byID: [Int: Set<Int>] = [:]
+        private var byTitle: [TitleKey: Set<Int>] = [:]
+        private var unknownByTitle: [TitleKey: Set<Int>] = [:]
+        private var nextSlot = 0
+
+        var orderedRecords: [SyncedWatchedState] {
+            records.keys.sorted().map { records[$0]! }
+        }
+
+        subscript(slot: Int) -> SyncedWatchedState { records[slot]! }
+
+        func matchingIndices(for identity: WatchedStateIdentity) -> [Int] {
+            let key = TitleKey(identity)
+            if let id = identity.tmdbID {
+                let fallback = identity.normalizedTitle.isEmpty
+                    ? Set<Int>() : unknownByTitle[key, default: []]
+                return byID[id, default: []].union(fallback).sorted()
+            }
+            guard !identity.normalizedTitle.isEmpty else { return [] }
+            return byTitle[key, default: []].sorted()
+        }
+
+        mutating func append(_ record: SyncedWatchedState) {
+            let slot = nextSlot
+            nextSlot += 1
+            records[slot] = record
+            let key = TitleKey(record.identity)
+            byTitle[key, default: []].insert(slot)
+            if let id = record.identity.tmdbID {
+                byID[id, default: []].insert(slot)
+            } else {
+                unknownByTitle[key, default: []].insert(slot)
+            }
+        }
+
+        mutating func remove(at slot: Int) {
+            guard let record = records.removeValue(forKey: slot) else { return }
+            let key = TitleKey(record.identity)
+            byTitle[key]?.remove(slot)
+            if let id = record.identity.tmdbID {
+                byID[id]?.remove(slot)
+            } else {
+                unknownByTitle[key]?.remove(slot)
+            }
+        }
     }
 
     private static func prefers(
@@ -296,9 +355,9 @@ final class WatchedStateSyncCoordinator {
 
             if !changedMovies.isEmpty {
                 try modelContext.save()
-                for movie in changedMovies where movie.isWatched {
-                    TonightWidgetSnapshotPublisher.removeMovie(id: movie.id)
-                }
+                TonightWidgetSnapshotPublisher.removeMovies(
+                    ids: Set(changedMovies.filter(\.isWatched).map(\.id))
+                )
             }
 
             try saveIfNeeded(resolution.snapshot, replacing: remoteSnapshot)

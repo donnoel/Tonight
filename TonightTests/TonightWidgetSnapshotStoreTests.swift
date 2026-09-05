@@ -45,6 +45,19 @@ final class TonightWidgetSnapshotStoreTests: XCTestCase {
         XCTAssertEqual(updated.picks.map(\.id), [secondID])
     }
 
+    func testBatchRemovalPromotesRemainingPickAndIgnoresUnrelatedMovies() {
+        let first = UUID(), second = UUID(), third = UUID()
+        let snapshot = TonightWidgetSnapshot(
+            generatedAt: Date(timeIntervalSince1970: 2_000_000_000),
+            picks: [pick(id: first, title: "First"), pick(id: second, title: "Second"),
+                    pick(id: third, title: "Third")]
+        )
+        let updated = snapshot.removingMovies(ids: [first, second, UUID()])
+        XCTAssertEqual(updated.picks.map(\.id), [third])
+        XCTAssertEqual(updated.generatedAt, snapshot.generatedAt)
+        XCTAssertEqual(updated.removingMovies(ids: [first, second]), updated)
+    }
+
     private func pick(id: UUID, title: String) -> TonightWidgetPick {
         TonightWidgetPick(
             id: id,

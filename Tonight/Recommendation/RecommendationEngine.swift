@@ -148,6 +148,16 @@ enum RecommendationEngine {
             mood: preferences.mood,
             now: now
         )
+        let baseScores = Dictionary(uniqueKeysWithValues: remaining.map { movie in
+            (movie.id, baseScore(
+                for: movie,
+                profile: profile,
+                genreFrequencies: genreFrequencies,
+                preferences: preferences,
+                historyPenalty: historyPenalties[movie.id, default: 0],
+                now: now
+            ))
+        })
         var generator = SeededGenerator(seed: seed ?? defaultSeed(for: now))
         var kinds = recommendationKinds(
             for: remaining,
@@ -192,14 +202,7 @@ enum RecommendationEngine {
                 from: selectionPool,
                 generator: &generator,
                 score: {
-                    baseScore(
-                        for: $0,
-                        profile: profile,
-                        genreFrequencies: genreFrequencies,
-                        preferences: preferences,
-                        historyPenalty: historyPenalties[$0.id, default: 0],
-                        now: now
-                    )
+                    baseScores[$0.id, default: 0]
                     + laneScore(
                         for: $0,
                         kind: kind,

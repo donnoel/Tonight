@@ -79,7 +79,10 @@ struct DealsView: View {
     }
 
     private func catalog(_ snapshot: DealCatalogSnapshot) -> some View {
-        ScrollView {
+        let libraryIndex = DealLibraryIndex(movies)
+        let displayedItems = displayedItems(libraryIndex: libraryIndex)
+        let recommendationByID = recommendationByID
+        return ScrollView {
             VStack(alignment: .leading, spacing: compactHeight ? 12 : 20) {
                 catalogHeader(snapshot)
 
@@ -123,10 +126,7 @@ struct DealsView: View {
                     } else {
                         LazyVGrid(columns: columns, spacing: 28) {
                             ForEach(displayedItems) { item in
-                                let libraryMovie = DealLibraryMatcher.movie(
-                                    for: item,
-                                    in: movies
-                                )
+                                let libraryMovie = libraryIndex.movie(for: item)
                                 let recommendation = recommendationByID[item.id]
                                 NavigationLink {
                                     DealDestinationView(
@@ -239,14 +239,14 @@ struct DealsView: View {
         .frame(maxWidth: .infinity, minHeight: 320)
     }
 
-    private var displayedItems: [CachedMovieDeal] {
+    private func displayedItems(libraryIndex: DealLibraryIndex) -> [CachedMovieDeal] {
         let items = model.snapshot?.items ?? []
         switch selectedFilter {
         case .all:
             return items
         case .notInLibrary:
             return items.filter {
-                DealLibraryMatcher.movie(for: $0, in: movies) == nil
+                libraryIndex.movie(for: $0) == nil
             }
         case .recommended:
             let itemsByID = items.reduce(

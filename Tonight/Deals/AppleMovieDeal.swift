@@ -164,23 +164,34 @@ struct LibraryMovieSnapshot: Hashable, Sendable {
 
 enum DealLibraryMatcher {
     static func movie(for item: CachedMovieDeal, in library: [Movie]) -> Movie? {
-        if let tmdbID = item.metadata?.tmdbID,
-           let exact = library.first(where: { $0.tmdbID == tmdbID }) {
+        DealLibraryIndex(library).movie(for: item)
+    }
+}
+
+/// Preserves first exact-ID matching and unique title/year fallback matching.
+struct DealLibraryIndex {
+    private var byTMDBID: [Int: Movie] = [:]
+    private var byTitle: [String: [Movie]] = [:]
+
+    init(_ library: [Movie]) {
+        for movie in library {
+            if let id = movie.tmdbID, byTMDBID[id] == nil {
+                byTMDBID[id] = movie
+            }
+            byTitle[movie.normalizedTitle, default: []].append(movie)
+        }
+    }
+
+    func movie(for item: CachedMovieDeal) -> Movie? {
+        if let id = item.metadata?.tmdbID, let exact = byTMDBID[id] {
             return exact
         }
-
-        let normalizedTitle = MovieTitleNormalizer.normalize(
-            item.metadata?.title ?? item.appleDeal.title
-        )
-        let titleMatches = library.filter {
-            $0.normalizedTitle == normalizedTitle
+        let title = MovieTitleNormalizer.normalize(item.metadata?.title ?? item.appleDeal.title)
+        let matches = byTitle[title] ?? []
+        guard let year = item.metadata?.releaseYear else {
+            return matches.count == 1 ? matches[0] : nil
         }
-        guard let releaseYear = item.metadata?.releaseYear else {
-            return titleMatches.count == 1 ? titleMatches[0] : nil
-        }
-        let yearMatches = titleMatches.filter {
-            ($0.releaseYear ?? $0.importedYear) == releaseYear
-        }
+        let yearMatches = matches.filter { ($0.releaseYear ?? $0.importedYear) == year }
         return yearMatches.count == 1 ? yearMatches[0] : nil
     }
 }

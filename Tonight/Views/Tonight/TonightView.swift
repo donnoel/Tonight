@@ -28,16 +28,18 @@ struct TonightView: View {
     }
 
     var body: some View {
-        ScrollView {
+        let currentEvents = currentEvents
+        let eligibleCount = eligibleMovies.count
+        return ScrollView {
             VStack(alignment: .leading, spacing: usesCompactLayout ? 20 : 30) {
-                hero
+                hero(currentEvents: currentEvents)
 
-                if eligibleMovies.isEmpty {
+                if eligibleCount == 0 {
                     emptyState
                 } else if currentEvents.isEmpty {
-                    readyState
+                    readyState(eligibleCount: eligibleCount)
                 } else {
-                    currentRecommendations
+                    currentRecommendations(currentEvents: currentEvents, eligibleCount: eligibleCount)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,15 +61,15 @@ struct TonightView: View {
     }
 
     @ViewBuilder
-    private var hero: some View {
+    private func hero(currentEvents: [RecommendationEvent]) -> some View {
         if usesCompactLayout {
-            compactHero
+            compactHero(currentEvents: currentEvents)
         } else {
-            regularHero
+            regularHero(currentEvents: currentEvents)
         }
     }
 
-    private var regularHero: some View {
+    private func regularHero(currentEvents: [RecommendationEvent]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "moon.stars.fill")
                 .font(.system(size: 42))
@@ -87,13 +89,13 @@ struct TonightView: View {
                 HStack(spacing: 12) {
                     moodMenu
                     tuningMenu
-                    recommendationButton
+                    recommendationButton(currentEvents: currentEvents)
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
                     moodMenu
                     tuningMenu
-                    recommendationButton
+                    recommendationButton(currentEvents: currentEvents)
                 }
             }
 
@@ -104,7 +106,7 @@ struct TonightView: View {
         }
     }
 
-    private var compactHero: some View {
+    private func compactHero(currentEvents: [RecommendationEvent]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: "moon.stars.fill")
@@ -140,7 +142,7 @@ struct TonightView: View {
             }
 
             if currentEvents.isEmpty {
-                recommendationButton
+                recommendationButton(currentEvents: currentEvents)
             }
         }
         .accessibilityIdentifier("tonight.compact.header")
@@ -267,7 +269,7 @@ struct TonightView: View {
         }
     }
 
-    private var recommendationButton: some View {
+    private func recommendationButton(currentEvents: [RecommendationEvent]) -> some View {
         Button {
             generateRecommendations()
         } label: {
@@ -313,12 +315,12 @@ struct TonightView: View {
         resolvedMovies.isEmpty ? "No Movies Ready Yet" : "No Movies Match Tuning"
     }
 
-    private var readyState: some View {
+    private func readyState(eligibleCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Ready when you are")
                 .font(.title2.bold())
 
-            Text("\(eligibleMovies.count.formatted()) resolved \(eligibleMovies.count == 1 ? "movie is" : "movies are") ready. Tonight will combine one Best Fit with two rotating perspectives chosen for your mood.")
+            Text("\(eligibleCount.formatted()) resolved \(eligibleCount == 1 ? "movie is" : "movies are") ready. Tonight will combine one Best Fit with two rotating perspectives chosen for your mood.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 720, alignment: .leading)
@@ -335,15 +337,15 @@ struct TonightView: View {
     }
 
     @ViewBuilder
-    private var currentRecommendations: some View {
+    private func currentRecommendations(currentEvents: [RecommendationEvent], eligibleCount: Int) -> some View {
         if usesCompactLayout {
-            compactRecommendations
+            compactRecommendations(currentEvents: currentEvents, eligibleCount: eligibleCount)
         } else {
-            regularRecommendations
+            regularRecommendations(currentEvents: currentEvents, eligibleCount: eligibleCount)
         }
     }
 
-    private var regularRecommendations: some View {
+    private func regularRecommendations(currentEvents: [RecommendationEvent], eligibleCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Your Picks")
@@ -351,7 +353,7 @@ struct TonightView: View {
 
                 Spacer()
 
-                Text("From \(eligibleMovies.count.formatted()) resolved movies")
+                Text("From \(eligibleCount.formatted()) resolved movies")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -377,7 +379,7 @@ struct TonightView: View {
         }
     }
 
-    private var compactRecommendations: some View {
+    private func compactRecommendations(currentEvents: [RecommendationEvent], eligibleCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Your Picks")
@@ -385,7 +387,7 @@ struct TonightView: View {
 
                 Spacer()
 
-                Text("\(eligibleMovies.count.formatted()) movies")
+                Text("\(eligibleCount.formatted()) movies")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

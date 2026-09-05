@@ -50,7 +50,9 @@ struct LibraryView: View {
     ]
 
     var body: some View {
-        Group {
+        let displayedMovies = displayedMovies
+        let unresolvedCount = unresolvedCount
+        return Group {
             if movies.isEmpty {
                 ContentUnavailableView {
                     Label("Your Library Is Empty", systemImage: "rectangle.stack")

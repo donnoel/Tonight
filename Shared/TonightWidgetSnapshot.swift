@@ -19,9 +19,13 @@ nonisolated struct TonightWidgetSnapshot: Codable, Equatable, Sendable {
     }
 
     func removingMovie(id: UUID) -> TonightWidgetSnapshot {
+        removingMovies(ids: [id])
+    }
+
+    func removingMovies(ids: Set<UUID>) -> TonightWidgetSnapshot {
         TonightWidgetSnapshot(
             generatedAt: generatedAt,
-            picks: picks.filter { $0.id != id }
+            picks: picks.filter { !ids.contains($0.id) }
         )
     }
 }

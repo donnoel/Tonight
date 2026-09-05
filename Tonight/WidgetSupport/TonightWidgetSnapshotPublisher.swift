@@ -56,17 +56,23 @@ enum TonightWidgetSnapshotPublisher {
     }
 
     static func removeMovie(id: UUID) {
-        artworkTask?.cancel()
-        guard let store = try? TonightWidgetSnapshotStore(),
+        removeMovies(ids: [id])
+    }
+
+    static func removeMovies(ids: Set<UUID>) {
+        guard !ids.isEmpty,
+              let store = try? TonightWidgetSnapshotStore(),
               let snapshot = try? store.load() else {
             return
         }
-        persist(snapshot.removingMovie(id: id), using: store)
+        let updated = snapshot.removingMovies(ids: ids)
+        guard updated != snapshot else { return }
+        artworkTask?.cancel()
+        artworkTask = nil
+        persist(updated, using: store)
     }
 
     private static func publish(snapshot: TonightWidgetSnapshot) {
-        artworkTask?.cancel()
-
         guard let store = try? TonightWidgetSnapshotStore() else {
             logger.error("The Tonight widget App Group is unavailable.")
             return
@@ -88,13 +94,26 @@ enum TonightWidgetSnapshotPublisher {
             }
         }
 
-        persist(snapshot, using: store)
+        // Empty snapshots have no meaningful generation date.
+        if snapshot.picks.isEmpty, let existingSnapshot, existingSnapshot.picks.isEmpty {
+            snapshot = existingSnapshot
+        }
+        if snapshot != existingSnapshot {
+            persist(snapshot, using: store)
+        } else if artworkTask != nil {
+            return
+        }
 
+        artworkTask?.cancel()
+        artworkTask = nil
         guard snapshot.picks.contains(where: { $0.artworkData == nil && $0.artworkURL != nil }) else {
             return
         }
 
         artworkTask = Task { @MainActor in
+            defer {
+                if !Task.isCancelled { artworkTask = nil }
+            }
             var enrichedSnapshot = snapshot
 
             for index in enrichedSnapshot.picks.indices where
@@ -124,7 +143,9 @@ enum TonightWidgetSnapshotPublisher {
                   latestSnapshot.generatedAt == enrichedSnapshot.generatedAt else {
                 return
             }
-            persist(enrichedSnapshot, using: store)
+            if enrichedSnapshot != latestSnapshot {
+                persist(enrichedSnapshot, using: store)
+            }
         }
     }
 
