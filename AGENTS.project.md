@@ -80,7 +80,8 @@ Explicitly out of scope:
 - Deal refreshes must never insert, update, or delete personal-library records.
 - Apple deals without a confident TMDB match remain visible; one failed enrichment must not prevent the remaining catalog from loading.
 - An In Library badge may use exact TMDB identity or a unique normalized title/year fallback, but must not guess when ownership is ambiguous.
-- Mood profiles must describe a viewing feeling rather than act as exact genre filters; runtime, era, quality, familiarity, and watch state contribute alongside genre.
+- Mood profiles establish a credible candidate pool from local genres, overview intensity signals, and explicit favorites before taste, cooldown, and rotating lanes rank candidates. Never fill a sparse mood pool with off-mood movies; return fewer picks or a clear empty state. Anything and Surprise Me remain broad, with Surprise Me favoring discovery.
+- Changing the mood immediately generates a matching set without recording the previous picks as Not Tonight. Saved picks from another mood must not remain displayed.
 - Under Two Hours and Unwatched Only are hard tuning filters; Something Older and More Adventurous are ranking and lane preferences.
 - Best Fit balances explicit taste, mood, watch state, quality evidence, and recency; the other two lanes must truthfully match their displayed perspective.
 - Refreshing should avoid movies from the five most recent recommendation sessions when the eligible library is large enough.

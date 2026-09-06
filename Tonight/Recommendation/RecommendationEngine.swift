@@ -239,8 +239,51 @@ enum RecommendationEngine {
     ) -> Bool {
         movie.resolutionStatus == .resolved
             && !movie.isDisliked
+            && matchesMood(movie, mood: preferences.mood)
             && (!preferences.underTwoHours || (movie.runtimeMinutes ?? .max) <= 120)
             && (!preferences.unwatchedOnly || !movie.isWatched)
+    }
+
+    /// Establish mood suitability before taste, cooldown, lanes, or randomness can rank a film.
+    /// These conservative rules use local metadata, not a claim to understand every story.
+    static func matchesMood(_ movie: Movie, mood: RecommendationMood) -> Bool {
+        let genres = Set(movie.genres.map { $0.lowercased() })
+        func has(_ values: Set<String>) -> Bool { !genres.isDisjoint(with: values) }
+        let words = Set(movie.overviewText.lowercased().split { !$0.isLetter }.map(String.init))
+        let violentStory = !words.isDisjoint(with: [
+            "war", "wars", "warfare", "battle", "battles", "combat", "invasion",
+            "murder", "murders", "killer", "killers", "assassin", "assassins",
+            "massacre", "terrorist", "terrorists", "torture", "slasher"
+        ])
+        let tenseStory = violentStory || !words.isDisjoint(with: [
+            "kidnapped", "abducted", "hostage", "hostages", "hunted", "terrifying"
+        ])
+        let intenseGenres = has(["action", "war", "horror", "thriller", "crime"])
+        let lightGenres = has(["comedy", "family", "animation", "music", "romance"])
+
+        switch mood {
+        case .anything, .surpriseMe:
+            // Surprise is a discovery preference, not a particular emotional tone.
+            return true
+        case .quietAndThoughtful:
+            return !intenseGenres && !tenseStory
+                && !has(["adventure"])
+                && has(["drama", "documentary", "history", "romance"])
+        case .funAndEasy:
+            return lightGenres && !intenseGenres && !tenseStory
+                && (movie.runtimeMinutes.map { $0 <= 140 } ?? true)
+        case .edgeOfYourSeat:
+            return has(["thriller", "horror", "action", "crime"])
+                || (has(["mystery", "adventure", "science fiction"]) && tenseStory)
+        case .bigMovieNight:
+            return has(["action", "adventure", "fantasy", "science fiction", "war"])
+                || (has(["drama", "history", "music"])
+                    && (movie.runtimeMinutes ?? 0) >= 150
+                    && (movie.tmdbVoteAverage ?? 0) >= 7)
+        case .comfortWatch:
+            // Explicit favorites are personal comfort choices, even in intense genres.
+            return movie.isLiked || (lightGenres && !intenseGenres && !tenseStory)
+        }
     }
 
     static func activeEvents(
@@ -256,6 +299,7 @@ enum RecommendationEngine {
         return events
             .filter { event in
                 guard event.recommendedAt == latestDate,
+                      event.mood == preferences.mood,
                       let movie = event.movie else {
                     return false
                 }

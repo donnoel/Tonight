@@ -55,6 +55,13 @@ struct TonightView: View {
         } message: {
             Text(saveError ?? "Please try again.")
         }
+        .onChange(of: moodRawValue) {
+            if !eligibleMovies.isEmpty {
+                generateRecommendations(recordsSkippedPicks: false)
+            } else {
+                TonightWidgetSnapshotPublisher.publish(events: [])
+            }
+        }
         .onAppear {
             reconcileAcceptedRecommendations()
         }
@@ -305,14 +312,14 @@ struct TonightView: View {
             } else if resolvedMovies.isEmpty {
                 Text("Resolve at least one TMDB match in Library so Tonight has movie details to work with.")
             } else {
-                Text("No resolved movies match the current Tune Picks options. Adjust the tuning and try again.")
+                Text("No confident matches for this mood and tuning in your library. Try another mood or adjust Tune Picks.")
             }
         }
         .frame(maxWidth: .infinity, minHeight: 320)
     }
 
     private var emptyStateTitle: String {
-        resolvedMovies.isEmpty ? "No Movies Ready Yet" : "No Movies Match Tuning"
+        resolvedMovies.isEmpty ? "No Movies Ready Yet" : "No Movies Match Your Mood & Tuning"
     }
 
     private func readyState(eligibleCount: Int) -> some View {
@@ -320,7 +327,7 @@ struct TonightView: View {
             Text("Ready when you are")
                 .font(.title2.bold())
 
-            Text("\(eligibleCount.formatted()) resolved \(eligibleCount == 1 ? "movie is" : "movies are") ready. Tonight will combine one Best Fit with two rotating perspectives chosen for your mood.")
+            Text("\(eligibleCount.formatted()) resolved \(eligibleCount == 1 ? "movie is" : "movies are") ready. Tonight will offer up to three picks that fit your mood, with different perspectives when enough matches are available.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 720, alignment: .leading)
@@ -496,7 +503,7 @@ struct TonightView: View {
         }
     }
 
-    private func generateRecommendations() {
+    private func generateRecommendations(recordsSkippedPicks: Bool = true) {
         let now = Date.now
         let picks = RecommendationEngine.recommendations(
             from: movies,
@@ -506,12 +513,12 @@ struct TonightView: View {
         )
         guard !picks.isEmpty else {
             saveError = preferences.activeModifierCount > 0
-                ? "No resolved movies match all of the current tuning choices. Remove one or more Tune Picks options and try again."
-                : "Tonight couldn’t find an eligible resolved movie. Check Library for unresolved or disliked titles."
+                ? "No confident matches for this mood and tuning. Try another mood or adjust Tune Picks."
+                : "Tonight couldn’t find a confident match for this mood. Try another mood or check Library for unresolved titles."
             return
         }
 
-        for event in currentEvents where event.response == .pending {
+        for event in currentEvents where recordsSkippedPicks && event.response == .pending {
             event.response = .notTonight
         }
 

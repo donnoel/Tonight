@@ -412,6 +412,100 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertEqual(rankings.map(\.id), ["eligible"])
     }
 
+    func testMoodSuitabilityUsesToneAndRejectsConflictingMixedGenres() {
+        let quietDrama = movie(title: "Reflective Drama", genres: ["Drama"])
+        let comedy = movie(title: "Light Comedy", genres: ["Comedy"])
+        let thriller = movie(title: "Tense Mystery", genres: ["Mystery", "Thriller"])
+        let epic = movie(title: "War Epic", genres: ["Drama", "Action", "Adventure", "War"])
+        let violentDrama = movie(title: "Violent Drama", genres: ["Drama"])
+        violentDrama.overviewText = "A family faces an invasion as a brutal war begins."
+        let darkComedy = movie(title: "Dark Comedy", genres: ["Comedy", "Horror"])
+        let comicMystery = movie(title: "Comic Mystery", genres: ["Comedy", "Mystery"])
+        let unknown = movie(title: "Unknown Tone", genres: [])
+        let fixtures = [quietDrama, comedy, thriller, epic, violentDrama, darkComedy, comicMystery, unknown]
+        let expected: [RecommendationMood: Set<String>] = [
+            .anything: Set(fixtures.map(\.title)),
+            .funAndEasy: ["Light Comedy", "Comic Mystery"],
+            .quietAndThoughtful: ["Reflective Drama"],
+            .edgeOfYourSeat: ["Tense Mystery", "War Epic", "Dark Comedy"],
+            .bigMovieNight: ["War Epic"],
+            .comfortWatch: ["Light Comedy", "Comic Mystery"],
+            .surpriseMe: Set(fixtures.map(\.title))
+        ]
+        for mood in RecommendationMood.allCases {
+            let matches = fixtures.filter { RecommendationEngine.matchesMood($0, mood: mood) }
+            XCTAssertEqual(Set(matches.map(\.title)), expected[mood], mood.title)
+        }
+    }
+
+    func testQuietMoodCannotBeOverriddenByTasteLanesOrCooldown() {
+        let quiet = (1...4).map { movie(title: "Reflective \($0)", genres: ["Drama"]) }
+        let spectacle = movie(title: "Spectacle", genres: ["Drama", "Action", "Adventure"])
+        spectacle.isLiked = true
+        spectacle.userRating = 10
+        spectacle.tmdbVoteAverage = 10
+        spectacle.tmdbVoteCount = 100_000
+        let history = quiet.map {
+            RecommendationEvent(movie: $0, recommendedAt: now, kind: .bestMatch)
+        }
+        for seed in UInt64(0)..<50 {
+            let picks = RecommendationEngine.recommendations(
+                from: quiet + [spectacle], history: history,
+                preferences: RecommendationPreferences(
+                    mood: .quietAndThoughtful, somethingOlder: true, moreAdventurous: true
+                ), now: now, seed: seed
+            )
+            XCTAssertEqual(picks.count, 3)
+            XCTAssertTrue(picks.allSatisfy { $0.movie.id != spectacle.id })
+        }
+    }
+
+    func testSparseMoodPoolReturnsFewerPicksWithoutUnrelatedFiller() {
+        let quiet = movie(title: "Quiet", genres: ["Drama"])
+        let action = movie(title: "Action", genres: ["Action"])
+        let preferences = RecommendationPreferences(mood: .quietAndThoughtful)
+        let picks = RecommendationEngine.recommendations(
+            from: [quiet, action], preferences: preferences, now: now, seed: 4
+        )
+        XCTAssertEqual(picks.map(\.movie.id), [quiet.id])
+        XCTAssertEqual(picks.first?.kind, .bestMatch)
+        XCTAssertTrue(RecommendationEngine.recommendations(
+            from: [action], preferences: preferences, now: now, seed: 4
+        ).isEmpty)
+    }
+
+    func testNewMoodDoesNotDisplayPreviousMoodSession() {
+        let drama = movie(title: "Drama", genres: ["Drama"])
+        let event = RecommendationEvent(movie: drama, recommendedAt: now, kind: .bestMatch)
+        XCTAssertTrue(RecommendationEngine.activeEvents(
+            from: [event], preferences: RecommendationPreferences(mood: .quietAndThoughtful)
+        ).isEmpty)
+        event.moodRawValue = RecommendationMood.quietAndThoughtful.rawValue
+        XCTAssertEqual(RecommendationEngine.activeEvents(
+            from: [event], preferences: RecommendationPreferences(mood: .quietAndThoughtful)
+        ).map(\.id), [event.id])
+    }
+
+    func testComfortUsesExplicitFavoritesRatherThanEveryWatchedMovie() {
+        let horror = movie(title: "Horror", genres: ["Horror"])
+        horror.isWatched = true
+        XCTAssertFalse(RecommendationEngine.matchesMood(horror, mood: .comfortWatch))
+        horror.isLiked = true
+        XCTAssertTrue(RecommendationEngine.matchesMood(horror, mood: .comfortWatch))
+        XCTAssertFalse(RecommendationEngine.matchesMood(horror, mood: .funAndEasy))
+    }
+
+    func testOverviewSignalsUseWholeWordsAndTuningStillApplies() {
+        let drama = movie(title: "Quiet Drama", genres: ["Drama"], runtime: 160)
+        drama.overviewText = "An award brings a rewarding friendship."
+        XCTAssertTrue(RecommendationEngine.matchesMood(drama, mood: .quietAndThoughtful))
+        XCTAssertFalse(RecommendationEngine.isEligible(drama, preferences: RecommendationPreferences(
+            mood: .quietAndThoughtful, underTwoHours: true
+        )))
+        drama.overviewText = "A woman is kidnapped and held hostage."
+        XCTAssertFalse(RecommendationEngine.matchesMood(drama, mood: .quietAndThoughtful))
+    }
+
     private func movie(
         title: String,
         genres: [String],
