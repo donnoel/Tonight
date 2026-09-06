@@ -226,13 +226,13 @@ final class ImportViewModel {
             failed: entries.count { $0.state == .failed }
         )
         phase = .completed
-        WatchedStateSyncCoordinator.shared.reconcile(in: modelContext)
+        LibrarySyncCoordinator.shared.localDidSave()
     }
 
     private func persist(_ movie: Movie, in context: ModelContext, index: Int) -> Bool {
         context.insert(movie)
         do {
-            try context.save()
+            try LibrarySyncStore.save(context)
             return true
         } catch {
             context.rollback()

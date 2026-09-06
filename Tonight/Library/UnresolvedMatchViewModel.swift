@@ -108,7 +108,7 @@ final class UnresolvedMatchViewModel {
             let details = try await client.movieDetails(id: candidate.id)
             MovieFactory.enrich(movie, from: details)
             do {
-                try modelContext.save()
+                try LibrarySyncStore.save(modelContext)
             } catch {
                 modelContext.rollback()
                 throw UnresolvedMatchError.localSave
@@ -170,7 +170,7 @@ final class UnresolvedMatchViewModel {
 
                     MovieFactory.enrich(movie, from: details)
                     do {
-                        try modelContext.save()
+                        try LibrarySyncStore.save(modelContext)
                         matchedTMDBIDs.insert(candidate.id)
                         matched += 1
                     } catch {

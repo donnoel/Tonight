@@ -267,7 +267,7 @@ struct MovieDetailView: View {
             }
             movie.watchedStateModifiedAt = changedAt
             if savePersonalization() {
-                WatchedStateSyncCoordinator.shared.localStateDidSave(for: movie)
+                LibrarySyncCoordinator.shared.localDidSave()
                 if movie.isWatched {
                     TonightWidgetSnapshotPublisher.removeMovie(id: movie.id)
                 }
@@ -320,7 +320,7 @@ struct MovieDetailView: View {
     @discardableResult
     private func savePersonalization() -> Bool {
         do {
-            try modelContext.save()
+            try LibrarySyncStore.save(modelContext)
             return true
         } catch {
             modelContext.rollback()

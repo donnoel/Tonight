@@ -4,7 +4,7 @@ Tonight is an iPad-first personal movie recommendation app built with SwiftUI an
 
 The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally and appear in History.
 
-Watched status syncs between the user’s Apple devices through iCloud key-value storage. Choosing a Tonight recommendation and using **Mark Watched** both update the same watched state; the imported library, recommendation history, settings, artwork, and TMDB credential remain local to each device.
+The library syncs through the same private iCloud account on iPad and iPhone. Titles, matched details, artwork references, watched/unwatched state, and movie taste are merged through CloudKit. Each device keeps its local library and a durable queue of offline changes. Artwork downloads into a persistent local cache. Settings shows sync status and **Sync Now**. Recommendation history, mood/layout settings, and the TMDB credential remain device-local.
 
 Ambiguous titles and special editions remain visible as **Needs Match**. Select one of those movies and use **Find TMDB Match** on its detail screen to associate the correct artwork and metadata directly, or use **Match Movies** from the Library toolbar to retry safe matches in a batch before reviewing the remainder. Automatic matching recognizes common canonical-title variations, collector-edition suffixes, and uniquely confirmed TMDB alternative titles while keeping genuine remake ambiguity for confirmation. A confirmed match enriches the existing local record without replacing personal history.
 
@@ -65,7 +65,7 @@ Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLi
 - `Deals/`: isolated Apple collection retrieval/parsing, disposable caching, bounded TMDB enrichment, ownership matching, and Deals screen state
 - `Import/`: parsing, collector-suffix search cleanup, normalization, duplicate detection, progress state, and reliable per-title persistence
 - `Library/`: unresolved matching coordination and deterministic presentation ordering
-- `Sync/`: compact watched-state-only iCloud reconciliation with deterministic movie identity and conflict handling
+- `Sync/`: private CloudKit library synchronization, atomic local outbox, field-level merges, migration backups, and persistent artwork caching
 - `TMDB/`: Bearer-authenticated URLSession client, DTOs, match scoring, rich model mapping, and centralized artwork URLs
 - `Views/`: adaptive app shell, poster Library and Deals grids, persisted/reused detail, import/review/progress, unresolved-match queue, History, and Settings
 

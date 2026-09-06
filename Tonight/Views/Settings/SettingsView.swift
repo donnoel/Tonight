@@ -116,6 +116,21 @@ struct SettingsView: View {
                 Text("Stored securely in this device’s Keychain. The token is never added to the Xcode project, Info.plist, logs, or Git.")
             }
 
+            Section("iCloud Library") {
+                Text(LibrarySyncCoordinator.shared.status)
+                    .accessibilityIdentifier("settings.librarySyncStatus")
+                if let date = LibrarySyncCoordinator.shared.lastSync {
+                    LabeledContent("Last sync") { Text(date, style: .relative) }
+                }
+                Button("Sync Now") {
+                    Task { await LibrarySyncCoordinator.shared.syncNow() }
+                }
+                .disabled(LibrarySyncCoordinator.shared.isSyncing || LibrarySyncCoordinator.shared.isPaused)
+                Text("Titles, movie details, artwork selections, and watched status sync through your private iCloud account. Artwork downloads automatically for offline use. Mood and layout settings stay on this device.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Library") {
                 LabeledContent("Movies", value: movies.count, format: .number)
                 LabeledContent("Unresolved", value: unresolvedCount, format: .number)
@@ -141,7 +156,7 @@ struct SettingsView: View {
             case .clearLibrary:
                 Alert(
                     title: Text("Clear Library?"),
-                    message: Text("This permanently removes all movies, including unresolved imports, from this device."),
+                    message: Text("This removes all movies, including unresolved imports, from this device and your other synced devices. Pending removals will sync when iCloud is available."),
                     primaryButton: .destructive(Text("Clear Library"), action: clearLibrary),
                     secondaryButton: .cancel()
                 )
@@ -236,8 +251,8 @@ struct SettingsView: View {
 
     private func clearLibrary() {
         do {
-            try modelContext.delete(model: Movie.self)
-            try modelContext.save()
+            for movie in movies { modelContext.delete(movie) }
+            try LibrarySyncStore.save(modelContext)
         } catch {
             modelContext.rollback()
             presentedAlert = .error("Tonight could not clear the local library.")

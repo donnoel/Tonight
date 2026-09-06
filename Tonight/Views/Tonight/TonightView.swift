@@ -579,11 +579,6 @@ struct TonightView: View {
 
         if acceptedEventsNeedingWatchState.isEmpty || saveChanges() {
             didMigrateAcceptedChoicesToWatched = true
-            for event in acceptedEventsNeedingWatchState {
-                if let movie = event.movie {
-                    WatchedStateSyncCoordinator.shared.localStateDidSave(for: movie)
-                }
-            }
         }
 
         TonightWidgetSnapshotPublisher.publish(events: currentEvents)
@@ -606,10 +601,6 @@ struct TonightView: View {
         response.applyMovieState(to: event.movie, at: responseDate)
 
         if saveChanges() {
-            if response == .accepted || response == .watched,
-               let movie = event.movie {
-                WatchedStateSyncCoordinator.shared.localStateDidSave(for: movie)
-            }
             if response.removesMovieFromActivePicks,
                let movieID = event.movie?.id {
                 TonightWidgetSnapshotPublisher.removeMovie(id: movieID)
@@ -620,7 +611,7 @@ struct TonightView: View {
     @discardableResult
     private func saveChanges() -> Bool {
         do {
-            try modelContext.save()
+            try LibrarySyncStore.save(modelContext)
             return true
         } catch {
             modelContext.rollback()

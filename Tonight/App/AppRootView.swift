@@ -50,6 +50,7 @@ struct AppRootView: View {
         SidebarVisibilityPreference.visible.rawValue
     @State private var selection: AppSection? = {
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-TonightOpenSettings") { return .settings }
         if ProcessInfo.processInfo.arguments.contains("-TonightOpenDeals") {
             return .deals
         }
@@ -72,18 +73,18 @@ struct AppRootView: View {
         #endif
         .task {
             repairDuplicateImports()
-            WatchedStateSyncCoordinator.shared.start(in: modelContext)
+            await LibrarySyncCoordinator.shared.start(in: modelContext)
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
-            WatchedStateSyncCoordinator.shared.reconcile(in: modelContext)
+            Task { await LibrarySyncCoordinator.shared.syncNow() }
         }
         .onReceive(
             NotificationCenter.default.publisher(
-                for: NSUbiquitousKeyValueStore.didChangeExternallyNotification
+                for: LibrarySyncStore.didSave
             )
         ) { _ in
-            WatchedStateSyncCoordinator.shared.reconcile(in: modelContext)
+            LibrarySyncCoordinator.shared.localDidSave()
         }
         .onOpenURL { url in
             guard url.scheme?.lowercased() == "tonight",

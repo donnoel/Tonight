@@ -29,7 +29,7 @@ enum LocalLibraryDuplicateRepair {
         }
 
         if consolidatedMovies > 0 {
-            try modelContext.save()
+            try LibrarySyncStore.save(modelContext)
         }
 
         return LocalLibraryDuplicateRepairSummary(
@@ -49,7 +49,7 @@ enum LocalLibraryDuplicateRepair {
             events: events,
             in: modelContext
         )
-        try modelContext.save()
+        try LibrarySyncStore.save(modelContext)
     }
 
     private static func consolidate(

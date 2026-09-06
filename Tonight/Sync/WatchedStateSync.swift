@@ -369,6 +369,18 @@ final class WatchedStateSyncCoordinator {
         }
     }
 
+    func importForLibrarySync(in modelContext: ModelContext) throws {
+        keyValueStore.synchronize()
+        let movies = try modelContext.fetch(FetchDescriptor<Movie>())
+        let resolution = WatchedStateSyncResolver.resolve(
+            remoteSnapshot: try loadSnapshot(), localStates: movies.map(LocalWatchedState.init(movie:))
+        )
+        let byID = Dictionary(uniqueKeysWithValues: movies.map { ($0.id, $0) })
+        for update in resolution.localUpdates {
+            if let movie = byID[update.movieID] { apply(update.state, to: movie) }
+        }
+    }
+
     private func apply(_ state: SyncedWatchedState, to movie: Movie) {
         movie.isWatched = state.isWatched
         movie.dateWatched = state.isWatched
