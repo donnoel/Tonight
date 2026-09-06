@@ -141,6 +141,13 @@ Explicitly out of scope:
 - Apple deal parsing: expected collection identity, verified $4.99 purchase links, order, duplicate IDs, changed markup, and valid empty catalogs using local fixtures rather than the live site
 - Deals behavior: disposable cache round-trip, cached fallback, missing-credential preservation, bounded TMDB handoff, In Library detection, and recommendation candidate ranking
 
+## Version display convention
+
+- Display the installed version only in the system Settings app under Apps > Tonight, as a read-only Version row formatted `version (build)`, matching the user's Apple-app convention. Do not add an in-app version label.
+- `project.yml` owns `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` for both app and widget. Increment the build number for each changed build delivered to devices; use the same artifact/version on iPad and iPhone. Relaunching an unchanged build does not require a bump.
+- The build generates `Settings.bundle/Root.plist` from the template using the processed app Info.plist. Never persist the displayed version in UserDefaults or require first launch to populate it.
+- Validate that the built app, widget, and Settings Version row agree before installing or publishing.
+
 ## Build and run notes
 
 - Project: `Tonight.xcodeproj`

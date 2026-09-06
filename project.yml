@@ -17,13 +17,26 @@ settings:
     SWIFT_VERSION: 6.0
     SWIFT_STRICT_CONCURRENCY: complete
     IPHONEOS_DEPLOYMENT_TARGET: 18.0
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: 2
 targets:
   Tonight:
     type: application
     platform: iOS
     sources:
       - path: Tonight
+        excludes:
+          - Resources/Settings.bundle
       - path: Shared
+    postBuildScripts:
+      - name: Generate Settings Version
+        path: Scripts/write-settings-version.sh
+        inputFiles:
+          - $(SRCROOT)/Scripts/write-settings-version.sh
+          - $(SRCROOT)/Tonight/Resources/Settings.bundle/Root.plist
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Settings.bundle/Root.plist
     dependencies:
       - target: TonightWidgetExtension
         embed: true
@@ -57,8 +70,6 @@ targets:
         INFOPLIST_FILE: TonightWidgetExtension/Info.plist
         CODE_SIGN_ENTITLEMENTS: TonightWidgetExtension/TonightWidgetExtension.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
-        CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 1.0
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
