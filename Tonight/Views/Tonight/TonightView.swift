@@ -35,6 +35,9 @@ struct TonightView: View {
                 hero(currentEvents: currentEvents)
 
                 if eligibleCount == 0 {
+                    poolCount(eligibleCount: eligibleCount)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                     emptyState
                 } else if currentEvents.isEmpty {
                     readyState(eligibleCount: eligibleCount)
@@ -327,7 +330,11 @@ struct TonightView: View {
             Text("Ready when you are")
                 .font(.title2.bold())
 
-            Text("\(eligibleCount.formatted()) resolved \(eligibleCount == 1 ? "movie is" : "movies are") ready. Tonight will offer up to three picks that fit your mood, with different perspectives when enough matches are available.")
+            poolCount(eligibleCount: eligibleCount)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Text("Tonight will offer up to three picks that fit your mood, with different perspectives when enough matches are available.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 720, alignment: .leading)
@@ -360,7 +367,7 @@ struct TonightView: View {
 
                 Spacer()
 
-                Text("From \(eligibleCount.formatted()) resolved movies")
+                poolCount(eligibleCount: eligibleCount)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -394,7 +401,7 @@ struct TonightView: View {
 
                 Spacer()
 
-                Text("\(eligibleCount.formatted()) movies")
+                poolCount(eligibleCount: eligibleCount)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -442,6 +449,12 @@ struct TonightView: View {
                 }
             }
         }
+    }
+
+    private func poolCount(eligibleCount: Int) -> some View {
+        Text("\(eligibleCount.formatted()) / \(movies.count.formatted()) movies")
+            .accessibilityLabel("\(eligibleCount.formatted()) out of \(movies.count.formatted()) movies in your library eligible for your current mood and tuning")
+            .accessibilityIdentifier("tonight.eligibleMovieCount")
     }
 
     private var resolvedMovies: [Movie] {
