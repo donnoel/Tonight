@@ -140,12 +140,6 @@ struct SettingsView: View {
                 }
                 .disabled(movies.isEmpty)
             }
-
-            Section("About") {
-                LabeledContent("Tonight", value: "1.0")
-                Text("A personal movie companion built around the collection you already own.")
-                    .foregroundStyle(.secondary)
-            }
         }
         .navigationTitle("Settings")
         .task {
