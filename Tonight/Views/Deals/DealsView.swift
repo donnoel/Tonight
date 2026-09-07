@@ -2,9 +2,9 @@ import SwiftData
 import SwiftUI
 
 private enum DealsFilter: String, CaseIterable, Identifiable {
-    case all
     case notInLibrary
     case recommended
+    case all
 
     var id: Self { self }
 
@@ -23,7 +23,7 @@ struct DealsView: View {
     @Query(sort: \RecommendationEvent.recommendedAt, order: .reverse)
     private var history: [RecommendationEvent]
     @State private var model: DealsViewModel
-    @State private var selectedFilter = DealsFilter.all
+    @State private var selectedFilter = DealsFilter.notInLibrary
     @State private var manualRefreshRequest: UUID?
 
     private let columns = [
@@ -304,22 +304,12 @@ private struct DealMovieCard: View {
                 )
                 .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
 
-                HStack(spacing: 6) {
-                    Text(item.appleDeal.formattedPrice)
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(.regularMaterial, in: Capsule())
-
-                    if isInLibrary {
-                        Label("In Library", systemImage: "checkmark.circle.fill")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 6)
-                            .background(.regularMaterial, in: Capsule())
-                    }
-                }
-                .padding(9)
+                Text(item.appleDeal.formattedPrice)
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(9)
             }
 
             Text(item.metadata?.title ?? item.appleDeal.title)
@@ -330,6 +320,13 @@ private struct DealMovieCard: View {
             Text(item.metadata?.releaseYear.map(String.init) ?? "Year unavailable")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if isInLibrary {
+                Label("In Library", systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if item.matchStatus != .matched {
                 Label("TMDB match unresolved", systemImage: "questionmark.circle")

@@ -50,7 +50,7 @@ Explicitly out of scope:
 - `MovieImportParser`, `MovieTitleNormalizer`, `LibraryDuplicateDetector`, `MovieMatcher`, and `LibrarySort` are deterministic logic boundaries.
 - `TMDBClient` owns URLSession requests and maps dedicated TMDB DTOs into rich local movie values.
 - `TMDBMatchResolver` combines deterministic search-result matching with a narrow alternative-title confirmation from the selected movie-details response.
-- `AppleMovieDealsProvider` is the only boundary that knows Apple’s public collection URL and page structure; it emits normalized deal records and verifies the collection/link price context.
+- `AppleMovieDealsProvider` is the only boundary that knows Apple’s public collection URL and page structure; it follows the collection’s pagination to completion, emits normalized deal records, and verifies the collection/link price context.
 - `MovieDealsRepository` loads the disposable cache, reuses existing library/cached metadata, and performs bounded TMDB enrichment outside views.
 - `DealsViewModel` loads cached results immediately, enforces a six-hour refresh lifetime, and preserves cached results with a visible warning when refresh fails.
 - `ImportViewModel` coordinates review state, per-entry progress, partial failure handling, and SwiftData insertion.
@@ -175,7 +175,7 @@ Explicitly out of scope:
 - Verify automatic retry resolves only unambiguous entries and the one-by-one queue supports editing a query, choosing a candidate, skipping, and relaunch persistence.
 - Verify Library search, watched-state filters, every sort field and direction, and repeated shuffle ordering on both regular and compact widths.
 - Exercise every mood and tuning option against a varied resolved library, confirm rotating lanes remain truthful, refresh repeatedly to verify cooldown/diversity, record each response type, and verify History and relaunch persistence.
-- Open Deals on iPad and iPhone, verify the live or cached catalog, poster enrichment, All/Not in Library/Recommended filters, manual refresh, Apple link behavior, and graceful offline/format-change messaging.
+- Open Deals on iPad and iPhone, verify the live or cached catalog, poster enrichment, Not in Library (default)/Recommended/All filters, manual refresh, Apple link behavior, and graceful offline/format-change messaging.
 - Re-check VoiceOver labels, Dynamic Type, light/dark appearance, and destructive confirmation.
 
 ## Output expectations per patch

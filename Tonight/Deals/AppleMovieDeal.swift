@@ -128,24 +128,27 @@ struct DealCatalogSnapshot: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 1
 
     let schemaVersion: Int
+    let catalogVersion: Int?
     let items: [CachedMovieDeal]
     let lastSuccessfulRefresh: Date
     let enrichmentState: DealCatalogEnrichmentState
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,
+        catalogVersion: Int? = 2,
         items: [CachedMovieDeal],
         lastSuccessfulRefresh: Date,
         enrichmentState: DealCatalogEnrichmentState
     ) {
         self.schemaVersion = schemaVersion
+        self.catalogVersion = catalogVersion
         self.items = items
         self.lastSuccessfulRefresh = lastSuccessfulRefresh
         self.enrichmentState = enrichmentState
     }
 
     func isFresh(at date: Date, lifetime: TimeInterval) -> Bool {
-        date.timeIntervalSince(lastSuccessfulRefresh) < lifetime
+        catalogVersion == 2 && date.timeIntervalSince(lastSuccessfulRefresh) < lifetime
     }
 }
 

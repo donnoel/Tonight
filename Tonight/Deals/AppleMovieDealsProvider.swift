@@ -32,43 +32,162 @@ struct AppleMovieDealsProvider: AppleMovieDealsProviding, Sendable {
         string: "https://tv.apple.com/us/collection/buy-for-499/edt.col.5c9ea81b-fbfe-461e-ac43-9d8b52eaa3dc"
     )!
 
-    private let session: URLSession
+    private let transport: @Sendable (URLRequest) async throws -> (Data, URLResponse)
     private let collectionURL: URL
 
     init(
         session: URLSession = .shared,
         collectionURL: URL = Self.collectionURL
     ) {
-        self.session = session
+        self.transport = { try await session.data(for: $0) }
         self.collectionURL = collectionURL
     }
 
+    init(transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) {
+        self.transport = transport
+        self.collectionURL = Self.collectionURL
+    }
+
     func fetchDeals() async throws -> [AppleMovieDeal] {
-        var request = URLRequest(
-            url: collectionURL,
-            cachePolicy: .reloadIgnoringLocalCacheData,
-            timeoutInterval: 30
-        )
-        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
-        request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
-
-        let (data, response) = try await session.data(for: request)
-        try Task.checkCancellation()
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AppleMovieDealsError.invalidResponse
-        }
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw AppleMovieDealsError.server(statusCode: httpResponse.statusCode)
-        }
+        let data = try await fetch(collectionURL, accept: "text/html,application/xhtml+xml")
         guard let html = String(data: data, encoding: .utf8) else {
             throw AppleMovieDealsError.unreadablePage
         }
-        return try AppleMovieDealsParser.parse(html: html, retrievedAt: .now)
+        let retrievedAt = Date.now
+        var deals = try AppleMovieDealsParser.parse(html: html, retrievedAt: retrievedAt)
+        guard let pagination = try AppleMovieDealsParser.pagination(html: html) else {
+            return deals
+        }
+        var nextToken: String? = pagination.nextToken
+        var seenTokens: Set<String> = []
+        var seenIDs = Set(deals.map(\.id))
+        while let token = nextToken {
+            try Task.checkCancellation()
+            guard seenTokens.insert(token).inserted, seenTokens.count <= 100 else {
+                throw AppleMovieDealsError.pageFormatChanged
+            }
+            let pageData = try await fetch(pagination.url(token: token), accept: "application/json")
+            let page = try AppleMovieDealsParser.parsePage(
+                data: pageData, collectionID: pagination.collectionID, retrievedAt: retrievedAt
+            )
+            for deal in page.deals where seenIDs.insert(deal.id).inserted {
+                deals.append(AppleMovieDeal(
+                    title: deal.title, appleURL: deal.appleURL, priceInCents: deal.priceInCents,
+                    contentIdentifier: deal.contentIdentifier, position: deals.count,
+                    retrievedAt: retrievedAt, priceEvidence: deal.priceEvidence
+                ))
+            }
+            nextToken = page.nextToken
+        }
+        return deals
     }
+
+    private func fetch(_ url: URL, accept: String) async throws -> Data {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+        request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
+        let (data, response) = try await transport(request)
+        try Task.checkCancellation()
+        guard let response = response as? HTTPURLResponse else {
+            throw AppleMovieDealsError.invalidResponse
+        }
+        guard (200..<300).contains(response.statusCode) else {
+            throw AppleMovieDealsError.server(statusCode: response.statusCode)
+        }
+        return data
+    }
+
 }
 
 enum AppleMovieDealsParser {
+    struct Pagination: Sendable {
+        let collectionID: String
+        let nextToken: String
+        let parameters: [String: String]
+
+        func url(token: String) throws -> URL {
+            var components = URLComponents(string: "https://tv.apple.com/api/uts/v3/shelves/\(collectionID)")!
+            var query = parameters
+            query["nextToken"] = token
+            components.queryItems = query.sorted { $0.key < $1.key }.map {
+                URLQueryItem(name: $0.key, value: $0.value)
+            }
+            guard let url = components.url else { throw AppleMovieDealsError.pageFormatChanged }
+            return url
+        }
+    }
+
+    // Use Apple's page-provided pagination configuration, never a copied session token.
+    static func pagination(html: String) throws -> Pagination? {
+        let pattern = #"<script\b[^>]*id="serialized-server-data"[^>]*>(.*?)</script>"#
+        let expression = try NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+        guard let match = expression.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
+              let range = Range(match.range(at: 1), in: html),
+              let data = String(html[range]).data(using: .utf8),
+              let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let entries = root["data"] as? [[String: Any]] else {
+            throw AppleMovieDealsError.pageFormatChanged
+        }
+        let payloads = entries.compactMap { $0["data"] as? [String: Any] }
+        let shelves = payloads.flatMap { $0["shelves"] as? [[String: Any]] ?? [] }
+        guard !shelves.isEmpty else { throw AppleMovieDealsError.pageFormatChanged }
+        let triggers = shelves.flatMap { $0["items"] as? [[String: Any]] ?? [] }
+            .filter { $0["$kind"] as? String == "ShelfPaginationTrigger" }
+        guard !triggers.isEmpty else { return nil }
+        guard triggers.count == 1,
+              let intent = triggers[0]["paginationIntent"] as? [String: Any],
+              intent["$kind"] as? String == "ShelfBasicPaginationIntent",
+              let id = intent["collectionId"] as? String,
+              id == AppleMovieDealsProvider.collectionURL.lastPathComponent,
+              let token = intent["nextToken"] as? String, !token.isEmpty,
+              let configuration = payloads.compactMap({ $0["configuration"] as? [String: Any] }).first,
+              let props = configuration["applicationProps"] as? [String: Any],
+              let map = props["requiredParamsMap"] as? [String: Any],
+              let parameters = map["Default"] as? [String: String],
+              parameters["sf"] == "143441" else {
+            throw AppleMovieDealsError.pageFormatChanged
+        }
+        return Pagination(collectionID: id, nextToken: token, parameters: parameters)
+    }
+
+    static func parsePage(
+        data: Data, collectionID: String, retrievedAt: Date
+    ) throws -> (deals: [AppleMovieDeal], nextToken: String?) {
+        struct Response: Decodable {
+            struct Payload: Decodable { let shelf: Shelf }
+            struct Shelf: Decodable {
+                let id: String
+                let items: [Item]
+                let nextToken: String?
+            }
+            struct Item: Decodable {
+                let id: String
+                let type: String
+                let title: String
+                let url: URL
+            }
+            let data: Payload
+        }
+        let shelf = try JSONDecoder().decode(Response.self, from: data).data.shelf
+        guard shelf.id == collectionID else { throw AppleMovieDealsError.unexpectedCollection }
+        var deals: [AppleMovieDeal] = []
+        for item in shelf.items {
+            guard item.type == "Movie", isUSMovieURL(item.url), hasVerifiedPriceContext(item.url),
+                  contentIdentifier(from: item.url) == item.id, !item.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw AppleMovieDealsError.pageFormatChanged
+            }
+            deals.append(AppleMovieDeal(
+                title: item.title, appleURL: item.url, priceInCents: 499,
+                contentIdentifier: item.id, position: deals.count, retrievedAt: retrievedAt,
+                priceEvidence: .buyCollectionAndLinkContext
+            ))
+        }
+        if let token = shelf.nextToken, token.isEmpty || shelf.items.isEmpty {
+            throw AppleMovieDealsError.pageFormatChanged
+        }
+        return (deals, shelf.nextToken)
+    }
+
     static func parse(html: String, retrievedAt: Date) throws -> [AppleMovieDeal] {
         guard html.localizedCaseInsensitiveContains("Buy for $4.99") else {
             throw AppleMovieDealsError.unexpectedCollection
