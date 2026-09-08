@@ -41,6 +41,22 @@ final class Movie {
     var lastWatchedDate: Date?
     var recommendationCount: Int
     var lastRecommendedDate: Date?
+    var browsingGeneration: Int?
+    var browsingShownAt: Date?
+    var browsingEventID: UUID?
+
+    var browsingProgress: LibraryBrowsingProgress? {
+        get {
+            guard let browsingGeneration, let browsingShownAt, let browsingEventID else { return nil }
+            return LibraryBrowsingProgress(generation: browsingGeneration, shownAt: browsingShownAt,
+                                           eventID: browsingEventID)
+        }
+        set {
+            browsingGeneration = newValue?.generation
+            browsingShownAt = newValue?.shownAt
+            browsingEventID = newValue?.eventID
+        }
+    }
 
     var resolutionStatus: MovieResolutionStatus {
         get { MovieResolutionStatus(rawValue: resolutionStatusRawValue) ?? .unresolved }

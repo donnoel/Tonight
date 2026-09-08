@@ -26,9 +26,12 @@ enum TonightWidgetSnapshotPublisher {
     }
 
     static func publish(events: [RecommendationEvent]) {
+        let latestDate = events.map(\.recommendedAt).max()
         let sortedEvents = events
             .filter { event in
-                guard let movie = event.movie else { return false }
+                guard event.recommendedAt == latestDate, event.response == .pending,
+                      let movie = event.movie,
+                      movie.browsingEventID == nil || movie.browsingEventID == event.id else { return false }
                 return !movie.isWatched && !movie.isDisliked
             }
             .sorted { $0.kind.sortOrder < $1.kind.sortOrder }

@@ -36,7 +36,17 @@ final class LibrarySyncState {
     var accountID: String?
     var engineState: Data?
     var lastSync: Date?
+    var browsingProgressMigrated: Bool?
+    var engineConfigurationVersion: Int?
     init() {}
+
+    /// Refresh only the sync engine's cached subscription and download cursors.
+    /// Movie documents, pending uploads, and account ownership remain authoritative.
+    func prepareEngineConfiguration() {
+        guard engineConfigurationVersion != 1 else { return }
+        engineState = nil
+        engineConfigurationVersion = 1
+    }
 }
 
 enum LibrarySyncFailure: LocalizedError {
@@ -68,6 +78,7 @@ enum LibrarySyncStore {
     static func save(_ context: ModelContext) throws {
         if supported(in: context) {
             let state = try state(in: context)
+            try migrateBrowsingProgress(state: state, in: context)
             if state.seeded {
                 let changed = (context.insertedModelsArray + context.changedModelsArray).compactMap { $0 as? Movie }
                 let deleted = context.deletedModelsArray.compactMap { $0 as? Movie }
@@ -80,6 +91,7 @@ enum LibrarySyncStore {
 
     static func seed(in context: ModelContext) throws {
         let state = try state(in: context)
+        try migrateBrowsingProgress(state: state, in: context)
         guard !state.seeded else { return }
         let movies = try context.fetch(FetchDescriptor<Movie>())
         // A portable second backup, in addition to the raw store backup before migration.
@@ -90,6 +102,20 @@ enum LibrarySyncStore {
         state.seeded = true
         try reconcile(in: context)
         try context.save()
+    }
+
+    /// Import only this device's current position, not its lifetime exposure counts.
+    static func migrateBrowsingProgress(state: LibrarySyncState, in context: ModelContext) throws {
+        guard state.browsingProgressMigrated != true else { return }
+        let events = try context.fetch(FetchDescriptor<RecommendationEvent>())
+        let rotationID = events.max { $0.recommendedAt < $1.recommendedAt }?.rotationID
+        for event in events where event.rotationID == rotationID {
+            guard let movie = event.movie else { continue }
+            let progress = LibraryBrowsingProgress(generation: event.browsingGeneration ?? 0,
+                shownAt: event.recommendedAt, eventID: event.id)
+            movie.browsingProgress = LibraryBrowsingProgress.merged(movie.browsingProgress, progress)
+        }
+        state.browsingProgressMigrated = true
     }
 
     static func capture(_ movies: [Movie], deleted: [Movie], initial: Bool, state: LibrarySyncState, in context: ModelContext) throws {

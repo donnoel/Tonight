@@ -536,15 +536,20 @@ struct TonightView: View {
         }
 
         for pick in picks {
+            let eventID = UUID()
             pick.movie.recommendationCount += 1
             pick.movie.lastRecommendedDate = now
+            pick.movie.browsingProgress = LibraryBrowsingProgress(generation: batch.browsingGeneration,
+                shownAt: now, eventID: eventID)
             modelContext.insert(
                 RecommendationEvent(
+                    id: eventID,
                     movie: pick.movie,
                     recommendedAt: now,
                     kind: pick.kind,
                     mood: selectedMood,
-                    rotationID: batch.rotationID
+                    rotationID: batch.rotationID,
+                    browsingGeneration: batch.browsingGeneration
                 )
             )
         }

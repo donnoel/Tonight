@@ -110,7 +110,7 @@ Explicitly out of scope:
 - Save useful progress during a bulk import so one later failure does not roll back earlier successes.
 - Preserve and update personal history fields deliberately: watched state/dates, rating, liked/disliked, recommendation count, and recommendation dates.
 - Share only display-ready recommendation snapshots with the widget through `group.com.donnoel.Tonight`; the app’s SwiftData store remains authoritative.
-- Sync imported movie details, artwork references, watched state, and movie taste through the same private iCloud account. Recommendation events, mood/layout settings, and the TMDB credential remain device-local.
+- Sync imported movie details, artwork references, watched state, movie taste, and browsing progress through the same private iCloud account. Combine shown-movie progress across devices without allowing stale copies to rewind it. Recommendation cards/responses, mood/tuning/layout settings, and the TMDB credential remain device-local. Counts converge after iCloud sync when filters match; offline devices retain local progress until they reconnect.
 - Keep SwiftData automatic CloudKit mirroring explicitly disabled (`cloudKitDatabase: .none`); the separate sync service owns CloudKit traffic.
 - Back up the original local store before additive sync-model migration and export the library before seeding the sync outbox. Never replace a populated library with an empty cloud response.
 - Preserve deletion tombstones and redirects for resolved titles so older offline devices cannot resurrect removed or unresolved copies. Pause on an unexpected cloud reset or iCloud account change; never upload an existing account library to another account.

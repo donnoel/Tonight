@@ -80,12 +80,14 @@ struct RecommendationPick: Identifiable {
 struct RecommendationBatch {
     let picks: [RecommendationPick]
     let rotationID: UUID?
+    let browsingGeneration: Int
 }
 
 struct RecommendationPool {
     let movies: [Movie]
     let rotationID: UUID?
     let startsNewRotation: Bool
+    let browsingGeneration: Int
 }
 
 enum RecommendationEngine {
@@ -155,7 +157,8 @@ enum RecommendationEngine {
         return RecommendationBatch(
             picks: selectRecommendations(from: movies, candidates: pool.movies, history: history,
                                          preferences: preferences, now: now, seed: seed),
-            rotationID: rotationID
+            rotationID: rotationID,
+            browsingGeneration: pool.browsingGeneration
         )
     }
 
@@ -269,24 +272,31 @@ enum RecommendationEngine {
     }
 
     /// Complete the library before allowing repeats. Mood/runtime changes cannot reset progress.
-    /// Legacy events belong to the initial rotation; lifetime counters remain ranking signals only.
+    /// Shared exposure markers are monotonic; legacy local history supplies initial progress only.
     static func recommendationPool(
         from movies: [Movie],
         history: [RecommendationEvent],
         preferences: RecommendationPreferences
     ) -> RecommendationPool {
         let rotationID = history.max { $0.recommendedAt < $1.recommendedAt }?.rotationID
-        let rotationHistory = history.filter { $0.rotationID == rotationID }
+        let generation = (movies.compactMap(\.browsingGeneration) + history.compactMap(\.browsingGeneration)).max() ?? 0
+        let rotationHistory = history.filter {
+            if let value = $0.browsingGeneration { return value == generation }
+            return generation == 0 && $0.rotationID == rotationID
+        }
         let libraryPreferences = RecommendationPreferences(unwatchedOnly: preferences.unwatchedOnly)
         let library = movies.filter { isEligible($0, preferences: libraryPreferences) }
-        let unseenLibrary = unseenMovies(from: library, history: rotationHistory)
+        let unseenLibrary = unseenMovies(from: library, history: rotationHistory).filter {
+            ($0.browsingGeneration ?? -1) < generation
+        }
         let startsNewRotation = !library.isEmpty && unseenLibrary.isEmpty
         return RecommendationPool(
             movies: (startsNewRotation ? library : unseenLibrary).filter {
                 isEligible($0, preferences: preferences)
             },
             rotationID: rotationID,
-            startsNewRotation: startsNewRotation
+            startsNewRotation: startsNewRotation,
+            browsingGeneration: generation + (startsNewRotation ? 1 : 0)
         )
     }
 
@@ -381,6 +391,10 @@ enum RecommendationEngine {
                 guard event.response != .watched,
                       event.response != .rejected,
                       event.response != .notTonight else {
+                    return false
+                }
+
+                if let shownEvent = movie.browsingEventID, shownEvent != event.id {
                     return false
                 }
 

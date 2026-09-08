@@ -644,6 +644,18 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertTrue(RecommendationResponse.notTonight.removesMovieFromActivePicks)
     }
 
+    func testRemoteBrowsingProgressHidesAStaleLocalRecommendationCard() {
+        let film = movie(title: "Shown Elsewhere", genres: ["Drama"])
+        let event = RecommendationEvent(movie: film, recommendedAt: now, kind: .bestMatch)
+        film.browsingProgress = LibraryBrowsingProgress(generation: 0,
+            shownAt: now.addingTimeInterval(1), eventID: UUID())
+        XCTAssertTrue(RecommendationEngine.activeEvents(from: [event],
+            preferences: RecommendationPreferences()).isEmpty)
+        film.browsingProgress = LibraryBrowsingProgress(generation: 0, shownAt: now, eventID: event.id)
+        XCTAssertEqual(RecommendationEngine.activeEvents(from: [event],
+            preferences: RecommendationPreferences()).map(\.id), [event.id])
+    }
+
     @MainActor
     func testSavedExposureSurvivesReopeningLocalStore() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

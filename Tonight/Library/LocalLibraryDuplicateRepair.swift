@@ -65,6 +65,7 @@ enum LocalLibraryDuplicateRepair {
         canonical.isDisliked = canonical.isDisliked || duplicate.isDisliked
         canonical.isLiked = !canonical.isDisliked && (canonical.isLiked || duplicate.isLiked)
         canonical.dateAdded = min(canonical.dateAdded, duplicate.dateAdded)
+        canonical.browsingProgress = LibraryBrowsingProgress.merged(canonical.browsingProgress, duplicate.browsingProgress)
         canonical.lastRecommendedDate = latest(
             canonical.lastRecommendedDate,
             duplicate.lastRecommendedDate

@@ -38,6 +38,7 @@ final class LibrarySyncCoordinator: CKSyncEngineDelegate {
                 try WatchedStateSyncCoordinator.shared.importForLibrarySync(in: context)
                 try LibrarySyncStore.seed(in: context)
             }
+            try LibrarySyncStore.save(context)
             lastSync = state.lastSync
             try refreshPending()
             #if DEBUG
@@ -86,21 +87,24 @@ final class LibrarySyncCoordinator: CKSyncEngineDelegate {
             try context.save()
             accountVerified = true
             if engine == nil {
+                state.prepareEngineConfiguration()
                 if state.engineState == nil {
                     _ = try await container.privateCloudDatabase.save(CKRecordZone(zoneID: Self.zoneID))
                 }
                 let serialization = try state.engineState.map { try JSONDecoder().decode(CKSyncEngine.State.Serialization.self, from: $0) }
-                let configuration = CKSyncEngine.Configuration(database: container.privateCloudDatabase, stateSerialization: serialization, delegate: self)
+                var configuration = CKSyncEngine.Configuration(database: container.privateCloudDatabase, stateSerialization: serialization, delegate: self)
+                // Do not reuse the legacy Core Data subscription, which may filter out our records.
+                configuration.subscriptionID = "TonightLibraryV1.subscription"
                 engine = CKSyncEngine(configuration)
             }
             guard let engine else { return }
             status = "Syncing library…"
             // Fetch before sending initial imports so old copies cannot overwrite new edits.
-            try await engine.fetchChanges()
+            try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
             guard !isPaused else { return }
             queuePending()
             try await engine.sendChanges()
-            try await engine.fetchChanges()
+            try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
             try refreshPending()
             if !failedThisCycle && pendingCount == 0 && !isPaused {
                 state.lastSync = .now; try context.save(); lastSync = state.lastSync

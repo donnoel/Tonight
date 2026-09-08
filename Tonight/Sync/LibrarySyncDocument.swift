@@ -76,6 +76,7 @@ struct SyncedLibraryMovie: Codable, Equatable, Sendable {
     var watched: LibraryWatchState
     var taste: LibraryTaste
     var dateAdded: Date
+    var browsing: LibraryBrowsingProgress?
 
     init(movie: Movie) {
         details = LibraryMovieDetails(
@@ -94,6 +95,7 @@ struct SyncedLibraryMovie: Codable, Equatable, Sendable {
                                     lastWatchedDate: movie.lastWatchedDate, modifiedAt: movie.watchedStateModifiedAt)
         taste = LibraryTaste(userRating: movie.userRating, isLiked: movie.isLiked, isDisliked: movie.isDisliked)
         dateAdded = movie.dateAdded
+        browsing = movie.browsingProgress
     }
 
     func apply(to movie: Movie) {
@@ -125,6 +127,7 @@ struct SyncedLibraryMovie: Codable, Equatable, Sendable {
         movie.isLiked = taste.isLiked
         movie.isDisliked = taste.isDisliked
         movie.dateAdded = dateAdded
+        movie.browsingProgress = browsing
     }
 }
 
@@ -150,6 +153,7 @@ struct LibrarySyncDocument: Codable, Equatable, Sendable {
     }
 
     mutating func update(_ snapshot: SyncedLibraryMovie, previous: SyncedLibraryMovie?, revision: LibraryRevision) {
+        movie.browsing = LibraryBrowsingProgress.merged(movie.browsing, snapshot.browsing)
         if previous?.details != snapshot.details { movie.details = snapshot.details; detailsRevision = revision }
         if previous?.watched != snapshot.watched { movie.watched = snapshot.watched; watchRevision = revision }
         if previous?.taste != snapshot.taste { movie.taste = snapshot.taste; tasteRevision = revision }
@@ -159,6 +163,7 @@ struct LibrarySyncDocument: Codable, Equatable, Sendable {
 
     func merged(with other: Self) -> Self {
         var result = self
+        result.movie.browsing = LibraryBrowsingProgress.merged(movie.browsing, other.movie.browsing)
         // Initial imports prefer complete metadata. Later explicit corrections use their revision.
         if other.detailsRevision > detailsRevision || (other.detailsRevision == detailsRevision &&
             (other.movie.details.completeness > movie.details.completeness ||
