@@ -429,6 +429,7 @@ final class RecommendationEngineTests: XCTestCase {
             .funAndEasy: ["Light Comedy", "Comic Mystery"],
             .quietAndThoughtful: ["Reflective Drama"],
             .edgeOfYourSeat: ["Tense Mystery", "War Epic", "Dark Comedy"],
+            .scaryMovies: ["Dark Comedy"],
             .bigMovieNight: ["War Epic"],
             .comfortWatch: ["Light Comedy", "Comic Mystery"],
             .surpriseMe: Set(fixtures.map(\.title))
@@ -437,6 +438,42 @@ final class RecommendationEngineTests: XCTestCase {
             let matches = fixtures.filter { RecommendationEngine.matchesMood($0, mood: mood) }
             XCTAssertEqual(Set(matches.map(\.title)), expected[mood], mood.title)
         }
+    }
+
+    func testScaryMoodRequiresHorrorRatherThanActionOrOrdinaryThrillers() {
+        let horror = movie(title: "Haunted House", genres: ["Horror", "Mystery"])
+        let scienceFictionHorror = movie(title: "Space Horror", genres: ["Science Fiction", "Horror"])
+        let action = movie(title: "Action Adventure", genres: ["Action", "Adventure", "Thriller"])
+        let crime = movie(title: "Crime Thriller", genres: ["Crime", "Thriller"])
+        let family = movie(title: "Friendly Ghost", genres: ["Family", "Fantasy"])
+        family.overviewText = "A haunted house is home to a friendly ghost."
+        let library = [horror, scienceFictionHorror, action, crime, family]
+        for seed in UInt64(0)..<20 {
+            let picks = RecommendationEngine.recommendations(from: library, history: [],
+                preferences: RecommendationPreferences(mood: .scaryMovies), now: now, seed: seed)
+            XCTAssertEqual(Set(picks.map(\.movie.title)), ["Haunted House", "Space Horror"])
+        }
+        XCTAssertEqual(RecommendationMood(rawValue: "scaryMovies"), .scaryMovies)
+    }
+
+    func testScaryMoodHonorsTuningAndDoesNotRepeatExhaustedHorror() {
+        let horror = movie(title: "Horror", genres: ["Horror"])
+        let action = movie(title: "Action", genres: ["Action"])
+        var preferences = RecommendationPreferences(mood: .scaryMovies, underTwoHours: true, unwatchedOnly: true)
+        horror.runtimeMinutes = 121
+        XCTAssertFalse(RecommendationEngine.isEligible(horror, preferences: preferences))
+        horror.runtimeMinutes = 90
+        horror.isWatched = true
+        XCTAssertFalse(RecommendationEngine.isEligible(horror, preferences: preferences))
+        horror.isWatched = false
+        XCTAssertTrue(RecommendationEngine.isEligible(horror, preferences: preferences))
+        let event = RecommendationEvent(movie: horror, recommendedAt: now, kind: .bestMatch, mood: .scaryMovies)
+        XCTAssertEqual(event.mood, .scaryMovies)
+        XCTAssertTrue(RecommendationEngine.recommendations(from: [horror, action], history: [event],
+            preferences: preferences, now: now, seed: 7).isEmpty)
+        preferences.mood = .anything
+        XCTAssertEqual(RecommendationEngine.recommendations(from: [horror, action], history: [event],
+            preferences: preferences, now: now, seed: 7).map(\.movie.title), ["Action"])
     }
 
     func testExhaustedQuietMoodDoesNotRepeatOrUseOffMoodFiller() {
