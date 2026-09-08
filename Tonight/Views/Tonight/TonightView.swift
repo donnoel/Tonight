@@ -672,7 +672,6 @@ private struct RecommendationCard: View {
 
             RecommendationResponseControls(
                 event: event,
-                compact: false,
                 onRespond: onRespond
             )
         }
@@ -743,7 +742,6 @@ private struct CompactPrimaryRecommendationCard: View {
 
             RecommendationResponseControls(
                 event: event,
-                compact: true,
                 onRespond: onRespond
             )
         }
@@ -803,7 +801,6 @@ private struct CompactSecondaryRecommendationCard: View {
 
             RecommendationResponseControls(
                 event: event,
-                compact: true,
                 onRespond: onRespond
             )
         }
@@ -817,51 +814,42 @@ private struct CompactSecondaryRecommendationCard: View {
 
 private struct RecommendationResponseControls: View {
     let event: RecommendationEvent
-    let compact: Bool
     let onRespond: (RecommendationResponse) -> Void
 
     var body: some View {
         if event.response == .pending {
-            HStack(spacing: 10) {
-                Button("Choose") {
-                    onRespond(.accepted)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Menu {
-                    Button {
-                        onRespond(.notTonight)
-                    } label: {
-                        Label("Not Tonight", systemImage: "moon.zzz")
-                    }
-
-                    Button {
-                        onRespond(.watched)
-                    } label: {
-                        Label("Already Watched", systemImage: "eye.circle")
-                    }
-
-                    Button {
-                        onRespond(.rejected)
-                    } label: {
-                        Label("Not Interested", systemImage: "hand.thumbsdown")
-                    }
-                } label: {
-                    if compact {
-                        Image(systemName: "ellipsis.circle")
-                    } else {
-                        Label("More Responses", systemImage: "ellipsis.circle")
-                    }
-                }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("More Responses")
-                .accessibilityHint("Shows options for skipping, watched, or not interested")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) { responseButtons }
+                VStack(alignment: .leading, spacing: 10) { responseButtons }
             }
-            .controlSize(compact ? .large : .regular)
+            .font(.subheadline)
+            .controlSize(.regular)
         } else {
             Label(event.response.title, systemImage: event.response.systemImage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var responseButtons: some View {
+        Group {
+            Button {
+                onRespond(.accepted)
+            } label: {
+                Text("Choose")
+                    .frame(minHeight: 28)
+            }
+            .buttonStyle(.borderedProminent)
+
+            Button {
+                onRespond(.watched)
+            } label: {
+                Text("Already Watched")
+                    .frame(minHeight: 28)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityHint("Marks this movie as watched")
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
