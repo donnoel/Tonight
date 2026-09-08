@@ -20,7 +20,7 @@ Current scope:
 - Safe automatic retry and user-confirmed TMDB matching for unresolved entries
 - Local Library search, watched-state filtering, multi-field ordering, and an explicitly reshuffled order
 - Local, explainable recommendation selection with controlled randomness
-- Human mood profiles, optional tuning choices, rotating recommendation lanes, and recent-session cooldown
+- Human mood profiles, optional tuning choices, rotating recommendation lanes, and persistent exclusion of previously shown movies
 - Persisted recommendation responses and movie-level watched/liked/disliked taste signals
 - Private CloudKit library sync through CKSyncEngine; local SwiftData storage remains usable offline, with durable outbox entries saved alongside movie edits
 - A medium WidgetKit widget showing the top persisted Tonight recommendation
@@ -86,8 +86,8 @@ Explicitly out of scope:
 - Changing the mood immediately generates a matching set without recording the previous picks as Not Tonight. Saved picks from another mood must not remain displayed.
 - Under Two Hours and Unwatched Only are hard tuning filters; Something Older and More Adventurous are ranking and lane preferences.
 - Best Fit balances explicit taste, mood, watch state, quality evidence, and recency; the other two lanes must truthfully match their displayed perspective.
-- Refreshing should avoid movies from the five most recent recommendation sessions when the eligible library is large enough.
-- Not Tonight is a temporary, decaying penalty; Not Interested remains a user-controlled exclusion.
+- Each movie may be recommended only once on a device. Saved recommendation events and movie exposure fields exclude previously shown movies across refreshes, mood/tuning changes, and relaunches, without a time limit or small-pool fallback. Return fewer picks or an exhausted-pool state when no unseen matches remain.
+- Not Tonight immediately removes the pick from Tonight and its widget; the movie remains available in Library and History. Not Interested remains a user-controlled exclusion.
 - A recommendation set should reduce repeated genres, directors, principal cast, and decades when credible alternatives exist.
 - Recommendation responses and watched/liked/disliked taste signals must persist locally and remain user-controlled.
 - Choosing a recommendation for tonight must immediately mark that movie watched while preserving the accepted response in History.
@@ -138,7 +138,7 @@ Explicitly out of scope:
 - Bulk import: one-item failure does not prevent later entries, and unresolved input is preserved
 - Persistence/startup: saved library survives container recreation/relaunch
 - UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
-- Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, five-session cooldown, and decaying Not Tonight behavior
+- Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, full-library browsing without repeats, sparse-pool exhaustion, and persisted exposure exclusion
 - Recommendation persistence: generated events with mood, responses, and watched/liked/disliked signals survive relaunch
 - Library sync: additive migration and backups, initial union without duplicates, metadata/watch conflict independence, deletion and reimport, unresolved redirects, ambiguous-title preservation, durable outbox recovery, account isolation, offline catch-up, and physical iPad/iPhone convergence
 - Widget snapshot persistence: binary property-list round trip, pick removal, empty state, artwork fallback, and app-to-widget refresh
@@ -174,7 +174,7 @@ Explicitly out of scope:
 - With a Keychain-configured credential, verify an obvious match, rich details/credits, poster/backdrop loading, unresolved preservation, duplicate re-import, and relaunch persistence.
 - Verify automatic retry resolves only unambiguous entries and the one-by-one queue supports editing a query, choosing a candidate, skipping, and relaunch persistence.
 - Verify Library search, watched-state filters, every sort field and direction, and repeated shuffle ordering on both regular and compact widths.
-- Exercise every mood and tuning option against a varied resolved library, confirm rotating lanes remain truthful, refresh repeatedly to verify cooldown/diversity, record each response type, and verify History and relaunch persistence.
+- Exercise every mood and tuning option against a varied resolved library, confirm rotating lanes remain truthful, refresh through the pool without repeats, record each response type, and verify exhaustion, History, and relaunch persistence.
 - Open Deals on iPad and iPhone, verify the live or cached catalog, poster enrichment, Not in Library (default)/Recommended/All filters, manual refresh, Apple link behavior, and graceful offline/format-change messaging.
 - Re-check VoiceOver labels, Dynamic Type, light/dark appearance, and destructive confirmation.
 

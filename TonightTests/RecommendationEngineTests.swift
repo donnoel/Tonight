@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import Tonight
 
@@ -149,14 +150,14 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertEqual(active.map(\.movie?.id), [chosenMovie.id])
     }
 
-    func testFiveRecentSessionsAreExcludedWhenFreshChoicesExist() {
-        let recentMovies = (1...5).map {
+    func testAllSavedSessionsAreExcludedWhenFreshChoicesExist() {
+        let recentMovies = (1...20).map {
             movie(title: "Recent \($0)", genres: ["Drama"])
         }
         let freshMovies = (1...3).map {
             movie(title: "Fresh \($0)", genres: ["Comedy"])
         }
-        let history = zip(recentMovies, 0..<5).map { movie, offset in
+        let history = zip(recentMovies, 0..<20).map { movie, offset in
             RecommendationEvent(
                 movie: movie,
                 recommendedAt: now.addingTimeInterval(-Double(offset) * 3_600),
@@ -174,7 +175,7 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertEqual(Set(picks.map(\.movie.id)), Set(freshMovies.map(\.id)))
     }
 
-    func testNotTonightTemporarilyPenalizesMovieWhenCooldownCannotFullyApply() {
+    func testNotTonightIsExcludedInsteadOfFillingASparsePool() {
         let declined = movie(
             title: "Declined",
             genres: ["Drama"],
@@ -203,7 +204,7 @@ final class RecommendationEngineTests: XCTestCase {
             seed: 4
         )
 
-        XCTAssertEqual(picks.first?.movie.id, alternative.id)
+        XCTAssertEqual(picks.map(\.movie.id), [alternative.id])
     }
 
     func testTuningChoicesProduceMatchingRecommendationLanes() {
@@ -438,7 +439,7 @@ final class RecommendationEngineTests: XCTestCase {
         }
     }
 
-    func testQuietMoodCannotBeOverriddenByTasteLanesOrCooldown() {
+    func testExhaustedQuietMoodDoesNotRepeatOrUseOffMoodFiller() {
         let quiet = (1...4).map { movie(title: "Reflective \($0)", genres: ["Drama"]) }
         let spectacle = movie(title: "Spectacle", genres: ["Drama", "Action", "Adventure"])
         spectacle.isLiked = true
@@ -455,8 +456,7 @@ final class RecommendationEngineTests: XCTestCase {
                     mood: .quietAndThoughtful, somethingOlder: true, moreAdventurous: true
                 ), now: now, seed: seed
             )
-            XCTAssertEqual(picks.count, 3)
-            XCTAssertTrue(picks.allSatisfy { $0.movie.id != spectacle.id })
+            XCTAssertTrue(picks.isEmpty)
         }
     }
 
@@ -504,6 +504,98 @@ final class RecommendationEngineTests: XCTestCase {
         )))
         drama.overviewText = "A woman is kidnapped and held hostage."
         XCTAssertFalse(RecommendationEngine.matchesMood(drama, mood: .quietAndThoughtful))
+    }
+
+    func testBrowsing907MoviesNeverRepeatsAndStopsWhenExhausted() {
+        let movies = (1...907).map {
+            movie(title: "Movie \($0)", genres: $0.isMultiple(of: 2) ? ["Drama"] : ["Comedy"],
+                  runtime: 80 + $0 % 90, year: 1960 + $0 % 65,
+                  voteAverage: $0 <= 50 ? 10 : 6, voteCount: $0 <= 50 ? 100_000 : 500)
+        }
+        var history: [RecommendationEvent] = []
+        var shownIDs: Set<UUID> = []
+        for batch in 0..<303 {
+            let date = now.addingTimeInterval(Double(batch))
+            let preferences = RecommendationPreferences(mood: batch.isMultiple(of: 2) ? .anything : .surpriseMe)
+            let picks = RecommendationEngine.recommendations(
+                from: movies, history: history, preferences: preferences, now: date, seed: UInt64(batch)
+            )
+            XCTAssertEqual(picks.count, min(3, movies.count - shownIDs.count))
+            for pick in picks {
+                XCTAssertTrue(shownIDs.insert(pick.movie.id).inserted, "Repeated \(pick.movie.title) in batch \(batch)")
+                history.append(RecommendationEvent(movie: pick.movie, recommendedAt: date,
+                    kind: pick.kind, mood: preferences.mood,
+                    response: batch.isMultiple(of: 2) ? .notTonight : .pending))
+            }
+        }
+        XCTAssertEqual(shownIDs.count, 907)
+        XCTAssertTrue(RecommendationEngine.recommendations(from: movies, history: history,
+            now: now.addingTimeInterval(86_400 * 365), seed: 42).isEmpty)
+    }
+
+    func testEveryResponseStaysExcludedAcrossMoodChangesAndTime() {
+        let shown = RecommendationResponse.allCases.map { movie(title: $0.rawValue, genres: ["Comedy"]) }
+        let history = zip(shown, RecommendationResponse.allCases).map { movie, response in
+            RecommendationEvent(movie: movie, recommendedAt: now.addingTimeInterval(-86_400 * 365),
+                kind: .bestMatch, mood: .anything, response: response)
+        }
+        let fresh = (1...2).map { movie(title: "Unseen \($0)", genres: ["Comedy"]) }
+        let preferences = RecommendationPreferences(mood: .funAndEasy, underTwoHours: true)
+        let picks = RecommendationEngine.recommendations(from: shown + fresh, history: history,
+            preferences: preferences, now: now, seed: 9)
+        XCTAssertEqual(Set(picks.map(\.movie.id)), Set(fresh.map(\.id)))
+    }
+
+    func testExposureSummaryAndTMDBIdentityPreventRepeatWithoutSameLocalRecord() {
+        let original = movie(title: "Original", genres: ["Drama"])
+        original.tmdbID = 123
+        let restored = movie(title: "Restored", genres: ["Drama"])
+        restored.tmdbID = 123
+        let counted = movie(title: "Counted", genres: ["Drama"])
+        counted.recommendationCount = 1
+        let dated = movie(title: "Dated", genres: ["Drama"])
+        dated.lastRecommendedDate = now.addingTimeInterval(-86_400 * 365)
+        let fresh = movie(title: "Fresh", genres: ["Drama"])
+        let history = [RecommendationEvent(movie: original, recommendedAt: now, kind: .bestMatch)]
+        XCTAssertEqual(RecommendationEngine.recommendations(from: [restored, counted, dated, fresh],
+            history: history, now: now, seed: 1).map(\.movie.id), [fresh.id])
+    }
+
+    func testNotTonightImmediatelyLeavesActivePicksAndWidget() {
+        let skipped = RecommendationEvent(movie: movie(title: "Skipped", genres: ["Drama"]),
+            recommendedAt: now, kind: .bestMatch, response: .notTonight)
+        XCTAssertTrue(RecommendationEngine.activeEvents(from: [skipped],
+            preferences: RecommendationPreferences()).isEmpty)
+        XCTAssertTrue(RecommendationResponse.notTonight.removesMovieFromActivePicks)
+    }
+
+    @MainActor
+    func testSavedExposureSurvivesReopeningLocalStore() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let configuration = ModelConfiguration(url: directory.appendingPathComponent("library.store"),
+                                               cloudKitDatabase: .none)
+        do {
+            let container = try ModelContainer(for: Movie.self, RecommendationEvent.self,
+                                               configurations: configuration)
+            let shown = movie(title: "Already Shown", genres: ["Drama"])
+            let fresh = movie(title: "Unseen", genres: ["Drama"])
+            container.mainContext.insert(shown)
+            container.mainContext.insert(fresh)
+            container.mainContext.insert(RecommendationEvent(movie: shown, recommendedAt: now,
+                kind: .bestMatch, response: .notTonight))
+            try container.mainContext.save()
+        }
+        let reopened = try ModelContainer(for: Movie.self, RecommendationEvent.self,
+                                          configurations: configuration)
+        let movies = try reopened.mainContext.fetch(FetchDescriptor<Movie>())
+        let history = try reopened.mainContext.fetch(FetchDescriptor<RecommendationEvent>())
+        let picks = RecommendationEngine.recommendations(from: movies, history: history,
+            now: now.addingTimeInterval(86_400 * 365), seed: 5)
+        XCTAssertEqual(picks.map(\.movie.title), ["Unseen"])
+        XCTAssertTrue(RecommendationEngine.activeEvents(from: history,
+            preferences: RecommendationPreferences()).isEmpty)
     }
 
     private func movie(

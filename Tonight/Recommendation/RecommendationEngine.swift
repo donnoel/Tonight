@@ -132,10 +132,9 @@ enum RecommendationEngine {
         let eligible = movies.filter { isEligible($0, preferences: preferences) }
         guard !eligible.isEmpty else { return [] }
 
-        let recentIDs = recentSessionMovieIDs(from: history, now: now)
-        let outsideCooldown = eligible.filter { !recentIDs.contains($0.id) }
-        let desiredCount = min(3, eligible.count)
-        var remaining = outsideCooldown.count >= desiredCount ? outsideCooldown : eligible
+        var remaining = unseenMovies(from: eligible, history: history, preferences: preferences)
+        guard !remaining.isEmpty else { return [] }
+        let desiredCount = min(3, remaining.count)
 
         let profile = tasteProfile(
             from: movies,
@@ -233,6 +232,24 @@ enum RecommendationEngine {
         return picks
     }
 
+    /// Saved exposure is a hard exclusion, independent of age, mood, response, or pool size.
+    static func unseenMovies(
+        from movies: [Movie],
+        history: [RecommendationEvent],
+        preferences: RecommendationPreferences
+    ) -> [Movie] {
+        let shownMovies = history.compactMap(\.movie)
+        let shownIDs = Set(shownMovies.map(\.id))
+        let shownTMDBIDs = Set(shownMovies.compactMap(\.tmdbID))
+        return movies.filter { movie in
+            isEligible(movie, preferences: preferences)
+                && movie.recommendationCount == 0
+                && movie.lastRecommendedDate == nil
+                && !shownIDs.contains(movie.id)
+                && !(movie.tmdbID.map { shownTMDBIDs.contains($0) } ?? false)
+        }
+    }
+
     static func isEligible(
         _ movie: Movie,
         preferences: RecommendationPreferences
@@ -309,7 +326,8 @@ enum RecommendationEngine {
                 }
 
                 guard event.response != .watched,
-                      event.response != .rejected else {
+                      event.response != .rejected,
+                      event.response != .notTonight else {
                     return false
                 }
 
@@ -700,26 +718,6 @@ enum RecommendationEngine {
         return result
     }
 
-    private static func recentSessionMovieIDs(
-        from history: [RecommendationEvent],
-        now: Date
-    ) -> Set<UUID> {
-        let recent = history
-            .filter { $0.recommendedAt <= now && $0.movie != nil }
-            .sorted { $0.recommendedAt > $1.recommendedAt }
-        var sessionDates: [Date] = []
-        var ids: Set<UUID> = []
-
-        for event in recent {
-            if !sessionDates.contains(event.recommendedAt) {
-                guard sessionDates.count < 5 else { break }
-                sessionDates.append(event.recommendedAt)
-            }
-            if let id = event.movie?.id { ids.insert(id) }
-        }
-        return ids
-    }
-
     private static func genreFrequencies(in movies: [Movie]) -> [String: Int] {
         var result: [String: Int] = [:]
         for movie in movies {
@@ -853,8 +851,8 @@ extension RecommendationKind {
 extension RecommendationResponse {
     var removesMovieFromActivePicks: Bool {
         switch self {
-        case .accepted, .rejected, .watched: true
-        case .pending, .notTonight: false
+        case .accepted, .rejected, .watched, .notTonight: true
+        case .pending: false
         }
     }
 

@@ -34,15 +34,15 @@ struct TonightView: View {
             VStack(alignment: .leading, spacing: usesCompactLayout ? 20 : 30) {
                 hero(currentEvents: currentEvents)
 
-                if eligibleCount == 0 {
+                if !currentEvents.isEmpty {
+                    currentRecommendations(currentEvents: currentEvents, eligibleCount: eligibleCount)
+                } else if eligibleCount == 0 {
                     poolCount(eligibleCount: eligibleCount)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                     emptyState
-                } else if currentEvents.isEmpty {
-                    readyState(eligibleCount: eligibleCount)
                 } else {
-                    currentRecommendations(currentEvents: currentEvents, eligibleCount: eligibleCount)
+                    readyState(eligibleCount: eligibleCount)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -290,7 +290,8 @@ struct TonightView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .accessibilityHint("Creates new recommendations from resolved movies in your library")
+        .disabled(currentEvents.isEmpty && eligibleMovies.isEmpty)
+        .accessibilityHint("Shows movies from your library that haven’t been recommended before")
     }
 
     private var compactRefreshButton: some View {
@@ -303,7 +304,7 @@ struct TonightView: View {
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .accessibilityLabel("Refresh Picks")
-        .accessibilityHint("Creates new recommendations from resolved movies in your library")
+        .accessibilityHint("Shows movies from your library that haven’t been recommended before")
     }
 
     private var emptyState: some View {
@@ -314,6 +315,8 @@ struct TonightView: View {
                 Text("Import movies in Library, then return here for recommendations.")
             } else if resolvedMovies.isEmpty {
                 Text("Resolve at least one TMDB match in Library so Tonight has movie details to work with.")
+            } else if hasMatchingMovies {
+                Text("You’ve seen every recommendation that matches this mood and tuning. Try another mood, adjust Tune Picks, or add movies to your library. Previously shown movies are still available in History and Library.")
             } else {
                 Text("No confident matches for this mood and tuning in your library. Try another mood or adjust Tune Picks.")
             }
@@ -322,7 +325,8 @@ struct TonightView: View {
     }
 
     private var emptyStateTitle: String {
-        resolvedMovies.isEmpty ? "No Movies Ready Yet" : "No Movies Match Your Mood & Tuning"
+        if resolvedMovies.isEmpty { return "No Movies Ready Yet" }
+        return hasMatchingMovies ? "No Unseen Picks Left" : "No Movies Match Your Mood & Tuning"
     }
 
     private func readyState(eligibleCount: Int) -> some View {
@@ -342,7 +346,7 @@ struct TonightView: View {
             HStack(spacing: 24) {
                 conceptLabel("Best Fit", systemImage: "sparkles")
                 conceptLabel("Fresh Angles", systemImage: "square.stack.3d.up")
-                conceptLabel("Less Repetition", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
+                conceptLabel("No Repeats", systemImage: "checkmark.circle")
             }
         }
         .padding(24)
@@ -452,8 +456,8 @@ struct TonightView: View {
     }
 
     private func poolCount(eligibleCount: Int) -> some View {
-        Text("\(eligibleCount.formatted()) / \(movies.count.formatted()) movies")
-            .accessibilityLabel("\(eligibleCount.formatted()) out of \(movies.count.formatted()) movies in your library eligible for your current mood and tuning")
+        Text("\(eligibleCount.formatted()) / \(movies.count.formatted()) movies left")
+            .accessibilityLabel("\(eligibleCount.formatted()) unseen movies remaining out of \(movies.count.formatted()) movies in your library for your current mood and tuning")
             .accessibilityIdentifier("tonight.eligibleMovieCount")
     }
 
@@ -464,9 +468,11 @@ struct TonightView: View {
     }
 
     private var eligibleMovies: [Movie] {
-        movies.filter {
-            RecommendationEngine.isEligible($0, preferences: preferences)
-        }
+        RecommendationEngine.unseenMovies(from: movies, history: events, preferences: preferences)
+    }
+
+    private var hasMatchingMovies: Bool {
+        movies.contains { RecommendationEngine.isEligible($0, preferences: preferences) }
     }
 
     private var selectedMood: RecommendationMood {
@@ -524,13 +530,6 @@ struct TonightView: View {
             preferences: preferences,
             now: now
         )
-        guard !picks.isEmpty else {
-            saveError = preferences.activeModifierCount > 0
-                ? "No confident matches for this mood and tuning. Try another mood or adjust Tune Picks."
-                : "Tonight couldn’t find a confident match for this mood. Try another mood or check Library for unresolved titles."
-            return
-        }
-
         for event in currentEvents where recordsSkippedPicks && event.response == .pending {
             event.response = .notTonight
         }
