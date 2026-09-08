@@ -20,7 +20,7 @@ Current scope:
 - Safe automatic retry and user-confirmed TMDB matching for unresolved entries
 - Local Library search, watched-state filtering, multi-field ordering, and an explicitly reshuffled order
 - Local, explainable recommendation selection with controlled randomness
-- Human mood profiles, optional tuning choices, rotating recommendation lanes, and persistent exclusion of previously shown movies
+- Human mood profiles, optional tuning choices, rotating recommendation lanes, and persistent progress through the library before repeating movies
 - Persisted recommendation responses and movie-level watched/liked/disliked taste signals
 - Private CloudKit library sync through CKSyncEngine; local SwiftData storage remains usable offline, with durable outbox entries saved alongside movie edits
 - A medium WidgetKit widget showing the top persisted Tonight recommendation
@@ -86,7 +86,7 @@ Explicitly out of scope:
 - Changing the mood immediately generates a matching set without recording the previous picks as Not Tonight. Saved picks from another mood must not remain displayed.
 - Under Two Hours and Unwatched Only are hard tuning filters; Something Older and More Adventurous are ranking and lane preferences.
 - Best Fit balances explicit taste, mood, watch state, quality evidence, and recency; the other two lanes must truthfully match their displayed perspective.
-- Each movie may be recommended only once on a device. Saved recommendation events and movie exposure fields exclude previously shown movies across refreshes, mood/tuning changes, and relaunches, without a time limit or small-pool fallback. Return fewer picks or an exhausted-pool state when no unseen matches remain.
+- Show every available movie before repeating any, then continue automatically. Persist browsing progress with recommendation events across refreshes and relaunches; never reset by day or mood/runtime filter changes. A final set may contain fewer than three movies. Legacy history and lifetime recommendation counters must not permanently exhaust the library. Keep this automatic, with no user-facing rounds, resets, or extra controls. Continue honoring watched-state and eligibility filters.
 - Not Tonight immediately removes the pick from Tonight and its widget; the movie remains available in Library and History. Not Interested remains a user-controlled exclusion.
 - A recommendation set should reduce repeated genres, directors, principal cast, and decades when credible alternatives exist.
 - Recommendation responses and watched/liked/disliked taste signals must persist locally and remain user-controlled.

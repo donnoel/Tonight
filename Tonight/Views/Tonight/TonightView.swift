@@ -291,7 +291,7 @@ struct TonightView: View {
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .disabled(currentEvents.isEmpty && eligibleMovies.isEmpty)
-        .accessibilityHint("Shows movies from your library that haven’t been recommended before")
+        .accessibilityHint("Continues through your library, showing every available movie before repeating any")
     }
 
     private var compactRefreshButton: some View {
@@ -304,7 +304,7 @@ struct TonightView: View {
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .accessibilityLabel("Refresh Picks")
-        .accessibilityHint("Shows movies from your library that haven’t been recommended before")
+        .accessibilityHint("Continues through your library, showing every available movie before repeating any")
     }
 
     private var emptyState: some View {
@@ -316,7 +316,7 @@ struct TonightView: View {
             } else if resolvedMovies.isEmpty {
                 Text("Resolve at least one TMDB match in Library so Tonight has movie details to work with.")
             } else if hasMatchingMovies {
-                Text("You’ve seen every recommendation that matches this mood and tuning. Try another mood, adjust Tune Picks, or add movies to your library. Previously shown movies are still available in History and Library.")
+                Text("You’ve seen the available picks for this mood and tuning. Try Anything or adjust Tune Picks to explore the rest of your library. Movies won’t repeat until you’ve gone through the full list.")
             } else {
                 Text("No confident matches for this mood and tuning in your library. Try another mood or adjust Tune Picks.")
             }
@@ -326,7 +326,7 @@ struct TonightView: View {
 
     private var emptyStateTitle: String {
         if resolvedMovies.isEmpty { return "No Movies Ready Yet" }
-        return hasMatchingMovies ? "No Unseen Picks Left" : "No Movies Match Your Mood & Tuning"
+        return hasMatchingMovies ? "Explore the Rest of Your Library" : "No Movies Match Your Mood & Tuning"
     }
 
     private func readyState(eligibleCount: Int) -> some View {
@@ -457,7 +457,7 @@ struct TonightView: View {
 
     private func poolCount(eligibleCount: Int) -> some View {
         Text("\(eligibleCount.formatted()) / \(movies.count.formatted()) movies left")
-            .accessibilityLabel("\(eligibleCount.formatted()) unseen movies remaining out of \(movies.count.formatted()) movies in your library for your current mood and tuning")
+            .accessibilityLabel("\(eligibleCount.formatted()) movies left to browse out of \(movies.count.formatted()) movies in your library for your current mood and tuning")
             .accessibilityIdentifier("tonight.eligibleMovieCount")
     }
 
@@ -468,7 +468,7 @@ struct TonightView: View {
     }
 
     private var eligibleMovies: [Movie] {
-        RecommendationEngine.unseenMovies(from: movies, history: events, preferences: preferences)
+        RecommendationEngine.recommendationPool(from: movies, history: events, preferences: preferences).movies
     }
 
     private var hasMatchingMovies: Bool {
@@ -524,12 +524,13 @@ struct TonightView: View {
 
     private func generateRecommendations(recordsSkippedPicks: Bool = true) {
         let now = Date.now
-        let picks = RecommendationEngine.recommendations(
+        let batch = RecommendationEngine.nextBatch(
             from: movies,
             history: events,
             preferences: preferences,
             now: now
         )
+        let picks = batch.picks
         for event in currentEvents where recordsSkippedPicks && event.response == .pending {
             event.response = .notTonight
         }
@@ -542,7 +543,8 @@ struct TonightView: View {
                     movie: pick.movie,
                     recommendedAt: now,
                     kind: pick.kind,
-                    mood: selectedMood
+                    mood: selectedMood,
+                    rotationID: batch.rotationID
                 )
             )
         }

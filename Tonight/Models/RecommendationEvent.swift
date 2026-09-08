@@ -28,6 +28,7 @@ final class RecommendationEvent {
     var kindRawValue: String
     var responseRawValue: String
     var moodRawValue: String?
+    var rotationID: UUID?
 
     var kind: RecommendationKind {
         get { RecommendationKind(rawValue: kindRawValue) ?? .bestMatch }
@@ -50,7 +51,8 @@ final class RecommendationEvent {
         recommendedAt: Date = .now,
         kind: RecommendationKind,
         mood: RecommendationMood = .anything,
-        response: RecommendationResponse = .pending
+        response: RecommendationResponse = .pending,
+        rotationID: UUID? = nil
     ) {
         self.id = id
         self.movie = movie
@@ -58,5 +60,6 @@ final class RecommendationEvent {
         self.kindRawValue = kind.rawValue
         self.responseRawValue = response.rawValue
         self.moodRawValue = mood.rawValue
+        self.rotationID = rotationID
     }
 }

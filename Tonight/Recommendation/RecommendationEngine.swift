@@ -77,6 +77,17 @@ struct RecommendationPick: Identifiable {
     var id: UUID { movie.id }
 }
 
+struct RecommendationBatch {
+    let picks: [RecommendationPick]
+    let rotationID: UUID?
+}
+
+struct RecommendationPool {
+    let movies: [Movie]
+    let rotationID: UUID?
+    let startsNewRotation: Bool
+}
+
 enum RecommendationEngine {
     static func rankDeals(
         candidates: [DealRecommendationCandidate],
@@ -129,10 +140,35 @@ enum RecommendationEngine {
         now: Date = .now,
         seed: UInt64? = nil
     ) -> [RecommendationPick] {
-        let eligible = movies.filter { isEligible($0, preferences: preferences) }
-        guard !eligible.isEmpty else { return [] }
+        nextBatch(from: movies, history: history, preferences: preferences, now: now, seed: seed).picks
+    }
 
-        var remaining = unseenMovies(from: eligible, history: history, preferences: preferences)
+    static func nextBatch(
+        from movies: [Movie],
+        history: [RecommendationEvent] = [],
+        preferences: RecommendationPreferences = RecommendationPreferences(),
+        now: Date = .now,
+        seed: UInt64? = nil
+    ) -> RecommendationBatch {
+        let pool = recommendationPool(from: movies, history: history, preferences: preferences)
+        let rotationID = pool.startsNewRotation ? UUID() : pool.rotationID
+        return RecommendationBatch(
+            picks: selectRecommendations(from: movies, candidates: pool.movies, history: history,
+                                         preferences: preferences, now: now, seed: seed),
+            rotationID: rotationID
+        )
+    }
+
+    private static func selectRecommendations(
+        from movies: [Movie],
+        candidates availableMovies: [Movie],
+        history: [RecommendationEvent],
+        preferences: RecommendationPreferences,
+        now: Date,
+        seed: UInt64?
+    ) -> [RecommendationPick] {
+        let eligible = movies.filter { isEligible($0, preferences: preferences) }
+        var remaining = availableMovies
         guard !remaining.isEmpty else { return [] }
         let desiredCount = min(3, remaining.count)
 
@@ -232,20 +268,37 @@ enum RecommendationEngine {
         return picks
     }
 
-    /// Saved exposure is a hard exclusion, independent of age, mood, response, or pool size.
-    static func unseenMovies(
+    /// Complete the library before allowing repeats. Mood/runtime changes cannot reset progress.
+    /// Legacy events belong to the initial rotation; lifetime counters remain ranking signals only.
+    static func recommendationPool(
         from movies: [Movie],
         history: [RecommendationEvent],
         preferences: RecommendationPreferences
+    ) -> RecommendationPool {
+        let rotationID = history.max { $0.recommendedAt < $1.recommendedAt }?.rotationID
+        let rotationHistory = history.filter { $0.rotationID == rotationID }
+        let libraryPreferences = RecommendationPreferences(unwatchedOnly: preferences.unwatchedOnly)
+        let library = movies.filter { isEligible($0, preferences: libraryPreferences) }
+        let unseenLibrary = unseenMovies(from: library, history: rotationHistory)
+        let startsNewRotation = !library.isEmpty && unseenLibrary.isEmpty
+        return RecommendationPool(
+            movies: (startsNewRotation ? library : unseenLibrary).filter {
+                isEligible($0, preferences: preferences)
+            },
+            rotationID: rotationID,
+            startsNewRotation: startsNewRotation
+        )
+    }
+
+    private static func unseenMovies(
+        from movies: [Movie],
+        history: [RecommendationEvent]
     ) -> [Movie] {
         let shownMovies = history.compactMap(\.movie)
         let shownIDs = Set(shownMovies.map(\.id))
         let shownTMDBIDs = Set(shownMovies.compactMap(\.tmdbID))
         return movies.filter { movie in
-            isEligible(movie, preferences: preferences)
-                && movie.recommendationCount == 0
-                && movie.lastRecommendedDate == nil
-                && !shownIDs.contains(movie.id)
+            !shownIDs.contains(movie.id)
                 && !(movie.tmdbID.map { shownTMDBIDs.contains($0) } ?? false)
         }
     }
