@@ -5,14 +5,14 @@ struct RemoteArtworkView: View {
     let aspectRatio: CGFloat
     var cornerRadius: CGFloat = 16
 
-    @State private var artwork: UIImage?
+    @State private var artwork: CGImage?
     @State private var isLoading = false
 
     var body: some View {
         ZStack {
             placeholder
             if let artwork {
-                Image(uiImage: artwork)
+                Image(decorative: artwork, scale: 1)
                     .resizable()
                     .scaledToFill()
             } else if isLoading {
@@ -24,13 +24,16 @@ struct RemoteArtworkView: View {
         .aspectRatio(aspectRatio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .accessibilityHidden(true)
-        .task(id: url) {
+        .task(id: url, priority: .utility) {
             artwork = nil
             guard let url else { return }
             isLoading = true
             defer { isLoading = false }
-            if let data = try? await LibraryArtworkCache.shared.data(for: url), !Task.isCancelled {
-                artwork = UIImage(data: data)
+            if let image = try? await LibraryArtworkCache.shared.image(
+                for: url,
+                maxPixelSize: 1_200
+            ), !Task.isCancelled {
+                artwork = image
             }
         }
     }

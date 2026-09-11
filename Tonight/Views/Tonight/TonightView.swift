@@ -20,13 +20,6 @@ struct TonightView: View {
     @State private var isVisible = false
     @State private var saveError: String?
 
-    private var columns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(), spacing: 20, alignment: .top),
-            count: 3
-        )
-    }
-
     private var usesCompactLayout: Bool {
         horizontalSizeClass != .regular
     }
@@ -405,7 +398,7 @@ struct TonightView: View {
                     .foregroundStyle(.secondary)
             }
 
-            LazyVGrid(columns: columns, spacing: 20) {
+            HStack(alignment: .top, spacing: 20) {
                 ForEach(currentEvents) { event in
                     if let movie = event.movie {
                         RecommendationCard(
@@ -421,6 +414,12 @@ struct TonightView: View {
                             }
                         )
                     }
+                }
+
+                ForEach(currentEvents.count..<3, id: \.self) { _ in
+                    Color.clear
+                        .frame(maxWidth: .infinity)
+                        .accessibilityHidden(true)
                 }
             }
         }
@@ -461,7 +460,7 @@ struct TonightView: View {
                     .font(.headline)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
                         ForEach(secondaryEvents) { event in
                             if let movie = event.movie {
                                 CompactSecondaryRecommendationCard(
