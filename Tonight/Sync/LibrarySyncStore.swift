@@ -65,6 +65,11 @@ enum LibrarySyncFailure: LocalizedError {
 @MainActor
 enum LibrarySyncStore {
     static let didSave = Notification.Name("TonightLibraryDidSave")
+    static let saveSourceUserInfoKey = "TonightLibrarySaveSource"
+
+    enum SaveSource: String {
+        case recommendations
+    }
 
     static func supported(in context: ModelContext) -> Bool {
         context.container.schema.entities.contains { $0.name == "LibrarySyncEntry" }
@@ -75,7 +80,7 @@ enum LibrarySyncStore {
         let state = LibrarySyncState(); context.insert(state); return state
     }
 
-    static func save(_ context: ModelContext) throws {
+    static func save(_ context: ModelContext, source: SaveSource? = nil) throws {
         if supported(in: context) {
             let state = try state(in: context)
             try migrateBrowsingProgress(state: state, in: context)
@@ -86,7 +91,8 @@ enum LibrarySyncStore {
             }
         }
         try context.save()
-        NotificationCenter.default.post(name: didSave, object: context)
+        let userInfo = source.map { [saveSourceUserInfoKey: $0.rawValue] }
+        NotificationCenter.default.post(name: didSave, object: context, userInfo: userInfo)
     }
 
     static func seed(in context: ModelContext) throws {

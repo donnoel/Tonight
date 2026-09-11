@@ -86,6 +86,7 @@ struct RecommendationBatch {
     let picks: [RecommendationPick]
     let rotationID: UUID?
     let browsingGeneration: Int
+    let remainingMovieCount: Int
 }
 
 struct RecommendationPool {
@@ -159,11 +160,19 @@ enum RecommendationEngine {
     ) -> RecommendationBatch {
         let pool = recommendationPool(from: movies, history: history, preferences: preferences)
         let rotationID = pool.startsNewRotation ? UUID() : pool.rotationID
+        let picks = selectRecommendations(
+            from: movies,
+            candidates: pool.movies,
+            history: history,
+            preferences: preferences,
+            now: now,
+            seed: seed
+        )
         return RecommendationBatch(
-            picks: selectRecommendations(from: movies, candidates: pool.movies, history: history,
-                                         preferences: preferences, now: now, seed: seed),
+            picks: picks,
             rotationID: rotationID,
-            browsingGeneration: pool.browsingGeneration
+            browsingGeneration: pool.browsingGeneration,
+            remainingMovieCount: max(0, pool.movies.count - picks.count)
         )
     }
 
@@ -332,37 +341,29 @@ enum RecommendationEngine {
     /// Establish mood suitability before taste, cooldown, lanes, or randomness can rank a film.
     /// These conservative rules use local metadata, not a claim to understand every story.
     static func matchesMood(_ movie: Movie, mood: RecommendationMood) -> Bool {
+        if mood == .anything || mood == .surpriseMe {
+            return true
+        }
+
         let genres = Set(movie.genres.map { $0.lowercased() })
         func has(_ values: Set<String>) -> Bool { !genres.isDisjoint(with: values) }
-        let words = Set(movie.overviewText.lowercased().split { !$0.isLetter }.map(String.init))
-        let violentStory = !words.isDisjoint(with: [
-            "war", "wars", "warfare", "battle", "battles", "combat", "invasion",
-            "murder", "murders", "killer", "killers", "assassin", "assassins",
-            "massacre", "terrorist", "terrorists", "torture", "slasher"
-        ])
-        let tenseStory = violentStory || !words.isDisjoint(with: [
-            "kidnapped", "abducted", "hostage", "hostages", "hunted", "terrifying"
-        ])
         let intenseGenres = has(["action", "war", "horror", "thriller", "crime"])
         let lightGenres = has(["comedy", "family", "animation", "music", "romance"])
 
         switch mood {
-        case .anything, .surpriseMe:
-            // Surprise is a discovery preference, not a particular emotional tone.
-            return true
         case .quietAndThoughtful:
-            return !intenseGenres && !tenseStory
+            return !intenseGenres && !hasTenseStory(movie)
                 && !has(["adventure"])
                 && has(["drama", "documentary", "history", "romance"])
         case .funAndEasy:
-            return lightGenres && !intenseGenres && !tenseStory
+            return lightGenres && !intenseGenres && !hasTenseStory(movie)
                 && (movie.runtimeMinutes.map { $0 <= 140 } ?? true)
         case .scaryMovies:
             // Require horror metadata; ordinary action and crime thrillers are not scary picks.
             return has(["horror"])
         case .edgeOfYourSeat:
-            return has(["thriller", "horror", "action", "crime"])
-                || (has(["mystery", "adventure", "science fiction"]) && tenseStory)
+            if has(["thriller", "horror", "action", "crime"]) { return true }
+            return has(["mystery", "adventure", "science fiction"]) && hasTenseStory(movie)
         case .bigMovieNight:
             return has(["action", "adventure", "fantasy", "science fiction", "war"])
                 || (has(["drama", "history", "music"])
@@ -370,8 +371,21 @@ enum RecommendationEngine {
                     && (movie.tmdbVoteAverage ?? 0) >= 7)
         case .comfortWatch:
             // Explicit favorites are personal comfort choices, even in intense genres.
-            return movie.isLiked || (lightGenres && !intenseGenres && !tenseStory)
+            return movie.isLiked || (lightGenres && !intenseGenres && !hasTenseStory(movie))
+        case .anything, .surpriseMe:
+            // Handled before genre normalization because these moods accept every eligible genre.
+            return true
         }
+    }
+
+    private static func hasTenseStory(_ movie: Movie) -> Bool {
+        let words = Set(movie.overviewText.lowercased().split { !$0.isLetter }.map(String.init))
+        return !words.isDisjoint(with: [
+            "war", "wars", "warfare", "battle", "battles", "combat", "invasion",
+            "murder", "murders", "killer", "killers", "assassin", "assassins",
+            "massacre", "terrorist", "terrorists", "torture", "slasher",
+            "kidnapped", "abducted", "hostage", "hostages", "hunted", "terrifying"
+        ])
     }
 
     static func activeEvents(

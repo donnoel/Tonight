@@ -4,9 +4,6 @@ import SwiftUI
 struct TonightView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Movie.title) private var movies: [Movie]
-    @Query(sort: \RecommendationEvent.recommendedAt, order: .reverse)
-    private var events: [RecommendationEvent]
     @AppStorage("tonightMood") private var moodRawValue = RecommendationMood.anything.rawValue
     @AppStorage("tonightUnderTwoHours") private var underTwoHours = false
     @AppStorage("tonightUnwatchedOnly") private var unwatchedOnly = false
@@ -14,6 +11,13 @@ struct TonightView: View {
     @AppStorage("tonightMoreAdventurous") private var moreAdventurous = false
     @AppStorage("tonightAcceptedChoicesWatchedMigrationV1")
     private var didMigrateAcceptedChoicesToWatched = false
+    // Keep broad SwiftData collections out of body; reload this session snapshot on entry and external saves.
+    @State private var movies: [Movie] = []
+    @State private var recommendationHistory: [RecommendationEvent] = []
+    @State private var currentEvents: [RecommendationEvent] = []
+    @State private var eligibleMovieCount = 0
+    @State private var isLoadingRecommendationState = true
+    @State private var isVisible = false
     @State private var saveError: String?
 
     private var columns: [GridItem] {
@@ -28,30 +32,36 @@ struct TonightView: View {
     }
 
     var body: some View {
-        let currentEvents = currentEvents
-        let eligibleCount = eligibleMovies.count
         return ScrollView {
-            VStack(alignment: .leading, spacing: usesCompactLayout ? 20 : 30) {
-                hero(currentEvents: currentEvents)
+            if isLoadingRecommendationState {
+                ProgressView("Loading your picks…")
+                    .frame(maxWidth: .infinity, minHeight: 320)
+            } else {
+                VStack(alignment: .leading, spacing: usesCompactLayout ? 20 : 30) {
+                    hero(currentEvents: currentEvents)
 
-                if !currentEvents.isEmpty {
-                    currentRecommendations(currentEvents: currentEvents, eligibleCount: eligibleCount)
-                } else if eligibleCount == 0 {
-                    poolCount(eligibleCount: eligibleCount)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    emptyState
-                } else {
-                    readyState(eligibleCount: eligibleCount)
+                    if !currentEvents.isEmpty {
+                        currentRecommendations(
+                            currentEvents: currentEvents,
+                            eligibleCount: eligibleMovieCount
+                        )
+                    } else if eligibleMovieCount == 0 {
+                        poolCount(eligibleCount: eligibleMovieCount)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        emptyState
+                    } else {
+                        readyState(eligibleCount: eligibleMovieCount)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, usesCompactLayout ? 20 : 28)
+                .padding(.vertical, usesCompactLayout ? 16 : 32)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, usesCompactLayout ? 20 : 28)
-            .padding(.vertical, usesCompactLayout ? 16 : 32)
         }
         .navigationTitle("Tonight")
         .navigationBarTitleDisplayMode(usesCompactLayout ? .inline : .automatic)
-        .alert("Couldn’t Save Recommendations", isPresented: saveErrorIsPresented) {
+        .alert("Couldn’t Update Recommendations", isPresented: saveErrorIsPresented) {
             Button("OK", role: .cancel) {
                 saveError = nil
             }
@@ -59,14 +69,33 @@ struct TonightView: View {
             Text(saveError ?? "Please try again.")
         }
         .onChange(of: moodRawValue) {
-            if !eligibleMovies.isEmpty {
-                generateRecommendations(recordsSkippedPicks: false)
-            } else {
-                TonightWidgetSnapshotPublisher.publish(events: [])
-            }
+            moodDidChange()
+        }
+        .onChange(of: underTwoHours) {
+            refreshDerivedRecommendationState()
+        }
+        .onChange(of: unwatchedOnly) {
+            refreshDerivedRecommendationState()
+        }
+        .onChange(of: somethingOlder) {
+            refreshDerivedRecommendationState()
+        }
+        .onChange(of: moreAdventurous) {
+            refreshDerivedRecommendationState()
         }
         .onAppear {
-            reconcileAcceptedRecommendations()
+            isVisible = true
+            if loadRecommendationState() {
+                reconcileAcceptedRecommendations()
+            }
+        }
+        .onDisappear {
+            isVisible = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: LibrarySyncStore.didSave)) { notification in
+            let source = notification.userInfo?[LibrarySyncStore.saveSourceUserInfoKey] as? String
+            guard isVisible, source != LibrarySyncStore.SaveSource.recommendations.rawValue else { return }
+            loadRecommendationState()
         }
     }
 
@@ -290,7 +319,7 @@ struct TonightView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .disabled(currentEvents.isEmpty && eligibleMovies.isEmpty)
+        .disabled(currentEvents.isEmpty && eligibleMovieCount == 0)
         .accessibilityHint("Continues through your library, showing every available movie before repeating any")
     }
 
@@ -467,10 +496,6 @@ struct TonightView: View {
         }
     }
 
-    private var eligibleMovies: [Movie] {
-        RecommendationEngine.recommendationPool(from: movies, history: events, preferences: preferences).movies
-    }
-
     private var hasMatchingMovies: Bool {
         movies.contains { RecommendationEngine.isEligible($0, preferences: preferences) }
     }
@@ -486,13 +511,6 @@ struct TonightView: View {
             unwatchedOnly: unwatchedOnly,
             somethingOlder: somethingOlder,
             moreAdventurous: moreAdventurous
-        )
-    }
-
-    private var currentEvents: [RecommendationEvent] {
-        RecommendationEngine.activeEvents(
-            from: events,
-            preferences: preferences
         )
     }
 
@@ -526,7 +544,7 @@ struct TonightView: View {
         let now = Date.now
         let batch = RecommendationEngine.nextBatch(
             from: movies,
-            history: events,
+            history: recommendationHistory,
             preferences: preferences,
             now: now
         )
@@ -535,27 +553,84 @@ struct TonightView: View {
             event.response = .notTonight
         }
 
+        var newEvents: [RecommendationEvent] = []
         for pick in picks {
             let eventID = UUID()
             pick.movie.recommendationCount += 1
             pick.movie.lastRecommendedDate = now
             pick.movie.browsingProgress = LibraryBrowsingProgress(generation: batch.browsingGeneration,
                 shownAt: now, eventID: eventID)
-            modelContext.insert(
-                RecommendationEvent(
-                    id: eventID,
-                    movie: pick.movie,
-                    recommendedAt: now,
-                    kind: pick.kind,
-                    mood: selectedMood,
-                    rotationID: batch.rotationID,
-                    browsingGeneration: batch.browsingGeneration
-                )
+            let event = RecommendationEvent(
+                id: eventID,
+                movie: pick.movie,
+                recommendedAt: now,
+                kind: pick.kind,
+                mood: selectedMood,
+                rotationID: batch.rotationID,
+                browsingGeneration: batch.browsingGeneration
             )
+            modelContext.insert(event)
+            newEvents.append(event)
         }
 
         if saveChanges() {
+            recommendationHistory.insert(contentsOf: newEvents, at: 0)
+            currentEvents = newEvents.sorted { $0.kind.sortOrder < $1.kind.sortOrder }
+            eligibleMovieCount = batch.remainingMovieCount
             TonightWidgetSnapshotPublisher.publish(picks: picks, generatedAt: now)
+        }
+    }
+
+    @discardableResult
+    private func loadRecommendationState() -> Bool {
+        do {
+            movies = try modelContext.fetch(
+                FetchDescriptor<Movie>(sortBy: [SortDescriptor(\Movie.title)])
+            )
+            recommendationHistory = try modelContext.fetch(
+                FetchDescriptor<RecommendationEvent>(
+                    sortBy: [SortDescriptor(\RecommendationEvent.recommendedAt, order: .reverse)]
+                )
+            )
+            isLoadingRecommendationState = false
+            refreshDerivedRecommendationState()
+            return true
+        } catch {
+            isLoadingRecommendationState = false
+            saveError = "Your recommendations couldn’t be loaded. Your library was not changed."
+            return false
+        }
+    }
+
+    private func refreshDerivedRecommendationState() {
+        guard !isLoadingRecommendationState else { return }
+        currentEvents = RecommendationEngine.activeEvents(
+            from: recommendationHistory,
+            preferences: preferences
+        )
+        eligibleMovieCount = RecommendationEngine.recommendationPool(
+            from: movies,
+            history: recommendationHistory,
+            preferences: preferences
+        ).movies.count
+    }
+
+    private func moodDidChange() {
+        guard !isLoadingRecommendationState else { return }
+        let pool = RecommendationEngine.recommendationPool(
+            from: movies,
+            history: recommendationHistory,
+            preferences: preferences
+        )
+        eligibleMovieCount = pool.movies.count
+        currentEvents = RecommendationEngine.activeEvents(
+            from: recommendationHistory,
+            preferences: preferences
+        )
+        if pool.movies.isEmpty {
+            TonightWidgetSnapshotPublisher.publish(events: [])
+        } else {
+            generateRecommendations(recordsSkippedPicks: false)
         }
     }
 
@@ -572,7 +647,7 @@ struct TonightView: View {
             return
         }
 
-        let acceptedEventsNeedingWatchState = events.filter {
+        let acceptedEventsNeedingWatchState = recommendationHistory.filter {
             $0.response == .accepted && $0.movie?.isWatched == false
         }
 
@@ -587,6 +662,10 @@ struct TonightView: View {
             didMigrateAcceptedChoicesToWatched = true
         }
 
+        currentEvents = RecommendationEngine.activeEvents(
+            from: recommendationHistory,
+            preferences: preferences
+        )
         TonightWidgetSnapshotPublisher.publish(events: currentEvents)
     }
 
@@ -607,6 +686,11 @@ struct TonightView: View {
         response.applyMovieState(to: event.movie, at: responseDate)
 
         if saveChanges() {
+            if response == .accepted {
+                currentEvents = [event]
+            } else if response.removesMovieFromActivePicks {
+                currentEvents.removeAll { $0.id == event.id }
+            }
             if response.removesMovieFromActivePicks,
                let movieID = event.movie?.id {
                 TonightWidgetSnapshotPublisher.removeMovie(id: movieID)
@@ -617,7 +701,7 @@ struct TonightView: View {
     @discardableResult
     private func saveChanges() -> Bool {
         do {
-            try LibrarySyncStore.save(modelContext)
+            try LibrarySyncStore.save(modelContext, source: .recommendations)
             return true
         } catch {
             modelContext.rollback()
