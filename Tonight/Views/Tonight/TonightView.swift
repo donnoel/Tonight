@@ -827,7 +827,7 @@ private struct CompactChosenRecommendation: View {
             rationale: rationale,
             onRespond: onRespond
         )
-        .frame(maxWidth: 330)
+        .frame(width: CompactChosenLayout.cardWidth)
         .padding(.vertical, 28)
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, minHeight: 540)
@@ -841,6 +841,12 @@ private struct CompactChosenRecommendation: View {
         }
         .accessibilityIdentifier("tonight.compact.chosen-showcase")
     }
+}
+
+private enum CompactChosenLayout {
+    static let cardWidth: CGFloat = 330
+    static let cardPadding: CGFloat = 18
+    static let contentWidth = cardWidth - (cardPadding * 2)
 }
 
 private struct ChosenArtworkBackdrop: View {
@@ -1003,38 +1009,51 @@ private struct CompactPrimaryRecommendationCard: View {
             NavigationLink {
                 MovieDetailView(movie: movie)
             } label: {
-                ZStack(alignment: .bottomLeading) {
-                    RemoteArtworkView(
-                        url: TMDBImageURL.make(
-                            path: movie.backdropPath ?? movie.posterPath,
-                            size: movie.backdropPath == nil ? .posterDetail : .backdrop
-                        ),
-                        aspectRatio: isChosenShowcase ? 4 / 3 : 16 / 9,
-                        cornerRadius: 16
-                    )
+                GeometryReader { geometry in
+                    ZStack(alignment: .bottomLeading) {
+                        RemoteArtworkView(
+                            url: TMDBImageURL.make(
+                                path: movie.backdropPath ?? movie.posterPath,
+                                size: movie.backdropPath == nil ? .posterDetail : .backdrop
+                            ),
+                            aspectRatio: isChosenShowcase ? 4 / 3 : 16 / 9,
+                            cornerRadius: 16
+                        )
+                        .frame(width: geometry.size.width, height: geometry.size.height)
 
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.82)],
-                        startPoint: .center,
-                        endPoint: .bottom
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.82)],
+                            startPoint: .center,
+                            endPoint: .bottom
+                        )
+                        .frame(width: geometry.size.width, height: geometry.size.height)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(movie.title)
-                            .font(.title2.bold())
-                            .lineLimit(2)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(movie.title)
+                                .font(.title2.bold())
+                                .lineLimit(2)
 
-                        Text(movie.releaseYear.map(String.init) ?? "Year unknown")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.82))
+                            Text(movie.releaseYear.map(String.init) ?? "Year unknown")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.82))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(14)
+                        .frame(
+                            width: geometry.size.width,
+                            height: geometry.size.height,
+                            alignment: .bottomLeading
+                        )
                     }
-                    .foregroundStyle(.white)
-                    .padding(14)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
+                .aspectRatio(isChosenShowcase ? 4 / 3 : 16 / 9, contentMode: .fit)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .frame(width: isChosenShowcase ? CompactChosenLayout.contentWidth : nil)
+            .clipped()
             .accessibilityLabel(
                 "\(movie.title), \(movie.releaseYear.map(String.init) ?? "year unknown")"
             )
@@ -1056,10 +1075,11 @@ private struct CompactPrimaryRecommendationCard: View {
             )
         }
         .frame(
-            minHeight: isChosenShowcase ? 450 : nil,
+            width: isChosenShowcase ? CompactChosenLayout.contentWidth : nil,
             alignment: .topLeading
         )
-        .padding(isChosenShowcase ? 18 : 16)
+        .frame(minHeight: isChosenShowcase ? 450 : nil, alignment: .topLeading)
+        .padding(isChosenShowcase ? CompactChosenLayout.cardPadding : 16)
         .background(
             .regularMaterial,
             in: RoundedRectangle(cornerRadius: isChosenShowcase ? 24 : 22)
