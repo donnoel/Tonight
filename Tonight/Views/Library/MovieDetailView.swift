@@ -12,6 +12,7 @@ struct MovieDealContext {
 
 struct MovieDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var saveError: String?
     @State private var movieToMatch: Movie?
     @State private var isUSStorefront = Locale.current.region?.identifier == "US"
@@ -43,7 +44,6 @@ struct MovieDetailView: View {
                 .padding(.vertical, 28)
             }
         }
-        .ignoresSafeArea(edges: .top)
         .navigationTitle(movie.title)
         .navigationBarTitleDisplayMode(.inline)
         .alert("Couldn’t Save Your Taste", isPresented: saveErrorIsPresented) {
@@ -70,7 +70,8 @@ struct MovieDetailView: View {
             RemoteArtworkView(
                 url: TMDBImageURL.make(path: movie.backdropPath, size: .backdrop),
                 aspectRatio: 16 / 7,
-                cornerRadius: 0
+                cornerRadius: 0,
+                contentAlignment: horizontalSizeClass == .regular ? .top : .center
             )
             .frame(maxWidth: .infinity)
 

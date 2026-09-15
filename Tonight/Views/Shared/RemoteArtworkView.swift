@@ -5,17 +5,26 @@ struct RemoteArtworkView: View {
     let aspectRatio: CGFloat
     var cornerRadius: CGFloat = 16
     var maxPixelSize: Int = 1_200
+    var contentAlignment: Alignment = .center
 
     @State private var loadState = ArtworkLoadState.idle
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: contentAlignment) {
             placeholder
             switch loadState {
             case .loaded(let artwork):
-                Image(decorative: artwork, scale: 1)
-                    .resizable()
-                    .scaledToFill()
+                GeometryReader { proxy in
+                    Image(decorative: artwork, scale: 1)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(
+                            width: proxy.size.width,
+                            height: proxy.size.height,
+                            alignment: contentAlignment
+                        )
+                        .clipped()
+                }
             case .loading:
                 ProgressView().controlSize(.small)
             case .idle:
