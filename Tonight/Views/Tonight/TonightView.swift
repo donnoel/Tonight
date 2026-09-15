@@ -470,24 +470,36 @@ struct TonightView: View {
 
             let secondaryEvents = Array(currentEvents.dropFirst())
             if !secondaryEvents.isEmpty {
-                HStack(alignment: .top, spacing: 10) {
-                    ForEach(secondaryEvents) { event in
-                        if let movie = event.movie {
-                            CompactSecondaryRecommendationCard(
-                                event: event,
-                                movie: movie
-                            )
-                        }
-                    }
+                compactSecondaryRecommendations(secondaryEvents)
+            }
+        }
+    }
 
-                    ForEach(secondaryEvents.count..<2, id: \.self) { _ in
-                        Color.clear
-                            .frame(maxWidth: .infinity)
-                            .accessibilityHidden(true)
+    private func compactSecondaryRecommendations(_ events: [RecommendationEvent]) -> some View {
+        GeometryReader { geometry in
+            let spacing: CGFloat = 10
+            let cardWidth = max(0, (geometry.size.width - spacing) / 2)
+
+            HStack(alignment: .top, spacing: spacing) {
+                ForEach(events) { event in
+                    if let movie = event.movie {
+                        CompactSecondaryRecommendationCard(
+                            event: event,
+                            movie: movie,
+                            width: cardWidth,
+                            height: geometry.size.height
+                        )
                     }
+                }
+
+                ForEach(events.count..<2, id: \.self) { _ in
+                    Color.clear
+                        .frame(width: cardWidth, height: geometry.size.height)
+                        .accessibilityHidden(true)
                 }
             }
         }
+        .aspectRatio(3.1, contentMode: .fit)
     }
 
     private func poolCount(eligibleCount: Int) -> some View {
@@ -855,6 +867,8 @@ private struct CompactPrimaryRecommendationCard: View {
 private struct CompactSecondaryRecommendationCard: View {
     let event: RecommendationEvent
     let movie: Movie
+    let width: CGFloat
+    let height: CGFloat
 
     var body: some View {
         NavigationLink {
@@ -866,7 +880,7 @@ private struct CompactSecondaryRecommendationCard: View {
                         path: movie.backdropPath ?? movie.posterPath,
                         size: movie.backdropPath == nil ? .posterDetail : .backdrop
                     ),
-                    aspectRatio: 2,
+                    aspectRatio: width / max(height, 1),
                     cornerRadius: 14,
                     maxPixelSize: 480
                 )
@@ -892,14 +906,18 @@ private struct CompactSecondaryRecommendationCard: View {
                         .lineLimit(2)
                 }
                 .foregroundStyle(.white)
-                .padding(10)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .frame(
+                    width: max(0, width - 20),
+                    height: max(0, height - 20),
+                    alignment: .leading
+                )
             }
-            .aspectRatio(2, contentMode: .fit)
+            .frame(width: width, height: height)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .contentShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
+        .frame(width: width, height: height)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "\(event.kind.title), \(movie.title), \(movie.releaseYear.map(String.init) ?? "year unknown")"
