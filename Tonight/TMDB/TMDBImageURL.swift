@@ -3,7 +3,6 @@ import Foundation
 enum TMDBImageSize: String, Sendable {
     case posterCard = "w342"
     case posterDetail = "w500"
-    case posterShowcase = "w780"
     case backdrop = "w1280"
 }
 

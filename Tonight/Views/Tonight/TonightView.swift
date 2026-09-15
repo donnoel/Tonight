@@ -801,10 +801,9 @@ private struct RegularChosenRecommendation: View {
             event: event,
             movie: movie,
             rationale: rationale,
-            posterImageSize: .posterShowcase,
             onRespond: onRespond
         )
-        .frame(maxWidth: 600)
+        .frame(maxWidth: 390)
         .padding(.vertical, 34)
         .padding(.horizontal, 28)
         .frame(maxWidth: .infinity)
@@ -934,7 +933,6 @@ private struct RecommendationCard: View {
     let event: RecommendationEvent
     let movie: Movie
     let rationale: String
-    var posterImageSize: TMDBImageSize = .posterDetail
     let onRespond: (RecommendationResponse) -> Void
 
     var body: some View {
@@ -948,7 +946,7 @@ private struct RecommendationCard: View {
             } label: {
                 VStack(alignment: .leading, spacing: 12) {
                     RemoteArtworkView(
-                        url: TMDBImageURL.make(path: movie.posterPath, size: posterImageSize),
+                        url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
                         aspectRatio: 2 / 3,
                         cornerRadius: 18
                     )
