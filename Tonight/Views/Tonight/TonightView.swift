@@ -827,12 +827,17 @@ private struct CompactChosenRecommendation: View {
             rationale: rationale,
             onRespond: onRespond
         )
-        .frame(maxWidth: 340)
-        .padding(.vertical, 22)
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: 330)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, minHeight: 430)
         .background {
-            ChosenArtworkBackdrop(movie: movie)
+            ChosenArtworkBackdrop(
+                movie: movie,
+                artworkOpacity: 0.4,
+                featherEndRadiusMultiplier: 0.68
+            )
+            .padding(.horizontal, -20)
         }
         .accessibilityIdentifier("tonight.compact.chosen-showcase")
     }
@@ -840,6 +845,8 @@ private struct CompactChosenRecommendation: View {
 
 private struct ChosenArtworkBackdrop: View {
     let movie: Movie
+    var artworkOpacity = 0.28
+    var featherEndRadiusMultiplier: CGFloat = 0.58
 
     var body: some View {
         GeometryReader { geometry in
@@ -855,7 +862,7 @@ private struct ChosenArtworkBackdrop: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
             .saturation(0.45)
             .contrast(0.85)
-            .opacity(0.28)
+            .opacity(artworkOpacity)
             .mask {
                 RadialGradient(
                     stops: [
@@ -865,7 +872,7 @@ private struct ChosenArtworkBackdrop: View {
                     ],
                     center: .center,
                     startRadius: min(geometry.size.width, geometry.size.height) * 0.12,
-                    endRadius: max(geometry.size.width, geometry.size.height) * 0.58
+                    endRadius: max(geometry.size.width, geometry.size.height) * featherEndRadiusMultiplier
                 )
             }
         }
@@ -983,10 +990,14 @@ private struct CompactPrimaryRecommendationCard: View {
     let rationale: String
     let onRespond: (RecommendationResponse) -> Void
 
+    private var isChosenShowcase: Bool {
+        event.response == .accepted
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: isChosenShowcase ? 14 : 12) {
             Label(event.kind.title, systemImage: event.kind.systemImage)
-                .font(.headline)
+                .font(isChosenShowcase ? .title3.weight(.semibold) : .headline)
                 .foregroundStyle(.tint)
 
             NavigationLink {
@@ -998,7 +1009,7 @@ private struct CompactPrimaryRecommendationCard: View {
                             path: movie.backdropPath ?? movie.posterPath,
                             size: movie.backdropPath == nil ? .posterDetail : .backdrop
                         ),
-                        aspectRatio: 16 / 9,
+                        aspectRatio: isChosenShowcase ? 8 / 5 : 16 / 9,
                         cornerRadius: 16
                     )
 
@@ -1032,7 +1043,7 @@ private struct CompactPrimaryRecommendationCard: View {
             Text(rationale)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
+                .lineLimit(isChosenShowcase ? 3 : 2)
                 .fixedSize(horizontal: false, vertical: true)
 
             RecommendationResponseControls(
@@ -1040,8 +1051,11 @@ private struct CompactPrimaryRecommendationCard: View {
                 onRespond: onRespond
             )
         }
-        .padding(16)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .padding(isChosenShowcase ? 18 : 16)
+        .background(
+            .regularMaterial,
+            in: RoundedRectangle(cornerRadius: isChosenShowcase ? 24 : 22)
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tonight.best-fit.card")
     }
