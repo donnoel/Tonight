@@ -830,7 +830,7 @@ private struct CompactChosenRecommendation: View {
         .frame(maxWidth: 330)
         .padding(.vertical, 28)
         .padding(.horizontal, 4)
-        .frame(maxWidth: .infinity, minHeight: 430)
+        .frame(maxWidth: .infinity, minHeight: 540)
         .background {
             ChosenArtworkBackdrop(
                 movie: movie,
@@ -1009,7 +1009,7 @@ private struct CompactPrimaryRecommendationCard: View {
                             path: movie.backdropPath ?? movie.posterPath,
                             size: movie.backdropPath == nil ? .posterDetail : .backdrop
                         ),
-                        aspectRatio: isChosenShowcase ? 8 / 5 : 16 / 9,
+                        aspectRatio: isChosenShowcase ? 4 / 3 : 16 / 9,
                         cornerRadius: 16
                     )
 
@@ -1046,11 +1046,20 @@ private struct CompactPrimaryRecommendationCard: View {
                 .lineLimit(isChosenShowcase ? 3 : 2)
                 .fixedSize(horizontal: false, vertical: true)
 
+            if isChosenShowcase {
+                Spacer(minLength: 0)
+            }
+
             RecommendationResponseControls(
                 event: event,
                 onRespond: onRespond
             )
         }
+        .frame(
+            maxWidth: .infinity,
+            minHeight: isChosenShowcase ? 450 : nil,
+            alignment: .topLeading
+        )
         .padding(isChosenShowcase ? 18 : 16)
         .background(
             .regularMaterial,
