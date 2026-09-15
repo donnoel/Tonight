@@ -87,7 +87,17 @@ enum LibrarySyncStore {
             if state.seeded {
                 let changed = (context.insertedModelsArray + context.changedModelsArray).compactMap { $0 as? Movie }
                 let deleted = context.deletedModelsArray.compactMap { $0 as? Movie }
-                try capture(changed, deleted: deleted, initial: false, state: state, in: context)
+                let entries = source == .recommendations
+                    ? try entriesMatching(changed, deleted: deleted, in: context)
+                    : nil
+                try capture(
+                    changed,
+                    deleted: deleted,
+                    initial: false,
+                    state: state,
+                    entries: entries,
+                    in: context
+                )
             }
         }
         try context.save()
@@ -124,9 +134,16 @@ enum LibrarySyncStore {
         state.browsingProgressMigrated = true
     }
 
-    static func capture(_ movies: [Movie], deleted: [Movie], initial: Bool, state: LibrarySyncState, in context: ModelContext) throws {
+    static func capture(
+        _ movies: [Movie],
+        deleted: [Movie],
+        initial: Bool,
+        state: LibrarySyncState,
+        entries providedEntries: [LibrarySyncEntry]? = nil,
+        in context: ModelContext
+    ) throws {
         guard !movies.isEmpty || !deleted.isEmpty else { return }
-        let entries = try context.fetch(FetchDescriptor<LibrarySyncEntry>())
+        let entries = try providedEntries ?? context.fetch(FetchDescriptor<LibrarySyncEntry>())
         var byName = Dictionary(uniqueKeysWithValues: entries.map { ($0.recordName, $0) })
         let byLocalID = Dictionary(entries.compactMap { entry in entry.localMovieID.map { ($0, entry) } }, uniquingKeysWith: { first, _ in first })
         let revision = LibraryRevision(date: .now, device: state.deviceID)
@@ -170,6 +187,38 @@ enum LibrarySyncStore {
             try entry.setDocument(document)
             entry.localMovieID = nil; entry.localSnapshotData = nil
         }
+    }
+
+    /// Recommendation refreshes touch at most a few movies. Fetch only their
+    /// current sync entries instead of materializing the entire library index.
+    private static func entriesMatching(
+        _ movies: [Movie],
+        deleted: [Movie],
+        in context: ModelContext
+    ) throws -> [LibrarySyncEntry] {
+        var entriesByName: [String: LibrarySyncEntry] = [:]
+
+        for localID in Set((movies + deleted).map(\.id)) {
+            let descriptor = FetchDescriptor<LibrarySyncEntry>(
+                predicate: #Predicate { $0.localMovieID == localID }
+            )
+            for entry in try context.fetch(descriptor) {
+                entriesByName[entry.recordName] = entry
+            }
+        }
+
+        let recordNames = Set(movies.map { SyncedLibraryMovie(movie: $0).details.recordName })
+        for recordName in recordNames where entriesByName[recordName] == nil {
+            var descriptor = FetchDescriptor<LibrarySyncEntry>(
+                predicate: #Predicate { $0.recordName == recordName }
+            )
+            descriptor.fetchLimit = 1
+            if let entry = try context.fetch(descriptor).first {
+                entriesByName[entry.recordName] = entry
+            }
+        }
+
+        return Array(entriesByName.values)
     }
 
     /// Resolve only unique title/year fallbacks, and retain redirect records so an

@@ -1,7 +1,13 @@
+import OSLog
 import SwiftData
 import SwiftUI
 
 struct TonightView: View {
+    private static let performanceSignposter = OSSignposter(
+        subsystem: "com.donnoel.Tonight",
+        category: "RecommendationPerformance"
+    )
+
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
     @AppStorage("tonightMood") private var moodRawValue = RecommendationMood.anything.rawValue
@@ -155,21 +161,21 @@ struct TonightView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                HStack(spacing: 0) {
                     compactMoodMenu
-                    compactTuningMenu(showsTitle: true)
-                    if !currentEvents.isEmpty {
-                        compactRefreshButton
-                    }
-                }
 
-                HStack(spacing: 8) {
-                    compactMoodMenu
-                    compactTuningMenu(showsTitle: false)
-                    if !currentEvents.isEmpty {
-                        compactRefreshButton
-                    }
+                    Divider()
+                        .frame(height: 18)
+
+                    compactTuningMenu
+                }
+                .padding(.horizontal, 4)
+                .background(.thinMaterial, in: Capsule())
+
+                if !currentEvents.isEmpty {
+                    Spacer(minLength: 8)
+                    compactRefreshButton
                 }
             }
 
@@ -199,10 +205,13 @@ struct TonightView: View {
             moodMenuContent
         } label: {
             Label(selectedMood.title, systemImage: selectedMood.systemImage)
+                .font(.subheadline.weight(.medium))
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 44)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
+        .buttonStyle(.plain)
         .accessibilityLabel("Mood: \(selectedMood.title)")
         .accessibilityHint("Chooses the feeling and pace for tonight’s recommendations")
     }
@@ -237,23 +246,22 @@ struct TonightView: View {
         .accessibilityHint("Adds optional runtime, watch-state, age, and adventure preferences")
     }
 
-    private func compactTuningMenu(showsTitle: Bool) -> some View {
+    private var compactTuningMenu: some View {
         Menu {
             tuningMenuContent
         } label: {
-            if showsTitle {
-                Label(
-                    preferences.activeModifierCount == 0
-                        ? "Tune"
-                        : "Tune (\(preferences.activeModifierCount))",
-                    systemImage: "slider.horizontal.3"
-                )
-            } else {
+            HStack(spacing: 4) {
                 Image(systemName: "slider.horizontal.3")
+
+                if preferences.activeModifierCount > 0 {
+                    Text(preferences.activeModifierCount.formatted())
+                        .font(.caption2.weight(.bold))
+                }
             }
+            .frame(minWidth: 30, minHeight: 44)
+            .padding(.horizontal, 6)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
+        .buttonStyle(.plain)
         .accessibilityLabel(
             preferences.activeModifierCount == 0
                 ? "Tune Picks"
@@ -320,11 +328,17 @@ struct TonightView: View {
         Button {
             generateRecommendations()
         } label: {
-            Image(systemName: "arrow.clockwise")
-                .frame(minWidth: 20, minHeight: 20)
+            ZStack {
+                Circle()
+                    .fill(.tint)
+                    .frame(width: 30, height: 30)
+
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 44, height: 44)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+        .buttonStyle(.plain)
         .accessibilityLabel("Refresh Picks")
         .accessibilityHint("Continues through your library, showing every available movie before repeating any")
     }
@@ -426,7 +440,7 @@ struct TonightView: View {
     }
 
     private func compactRecommendations(currentEvents: [RecommendationEvent], eligibleCount: Int) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Your Picks")
                     .font(.title3.bold())
@@ -456,27 +470,20 @@ struct TonightView: View {
 
             let secondaryEvents = Array(currentEvents.dropFirst())
             if !secondaryEvents.isEmpty {
-                Text("More Picks")
-                    .font(.headline)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach(secondaryEvents) { event in
-                            if let movie = event.movie {
-                                CompactSecondaryRecommendationCard(
-                                    event: event,
-                                    movie: movie,
-                                    rationale: RecommendationEngine.rationale(
-                                        for: movie,
-                                        kind: event.kind,
-                                        mood: event.mood
-                                    ),
-                                    onRespond: { response in
-                                        respond(to: event, with: response)
-                                    }
-                                )
-                            }
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach(secondaryEvents) { event in
+                        if let movie = event.movie {
+                            CompactSecondaryRecommendationCard(
+                                event: event,
+                                movie: movie
+                            )
                         }
+                    }
+
+                    ForEach(secondaryEvents.count..<2, id: \.self) { _ in
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                            .accessibilityHidden(true)
                     }
                 }
             }
@@ -540,6 +547,11 @@ struct TonightView: View {
     }
 
     private func generateRecommendations(recordsSkippedPicks: Bool = true) {
+        let refreshInterval = Self.performanceSignposter.beginInterval("Recommendation Refresh")
+        defer {
+            Self.performanceSignposter.endInterval("Recommendation Refresh", refreshInterval)
+        }
+
         let now = Date.now
         let batch = RecommendationEngine.nextBatch(
             from: movies,
@@ -699,6 +711,11 @@ struct TonightView: View {
 
     @discardableResult
     private func saveChanges() -> Bool {
+        let saveInterval = Self.performanceSignposter.beginInterval("Recommendation Save")
+        defer {
+            Self.performanceSignposter.endInterval("Recommendation Save", saveInterval)
+        }
+
         do {
             try LibrarySyncStore.save(modelContext, source: .recommendations)
             return true
@@ -820,7 +837,7 @@ private struct CompactPrimaryRecommendationCard: View {
             Text(rationale)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .lineLimit(3)
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
             RecommendationResponseControls(
@@ -838,60 +855,56 @@ private struct CompactPrimaryRecommendationCard: View {
 private struct CompactSecondaryRecommendationCard: View {
     let event: RecommendationEvent
     let movie: Movie
-    let rationale: String
-    let onRespond: (RecommendationResponse) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(event.kind.title, systemImage: event.kind.systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.tint)
+        NavigationLink {
+            MovieDetailView(movie: movie)
+        } label: {
+            ZStack {
+                RemoteArtworkView(
+                    url: TMDBImageURL.make(
+                        path: movie.backdropPath ?? movie.posterPath,
+                        size: movie.backdropPath == nil ? .posterDetail : .backdrop
+                    ),
+                    aspectRatio: 2,
+                    cornerRadius: 14,
+                    maxPixelSize: 480
+                )
 
-            NavigationLink {
-                MovieDetailView(movie: movie)
-            } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    RemoteArtworkView(
-                        url: TMDBImageURL.make(
-                            path: movie.backdropPath ?? movie.posterPath,
-                            size: movie.backdropPath == nil ? .posterDetail : .backdrop
-                        ),
-                        aspectRatio: 16 / 9,
-                        cornerRadius: 14
-                    )
+                LinearGradient(
+                    colors: [.black.opacity(0.55), .clear, .black.opacity(0.85)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .allowsHitTesting(false)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(event.kind.title, systemImage: event.kind.systemImage)
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Spacer(minLength: 4)
 
                     Text(movie.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(2)
-
-                    Text(movie.releaseYear.map(String.init) ?? "Year unknown")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
-                .contentShape(Rectangle())
+                .foregroundStyle(.white)
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens movie details")
-
-            Text(rationale)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 0)
-
-            RecommendationResponseControls(
-                event: event,
-                onRespond: onRespond
-            )
+            .aspectRatio(2, contentMode: .fit)
+            .contentShape(RoundedRectangle(cornerRadius: 14))
         }
-        .frame(width: 236)
-        .frame(minHeight: 300, alignment: .topLeading)
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-        .accessibilityElement(children: .contain)
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(event.kind.title), \(movie.title), \(movie.releaseYear.map(String.init) ?? "year unknown")"
+        )
+        .accessibilityHint("Opens movie details")
     }
 }
 

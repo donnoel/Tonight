@@ -4,11 +4,8 @@ import WidgetKit
 
 @MainActor
 enum TonightWidgetSnapshotPublisher {
-    private static let logger = Logger(
-        subsystem: "com.donnoel.Tonight",
-        category: "TonightWidget"
-    )
-    private static var artworkTask: Task<Void, Never>?
+    private static var latestSnapshot: TonightWidgetSnapshot?
+    private static var publicationTask: Task<Void, Never>?
 
     static func publish(picks: [RecommendationPick], generatedAt: Date) {
         publish(
@@ -63,106 +60,27 @@ enum TonightWidgetSnapshotPublisher {
     }
 
     static func removeMovies(ids: Set<UUID>) {
-        guard !ids.isEmpty,
-              let store = try? TonightWidgetSnapshotStore(),
-              let snapshot = try? store.load() else {
-            return
+        guard !ids.isEmpty else { return }
+        let snapshot: TonightWidgetSnapshot
+        if let latestSnapshot {
+            snapshot = latestSnapshot
+        } else {
+            guard let store = try? TonightWidgetSnapshotStore(),
+                  let storedSnapshot = try? store.load() else {
+                return
+            }
+            snapshot = storedSnapshot
         }
         let updated = snapshot.removingMovies(ids: ids)
         guard updated != snapshot else { return }
-        artworkTask?.cancel()
-        artworkTask = nil
-        persist(updated, using: store)
+        publish(snapshot: updated)
     }
 
     private static func publish(snapshot: TonightWidgetSnapshot) {
-        guard let store = try? TonightWidgetSnapshotStore() else {
-            logger.error("The Tonight widget App Group is unavailable.")
-            return
-        }
-
-        let existingSnapshot = try? store.load()
-        var artworkByID: [UUID: (URL?, Data)] = [:]
-        for pick in existingSnapshot?.picks ?? [] {
-            if let artworkData = pick.artworkData {
-                artworkByID[pick.id] = (pick.artworkURL, artworkData)
-            }
-        }
-        var snapshot = snapshot
-        for index in snapshot.picks.indices {
-            let pick = snapshot.picks[index]
-            if let existingArtwork = artworkByID[pick.id],
-               existingArtwork.0 == pick.artworkURL {
-                snapshot.picks[index].artworkData = existingArtwork.1
-            }
-        }
-
-        // Empty snapshots have no meaningful generation date.
-        if snapshot.picks.isEmpty, let existingSnapshot, existingSnapshot.picks.isEmpty {
-            snapshot = existingSnapshot
-        }
-        if snapshot != existingSnapshot {
-            persist(snapshot, using: store)
-        } else if artworkTask != nil {
-            return
-        }
-
-        artworkTask?.cancel()
-        artworkTask = nil
-        guard snapshot.picks.contains(where: { $0.artworkData == nil && $0.artworkURL != nil }) else {
-            return
-        }
-
-        artworkTask = Task { @MainActor in
-            defer {
-                if !Task.isCancelled { artworkTask = nil }
-            }
-            var enrichedSnapshot = snapshot
-
-            for index in enrichedSnapshot.picks.indices where
-                enrichedSnapshot.picks[index].artworkData == nil {
-                guard !Task.isCancelled,
-                      let url = enrichedSnapshot.picks[index].artworkURL else {
-                    continue
-                }
-
-                do {
-                    guard let data = try await TonightWidgetArtworkLoader.load(from: url),
-                          !Task.isCancelled else {
-                        continue
-                    }
-                    enrichedSnapshot.picks[index].artworkData = data
-                } catch is CancellationError {
-                    return
-                } catch {
-                    logger.error(
-                        "Widget artwork download failed: \(error.localizedDescription, privacy: .public)"
-                    )
-                }
-            }
-
-            guard !Task.isCancelled,
-                  let latestSnapshot = try? store.load(),
-                  latestSnapshot.generatedAt == enrichedSnapshot.generatedAt else {
-                return
-            }
-            if enrichedSnapshot != latestSnapshot {
-                persist(enrichedSnapshot, using: store)
-            }
-        }
-    }
-
-    private static func persist(
-        _ snapshot: TonightWidgetSnapshot,
-        using store: TonightWidgetSnapshotStore
-    ) {
-        do {
-            try store.save(snapshot)
-            WidgetCenter.shared.reloadTimelines(ofKind: TonightWidgetSnapshotStore.widgetKind)
-        } catch {
-            logger.error(
-                "Widget snapshot update failed: \(error.localizedDescription, privacy: .public)"
-            )
+        latestSnapshot = snapshot
+        publicationTask?.cancel()
+        publicationTask = Task(priority: .utility) {
+            await TonightWidgetSnapshotWriter.shared.publish(snapshot)
         }
     }
 
@@ -199,15 +117,93 @@ enum TonightWidgetSnapshotPublisher {
     }
 }
 
-nonisolated enum TonightWidgetArtworkLoader {
-    static func load(from url: URL) async throws -> Data? {
-        let (data, response) = try await URLSession.shared.data(from: url)
-        guard data.count <= 2_000_000,
-              let response = response as? HTTPURLResponse,
-              (200..<300).contains(response.statusCode),
-              response.mimeType?.hasPrefix("image/") == true else {
-            return nil
+private actor TonightWidgetSnapshotWriter {
+    static let shared = TonightWidgetSnapshotWriter()
+
+    private let logger = Logger(
+        subsystem: "com.donnoel.Tonight",
+        category: "TonightWidget"
+    )
+    private let performanceSignposter = OSSignposter(
+        subsystem: "com.donnoel.Tonight",
+        category: "WidgetPerformance"
+    )
+
+    func publish(_ requestedSnapshot: TonightWidgetSnapshot) async {
+        let publishInterval = performanceSignposter.beginInterval("Widget Publication")
+        defer {
+            performanceSignposter.endInterval("Widget Publication", publishInterval)
         }
-        return data
+
+        guard !Task.isCancelled else { return }
+        guard let store = try? TonightWidgetSnapshotStore() else {
+            logger.error("The Tonight widget App Group is unavailable.")
+            return
+        }
+
+        let existingSnapshot = try? store.load()
+        var snapshot = reuseArtwork(in: requestedSnapshot, from: existingSnapshot)
+
+        // Empty snapshots have no meaningful generation date.
+        if snapshot.picks.isEmpty, let existingSnapshot, existingSnapshot.picks.isEmpty {
+            snapshot = existingSnapshot
+        }
+
+        snapshot = await enrichArtwork(in: snapshot)
+        guard !Task.isCancelled, snapshot != existingSnapshot else { return }
+
+        do {
+            try store.save(snapshot)
+            WidgetCenter.shared.reloadTimelines(ofKind: TonightWidgetSnapshotStore.widgetKind)
+        } catch {
+            logger.error(
+                "Widget snapshot update failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    private func reuseArtwork(
+        in snapshot: TonightWidgetSnapshot,
+        from existingSnapshot: TonightWidgetSnapshot?
+    ) -> TonightWidgetSnapshot {
+        let artworkByID = Dictionary(
+            uniqueKeysWithValues: (existingSnapshot?.picks ?? []).compactMap { pick in
+                pick.artworkData.map { (pick.id, (pick.artworkURL, $0)) }
+            }
+        )
+        var snapshot = snapshot
+        for index in snapshot.picks.indices {
+            let pick = snapshot.picks[index]
+            if let existingArtwork = artworkByID[pick.id],
+               existingArtwork.0 == pick.artworkURL {
+                snapshot.picks[index].artworkData = existingArtwork.1
+            }
+        }
+        return snapshot
+    }
+
+    private func enrichArtwork(in snapshot: TonightWidgetSnapshot) async -> TonightWidgetSnapshot {
+        var snapshot = snapshot
+        for index in snapshot.picks.indices where snapshot.picks[index].artworkData == nil {
+            guard !Task.isCancelled,
+                  let url = snapshot.picks[index].artworkURL else {
+                continue
+            }
+
+            do {
+                let data = try await LibraryArtworkCache.shared.data(for: url)
+                guard !Task.isCancelled else { return snapshot }
+                if data.count <= 2_000_000 {
+                    snapshot.picks[index].artworkData = data
+                }
+            } catch is CancellationError {
+                return snapshot
+            } catch {
+                logger.error(
+                    "Widget artwork download failed: \(error.localizedDescription, privacy: .public)"
+                )
+            }
+        }
+        return snapshot
     }
 }

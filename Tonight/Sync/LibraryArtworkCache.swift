@@ -1,10 +1,15 @@
 import CryptoKit
 import Foundation
 import ImageIO
+import OSLog
 
 /// Persistent, replaceable artwork; never contains credentials or owned-library data.
 actor LibraryArtworkCache {
     static let shared = LibraryArtworkCache()
+    private let performanceSignposter = OSSignposter(
+        subsystem: "com.donnoel.Tonight",
+        category: "ArtworkPerformance"
+    )
     private var inFlight: [URL: Task<Data, Error>] = [:]
     private var isPrefetching = false
     private let decodedImages: NSCache<NSString, CGImage> = {
@@ -48,6 +53,10 @@ actor LibraryArtworkCache {
         try Task.checkCancellation()
         if let cached = decodedImages.object(forKey: cacheKey) {
             return cached
+        }
+        let decodeInterval = performanceSignposter.beginInterval("Artwork Decode")
+        defer {
+            performanceSignposter.endInterval("Artwork Decode", decodeInterval)
         }
         guard let source = CGImageSourceCreateWithData(
             data as CFData,

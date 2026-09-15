@@ -255,6 +255,37 @@ final class LibrarySyncTests: XCTestCase {
         XCTAssertFalse(entry.pendingUpload)
     }
 
+    func testRecommendationSaveCapturesBrowsingProgressWithTargetedEntryLookup() throws {
+        let store = try container()
+        let changed = movie(238, title: "Changed")
+        let unchanged = movie(999, title: "Unchanged")
+        try seed([changed, unchanged], in: store.mainContext)
+        for entry in try entries(store.mainContext) { entry.pendingUpload = false }
+        try store.mainContext.save()
+
+        let progress = LibraryBrowsingProgress(
+            generation: 2,
+            shownAt: Date(timeIntervalSince1970: 2_000_000_000),
+            eventID: UUID()
+        )
+        changed.browsingProgress = progress
+        try LibrarySyncStore.save(store.mainContext, source: .recommendations)
+
+        let documents = try entries(store.mainContext).map { try $0.document() }
+        XCTAssertEqual(
+            documents.first { $0.movie.details.tmdbID == changed.tmdbID }?.movie.browsing,
+            progress
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(entries(store.mainContext).first { try $0.document().movie.details.tmdbID == changed.tmdbID })
+                .pendingUpload
+        )
+        XCTAssertFalse(
+            try XCTUnwrap(entries(store.mainContext).first { try $0.document().movie.details.tmdbID == unchanged.tmdbID })
+                .pendingUpload
+        )
+    }
+
     private func recordPicks(in context: ModelContext, at date: Date) throws -> [Int] {
         let movies = try context.fetch(FetchDescriptor<Movie>())
         let history = try context.fetch(FetchDescriptor<RecommendationEvent>())
