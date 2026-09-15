@@ -123,17 +123,26 @@ struct TonightView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 760, alignment: .leading)
 
-            ViewThatFits(in: .horizontal) {
+            if currentEvents.isEmpty {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        moodMenu
+                        tuningMenu
+                        recommendationButton(currentEvents: currentEvents)
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        moodMenu
+                        tuningMenu
+                        recommendationButton(currentEvents: currentEvents)
+                    }
+                }
+            } else {
                 HStack(spacing: 12) {
                     moodMenu
                     tuningMenu
-                    recommendationButton(currentEvents: currentEvents)
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    moodMenu
-                    tuningMenu
-                    recommendationButton(currentEvents: currentEvents)
+                    Spacer(minLength: 20)
+                    refreshButton
                 }
             }
 
@@ -175,7 +184,7 @@ struct TonightView: View {
 
                 if !currentEvents.isEmpty {
                     Spacer(minLength: 8)
-                    compactRefreshButton
+                    refreshButton
                 }
             }
 
@@ -324,7 +333,7 @@ struct TonightView: View {
         .accessibilityHint("Continues through your library, showing every available movie before repeating any")
     }
 
-    private var compactRefreshButton: some View {
+    private var refreshButton: some View {
         Button {
             generateRecommendations()
         } label: {
