@@ -5,6 +5,7 @@ enum RecommendationMood: String, Codable, CaseIterable, Identifiable, Sendable {
     case funAndEasy
     case edgeOfYourSeat
     case scaryMovies
+    case scienceFiction
     case quietAndThoughtful
     case bigMovieNight
     case comfortWatch
@@ -17,6 +18,7 @@ enum RecommendationMood: String, Codable, CaseIterable, Identifiable, Sendable {
         case .anything: "Anything"
         case .funAndEasy: "Fun & Easy"
         case .scaryMovies: "Scary Movies"
+        case .scienceFiction: "Sci-Fi"
         case .edgeOfYourSeat: "Edge of Your Seat"
         case .quietAndThoughtful: "Quiet & Thoughtful"
         case .bigMovieNight: "Big Movie Night"
@@ -30,6 +32,7 @@ enum RecommendationMood: String, Codable, CaseIterable, Identifiable, Sendable {
         case .anything: "sparkles"
         case .funAndEasy: "face.smiling"
         case .scaryMovies: "moon.fill"
+        case .scienceFiction: "atom"
         case .edgeOfYourSeat: "bolt.fill"
         case .quietAndThoughtful: "brain.head.profile"
         case .bigMovieNight: "popcorn.fill"
@@ -46,6 +49,8 @@ enum RecommendationMood: String, Codable, CaseIterable, Identifiable, Sendable {
             "Lighter, approachable movies with an easy pace and upbeat energy."
         case .scaryMovies:
             "Horror, hauntings, and chilling stories for a scary movie night."
+        case .scienceFiction:
+            "Science fiction, future worlds, and speculative stories from your library."
         case .edgeOfYourSeat:
             "Tense, propulsive movies with momentum and suspense."
         case .quietAndThoughtful:
@@ -361,6 +366,9 @@ enum RecommendationEngine {
         case .scaryMovies:
             // Require horror metadata; ordinary action and crime thrillers are not scary picks.
             return has(["horror"])
+        case .scienceFiction:
+            // Require explicit science-fiction metadata; space-themed drama or fantasy is not enough.
+            return has(["science fiction"])
         case .edgeOfYourSeat:
             if has(["thriller", "horror", "action", "crime"]) { return true }
             return has(["mystery", "adventure", "science fiction"]) && hasTenseStory(movie)
@@ -599,6 +607,10 @@ enum RecommendationEngine {
         case .scaryMovies:
             return overlapScore(genres, ["horror", "thriller", "mystery"], weight: 14)
                 - overlapScore(genres, ["comedy", "family", "action", "adventure"], weight: 10)
+        case .scienceFiction:
+            return overlapScore(genres, ["science fiction"], weight: 22)
+                + overlapScore(genres, ["adventure", "mystery", "thriller", "drama"], weight: 5)
+                + (voteAverage >= 7 ? 6 : 0)
         case .edgeOfYourSeat:
             return overlapScore(genres, ["thriller", "action", "crime", "mystery", "horror", "adventure"], weight: 14)
                 + (runtime <= 150 ? 6 : 0)

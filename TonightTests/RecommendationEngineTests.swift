@@ -422,15 +422,20 @@ final class RecommendationEngineTests: XCTestCase {
         violentDrama.overviewText = "A family faces an invasion as a brutal war begins."
         let darkComedy = movie(title: "Dark Comedy", genres: ["Comedy", "Horror"])
         let comicMystery = movie(title: "Comic Mystery", genres: ["Comedy", "Mystery"])
+        let scienceFiction = movie(title: "Distant Future", genres: ["Science Fiction"])
         let unknown = movie(title: "Unknown Tone", genres: [])
-        let fixtures = [quietDrama, comedy, thriller, epic, violentDrama, darkComedy, comicMystery, unknown]
+        let fixtures = [
+            quietDrama, comedy, thriller, epic, violentDrama, darkComedy,
+            comicMystery, scienceFiction, unknown
+        ]
         let expected: [RecommendationMood: Set<String>] = [
             .anything: Set(fixtures.map(\.title)),
             .funAndEasy: ["Light Comedy", "Comic Mystery"],
             .quietAndThoughtful: ["Reflective Drama"],
             .edgeOfYourSeat: ["Tense Mystery", "War Epic", "Dark Comedy"],
             .scaryMovies: ["Dark Comedy"],
-            .bigMovieNight: ["War Epic"],
+            .scienceFiction: ["Distant Future"],
+            .bigMovieNight: ["War Epic", "Distant Future"],
             .comfortWatch: ["Light Comedy", "Comic Mystery"],
             .surpriseMe: Set(fixtures.map(\.title))
         ]
@@ -454,6 +459,33 @@ final class RecommendationEngineTests: XCTestCase {
             XCTAssertEqual(Set(picks.map(\.movie.title)), ["Haunted House", "Space Horror"])
         }
         XCTAssertEqual(RecommendationMood(rawValue: "scaryMovies"), .scaryMovies)
+    }
+
+    func testScienceFictionMoodRequiresExplicitScienceFictionMetadata() {
+        let spaceAdventure = movie(
+            title: "Space Adventure",
+            genres: ["Science Fiction", "Adventure"]
+        )
+        let scienceFictionHorror = movie(
+            title: "Space Horror",
+            genres: ["Science Fiction", "Horror"]
+        )
+        let fantasy = movie(title: "Fantasy Quest", genres: ["Fantasy", "Adventure"])
+        let action = movie(title: "Action Spectacle", genres: ["Action", "Thriller"])
+        let spaceDrama = movie(title: "Space Drama", genres: ["Drama"])
+        spaceDrama.overviewText = "Astronauts travel through space to a distant future."
+        let library = [spaceAdventure, scienceFictionHorror, fantasy, action, spaceDrama]
+
+        for seed in UInt64(0)..<20 {
+            let picks = RecommendationEngine.recommendations(
+                from: library,
+                preferences: RecommendationPreferences(mood: .scienceFiction),
+                now: now,
+                seed: seed
+            )
+            XCTAssertEqual(Set(picks.map(\.movie.title)), ["Space Adventure", "Space Horror"])
+        }
+        XCTAssertEqual(RecommendationMood(rawValue: "scienceFiction"), .scienceFiction)
     }
 
     func testScaryMoodHonorsTuningAndDoesNotRepeatExhaustedHorror() {
