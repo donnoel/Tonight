@@ -337,15 +337,25 @@ struct TonightView: View {
         Button {
             generateRecommendations()
         } label: {
-            ZStack {
-                Circle()
-                    .fill(.tint)
-                    .frame(width: 30, height: 30)
+            if usesCompactLayout {
+                ZStack {
+                    Circle()
+                        .fill(.tint)
+                        .frame(width: 30, height: 30)
 
-                Image(systemName: "arrow.clockwise")
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 44, height: 44)
+            } else {
+                Label("Refresh Picks", systemImage: "arrow.clockwise")
+                    .font(.headline)
                     .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .frame(minHeight: 50)
+                    .background(.tint, in: Capsule())
+                    .contentShape(Capsule())
             }
-            .frame(width: 44, height: 44)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Refresh Picks")
@@ -410,39 +420,58 @@ struct TonightView: View {
 
     private func regularRecommendations(currentEvents: [RecommendationEvent], eligibleCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center) {
                 Text("Your Picks")
                     .font(.title2.bold())
 
                 Spacer()
 
-                poolCount(eligibleCount: eligibleCount)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                RecommendationPoolIndicator(
+                    remainingCount: eligibleCount,
+                    totalCount: movies.count
+                )
             }
 
-            HStack(alignment: .top, spacing: 20) {
-                ForEach(currentEvents) { event in
-                    if let movie = event.movie {
-                        RecommendationCard(
-                            event: event,
-                            movie: movie,
-                            rationale: RecommendationEngine.rationale(
-                                for: movie,
-                                kind: event.kind,
-                                mood: event.mood
-                            ),
-                            onRespond: { response in
-                                respond(to: event, with: response)
-                            }
-                        )
+            if currentEvents.count == 1,
+               let event = currentEvents.first,
+               event.response == .accepted,
+               let movie = event.movie {
+                RegularChosenRecommendation(
+                    event: event,
+                    movie: movie,
+                    rationale: RecommendationEngine.rationale(
+                        for: movie,
+                        kind: event.kind,
+                        mood: event.mood
+                    ),
+                    onRespond: { response in
+                        respond(to: event, with: response)
                     }
-                }
+                )
+            } else {
+                HStack(alignment: .top, spacing: 20) {
+                    ForEach(currentEvents) { event in
+                        if let movie = event.movie {
+                            RecommendationCard(
+                                event: event,
+                                movie: movie,
+                                rationale: RecommendationEngine.rationale(
+                                    for: movie,
+                                    kind: event.kind,
+                                    mood: event.mood
+                                ),
+                                onRespond: { response in
+                                    respond(to: event, with: response)
+                                }
+                            )
+                        }
+                    }
 
-                ForEach(currentEvents.count..<3, id: \.self) { _ in
-                    Color.clear
-                        .frame(maxWidth: .infinity)
-                        .accessibilityHidden(true)
+                    ForEach(currentEvents.count..<3, id: \.self) { _ in
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                            .accessibilityHidden(true)
+                    }
                 }
             }
         }
@@ -463,18 +492,31 @@ struct TonightView: View {
 
             if let event = currentEvents.first,
                let movie = event.movie {
-                CompactPrimaryRecommendationCard(
-                    event: event,
-                    movie: movie,
-                    rationale: RecommendationEngine.rationale(
-                        for: movie,
-                        kind: event.kind,
-                        mood: event.mood
-                    ),
-                    onRespond: { response in
-                        respond(to: event, with: response)
-                    }
+                let rationale = RecommendationEngine.rationale(
+                    for: movie,
+                    kind: event.kind,
+                    mood: event.mood
                 )
+
+                if event.response == .accepted {
+                    CompactChosenRecommendation(
+                        event: event,
+                        movie: movie,
+                        rationale: rationale,
+                        onRespond: { response in
+                            respond(to: event, with: response)
+                        }
+                    )
+                } else {
+                    CompactPrimaryRecommendationCard(
+                        event: event,
+                        movie: movie,
+                        rationale: rationale,
+                        onRespond: { response in
+                            respond(to: event, with: response)
+                        }
+                    )
+                }
             }
 
             let secondaryEvents = Array(currentEvents.dropFirst())
@@ -745,6 +787,138 @@ struct TonightView: View {
             saveError = "Your changes couldn’t be saved. Nothing was intentionally removed from your library."
             return false
         }
+    }
+}
+
+private struct RegularChosenRecommendation: View {
+    let event: RecommendationEvent
+    let movie: Movie
+    let rationale: String
+    let onRespond: (RecommendationResponse) -> Void
+
+    var body: some View {
+        RecommendationCard(
+            event: event,
+            movie: movie,
+            rationale: rationale,
+            onRespond: onRespond
+        )
+        .frame(maxWidth: 390)
+        .padding(.vertical, 34)
+        .padding(.horizontal, 28)
+        .frame(maxWidth: .infinity)
+        .background {
+            ChosenArtworkBackdrop(movie: movie)
+        }
+        .accessibilityIdentifier("tonight.chosen-showcase")
+    }
+}
+
+private struct CompactChosenRecommendation: View {
+    let event: RecommendationEvent
+    let movie: Movie
+    let rationale: String
+    let onRespond: (RecommendationResponse) -> Void
+
+    var body: some View {
+        CompactPrimaryRecommendationCard(
+            event: event,
+            movie: movie,
+            rationale: rationale,
+            onRespond: onRespond
+        )
+        .frame(maxWidth: 340)
+        .padding(.vertical, 22)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity)
+        .background {
+            ChosenArtworkBackdrop(movie: movie)
+        }
+        .accessibilityIdentifier("tonight.compact.chosen-showcase")
+    }
+}
+
+private struct ChosenArtworkBackdrop: View {
+    let movie: Movie
+
+    var body: some View {
+        GeometryReader { geometry in
+            RemoteArtworkView(
+                url: TMDBImageURL.make(
+                    path: movie.backdropPath ?? movie.posterPath,
+                    size: movie.backdropPath == nil ? .posterDetail : .backdrop
+                ),
+                aspectRatio: max(geometry.size.width / max(geometry.size.height, 1), 0.1),
+                cornerRadius: 0,
+                maxPixelSize: 1_600
+            )
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .saturation(0.45)
+            .contrast(0.85)
+            .opacity(0.28)
+            .mask {
+                RadialGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black.opacity(0.82), location: 0.46),
+                        .init(color: .clear, location: 1)
+                    ],
+                    center: .center,
+                    startRadius: min(geometry.size.width, geometry.size.height) * 0.12,
+                    endRadius: max(geometry.size.width, geometry.size.height) * 0.58
+                )
+            }
+        }
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct RecommendationPoolIndicator: View {
+    let remainingCount: Int
+    let totalCount: Int
+
+    private var remainingFraction: Double {
+        guard totalCount > 0 else { return 0 }
+        return min(max(Double(remainingCount) / Double(totalCount), 0), 1)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .stroke(.secondary.opacity(0.18), lineWidth: 4)
+
+                Circle()
+                    .trim(from: 0, to: remainingFraction)
+                    .stroke(.tint, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+
+                Image(systemName: "film.fill")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tint)
+            }
+            .frame(width: 34, height: 34)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(remainingCount.formatted()) left")
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+
+                Text("of \(totalCount.formatted()) movies")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .padding(.vertical, 7)
+        .padding(.leading, 8)
+        .padding(.trailing, 12)
+        .background(.thinMaterial, in: Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(remainingCount.formatted()) movies left to browse out of \(totalCount.formatted()) movies in your library for your current mood and tuning")
+        .accessibilityIdentifier("tonight.eligibleMovieCount")
     }
 }
 
