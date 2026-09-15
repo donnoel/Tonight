@@ -1056,7 +1056,6 @@ private struct CompactPrimaryRecommendationCard: View {
             )
         }
         .frame(
-            maxWidth: .infinity,
             minHeight: isChosenShowcase ? 450 : nil,
             alignment: .topLeading
         )
