@@ -385,6 +385,7 @@ private struct DealDestinationView: View {
         }
         context = MovieDealContext(
             appleURL: item.appleDeal.appleURL,
+            artworkURL: item.appleDeal.artworkURL,
             price: item.appleDeal.formattedPrice,
             isInLibrary: libraryMovie != nil,
             lastRefreshed: snapshot.lastSuccessfulRefresh,

@@ -4,6 +4,7 @@ import StoreKit
 
 struct MovieDealContext {
     let appleURL: URL
+    let artworkURL: URL?
     let price: String
     let isInLibrary: Bool
     let lastRefreshed: Date
@@ -74,7 +75,7 @@ struct MovieDetailView: View {
     private var backdrop: some View {
         ZStack(alignment: .bottom) {
             RemoteArtworkView(
-                url: TMDBImageURL.make(path: movie.backdropPath, size: .backdrop),
+                url: backdropArtworkURL,
                 aspectRatio: 16 / 7,
                 cornerRadius: 0,
                 contentAlignment: horizontalSizeClass == .regular ? .top : .center
@@ -94,12 +95,22 @@ struct MovieDetailView: View {
 
     private func poster(width: CGFloat) -> some View {
         RemoteArtworkView(
-            url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
+            url: posterArtworkURL,
             aspectRatio: 2 / 3,
             cornerRadius: 18
         )
         .frame(width: width)
         .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
+    }
+
+    var backdropArtworkURL: URL? {
+        TMDBImageURL.make(path: movie.backdropPath, size: .backdrop)
+            ?? dealContext?.artworkURL
+    }
+
+    var posterArtworkURL: URL? {
+        TMDBImageURL.make(path: movie.posterPath, size: .posterDetail)
+            ?? dealContext?.artworkURL
     }
 
     private var details: some View {
