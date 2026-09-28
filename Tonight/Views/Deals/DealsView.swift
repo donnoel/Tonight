@@ -98,11 +98,6 @@ struct DealsView: View {
                         "Apple deals are available, but TMDB is not configured. Add your Read Access Token in Settings, then refresh to load posters and recommendations.",
                         systemImage: "key.fill"
                     )
-                } else if snapshot.enrichmentState == .partial {
-                    statusBanner(
-                        "Some Apple titles could not be matched to TMDB. They remain visible with the information Apple provided.",
-                        systemImage: "questionmark.circle.fill"
-                    )
                 }
 
                 if snapshot.items.isEmpty {
@@ -298,7 +293,7 @@ private struct DealMovieCard: View {
                     url: TMDBImageURL.make(
                         path: item.metadata?.posterPath,
                         size: .posterCard
-                    ),
+                    ) ?? item.appleDeal.artworkURL,
                     aspectRatio: 2 / 3,
                     cornerRadius: 16
                 )

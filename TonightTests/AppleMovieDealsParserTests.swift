@@ -11,6 +11,11 @@ final class AppleMovieDealsParserTests: XCTestCase {
         XCTAssertEqual(deals.map(\.title), ["Tom & Jerry", "Second Movie"])
         XCTAssertEqual(deals.map(\.contentIdentifier), ["umc.cmc.one", "umc.cmc.two"])
         XCTAssertEqual(deals.map(\.position), [0, 1])
+        XCTAssertEqual(
+            deals.first?.artworkURL?.absoluteString,
+            "https://is1-ssl.mzstatic.com/image/thumb/Video/example/450x676CA.TVA23C01-60.jpg"
+        )
+        XCTAssertNil(deals.last?.artworkURL)
         XCTAssertTrue(deals.allSatisfy { $0.priceInCents == 499 })
         XCTAssertTrue(
             deals.allSatisfy { $0.priceEvidence == .buyCollectionAndLinkContext }
@@ -81,6 +86,9 @@ final class AppleMovieDealsParserTests: XCTestCase {
       <div data-testid="grid">
         <li data-testid="grid-item">
           <a data-testid="lockup" href="https://tv.apple.com/us/movie/tom-and-jerry/umc.cmc.one?ctx_price=tvs.vds.9023_4.99_4.99_1">
+            <picture>
+              <source srcset="https://is1-ssl.mzstatic.com/image/thumb/Video/example/225x338CA.TVA23C01-60.jpg 225w,https://is1-ssl.mzstatic.com/image/thumb/Video/example/450x676CA.TVA23C01-60.jpg 450w" type="image/jpeg">
+            </picture>
             <span class="visually-hidden">Tom &amp; Jerry</span>
           </a>
         </li>
@@ -134,7 +142,12 @@ final class AppleMovieDealsPaginationTests: XCTestCase {
             "id": collectionID,
             "items": ids.map { [
                 "id": "umc.cmc.\($0)", "type": "Movie", "title": $0,
-                "url": "https://tv.apple.com/us/movie/\($0)/umc.cmc.\($0)?ctx_price=tvs.vds.9023_\(price)_\(price)_1"
+                "url": "https://tv.apple.com/us/movie/\($0)/umc.cmc.\($0)?ctx_price=tvs.vds.9023_\(price)_\(price)_1",
+                "images": ["shelfItemImage": [
+                    "url": "https://is1-ssl.mzstatic.com/image/thumb/Video/\($0)/{w}x{h}.{f}",
+                    "width": 2000,
+                    "height": 3000
+                ]]
             ] }
         ]
         shelf["nextToken"] = token
@@ -164,6 +177,10 @@ final class AppleMovieDealsPaginationTests: XCTestCase {
         XCTAssertEqual(deals.map(\.id), ["umc.cmc.one", "umc.cmc.two", "umc.cmc.three"])
         XCTAssertEqual(deals.map(\.position), [0, 1, 2])
         XCTAssertEqual(Set(deals.map(\.retrievedAt)).count, 1)
+        XCTAssertEqual(
+            deals[1].artworkURL?.absoluteString,
+            "https://is1-ssl.mzstatic.com/image/thumb/Video/two/450x675.jpg"
+        )
     }
 
     func testSinglePageStopsWithoutAnotherRequest() async throws {
@@ -222,6 +239,14 @@ final class AppleMovieDealsPaginationTests: XCTestCase {
         )
         XCTAssertNil(decoded.catalogVersion)
         XCTAssertFalse(decoded.isFresh(at: .now, lifetime: 21_600))
+    }
+
+    func testPosterlessVersionTwoCacheNeedsRefresh() {
+        let snapshot = DealCatalogSnapshot(
+            catalogVersion: 2, items: [], lastSuccessfulRefresh: .now, enrichmentState: .complete
+        )
+
+        XCTAssertFalse(snapshot.isFresh(at: .now, lifetime: 21_600))
     }
 
     func testCancellationPropagates() async {

@@ -10,6 +10,11 @@ struct MovieDealContext {
     let recommendationRationale: String?
 }
 
+struct MovieRecommendationContext {
+    let event: RecommendationEvent
+    let onChoose: () -> Void
+}
+
 struct MovieDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -19,6 +24,7 @@ struct MovieDetailView: View {
     let movie: Movie
     var showsPersonalization = true
     var dealContext: MovieDealContext?
+    var recommendationContext: MovieRecommendationContext?
 
     var body: some View {
         ScrollView {
@@ -159,6 +165,10 @@ struct MovieDetailView: View {
                 dealSection(dealContext)
             }
 
+            if let recommendationContext {
+                recommendationSection(recommendationContext)
+            }
+
             if showsPersonalization {
                 personalizationSection
             }
@@ -240,6 +250,35 @@ struct MovieDetailView: View {
         .padding()
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .contain)
+    }
+
+    private func recommendationSection(
+        _ context: MovieRecommendationContext
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Tonight")
+                .font(.headline)
+
+            if context.event.response == .accepted {
+                Label("Chosen for Tonight", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            } else if context.event.response == .pending {
+                Button {
+                    context.onChoose()
+                } label: {
+                    Label("Choose", systemImage: "checkmark.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint(
+                    "Chooses this recommendation for tonight and marks it watched"
+                )
+            }
+
+            Text("Choosing records this recommendation as your selection for tonight and marks the movie watched.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var personalizationSection: some View {

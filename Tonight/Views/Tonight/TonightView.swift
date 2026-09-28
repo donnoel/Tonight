@@ -538,7 +538,10 @@ struct TonightView: View {
                             event: event,
                             movie: movie,
                             width: cardWidth,
-                            height: geometry.size.height
+                            height: geometry.size.height,
+                            onRespond: { response in
+                                respond(to: event, with: response)
+                            }
                         )
                     }
                 }
@@ -948,7 +951,13 @@ private struct RecommendationCard: View {
                 .foregroundStyle(.tint)
 
             NavigationLink {
-                MovieDetailView(movie: movie)
+                MovieDetailView(
+                    movie: movie,
+                    recommendationContext: MovieRecommendationContext(
+                        event: event,
+                        onChoose: { onRespond(.accepted) }
+                    )
+                )
             } label: {
                 VStack(alignment: .leading, spacing: 12) {
                     RemoteArtworkView(
@@ -1007,7 +1016,13 @@ private struct CompactPrimaryRecommendationCard: View {
                 .foregroundStyle(.tint)
 
             NavigationLink {
-                MovieDetailView(movie: movie)
+                MovieDetailView(
+                    movie: movie,
+                    recommendationContext: MovieRecommendationContext(
+                        event: event,
+                        onChoose: { onRespond(.accepted) }
+                    )
+                )
             } label: {
                 GeometryReader { geometry in
                     ZStack(alignment: .bottomLeading) {
@@ -1094,10 +1109,17 @@ private struct CompactSecondaryRecommendationCard: View {
     let movie: Movie
     let width: CGFloat
     let height: CGFloat
+    let onRespond: (RecommendationResponse) -> Void
 
     var body: some View {
         NavigationLink {
-            MovieDetailView(movie: movie)
+            MovieDetailView(
+                movie: movie,
+                recommendationContext: MovieRecommendationContext(
+                    event: event,
+                    onChoose: { onRespond(.accepted) }
+                )
+            )
         } label: {
             ZStack {
                 RemoteArtworkView(

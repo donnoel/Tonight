@@ -7,11 +7,32 @@ enum AppleMovieDealPriceEvidence: String, Codable, Sendable {
 struct AppleMovieDeal: Codable, Hashable, Identifiable, Sendable {
     let title: String
     let appleURL: URL
+    let artworkURL: URL?
     let priceInCents: Int
     let contentIdentifier: String?
     let position: Int
     let retrievedAt: Date
     let priceEvidence: AppleMovieDealPriceEvidence
+
+    init(
+        title: String,
+        appleURL: URL,
+        artworkURL: URL? = nil,
+        priceInCents: Int,
+        contentIdentifier: String?,
+        position: Int,
+        retrievedAt: Date,
+        priceEvidence: AppleMovieDealPriceEvidence
+    ) {
+        self.title = title
+        self.appleURL = appleURL
+        self.artworkURL = artworkURL
+        self.priceInCents = priceInCents
+        self.contentIdentifier = contentIdentifier
+        self.position = position
+        self.retrievedAt = retrievedAt
+        self.priceEvidence = priceEvidence
+    }
 
     var id: String {
         contentIdentifier ?? appleURL.absoluteString
@@ -135,7 +156,7 @@ struct DealCatalogSnapshot: Codable, Equatable, Sendable {
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,
-        catalogVersion: Int? = 2,
+        catalogVersion: Int? = 3,
         items: [CachedMovieDeal],
         lastSuccessfulRefresh: Date,
         enrichmentState: DealCatalogEnrichmentState
@@ -148,7 +169,7 @@ struct DealCatalogSnapshot: Codable, Equatable, Sendable {
     }
 
     func isFresh(at date: Date, lifetime: TimeInterval) -> Bool {
-        catalogVersion == 2 && date.timeIntervalSince(lastSuccessfulRefresh) < lifetime
+        catalogVersion == 3 && date.timeIntervalSince(lastSuccessfulRefresh) < lifetime
     }
 }
 

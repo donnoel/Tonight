@@ -72,7 +72,8 @@ struct AppleMovieDealsProvider: AppleMovieDealsProviding, Sendable {
             )
             for deal in page.deals where seenIDs.insert(deal.id).inserted {
                 deals.append(AppleMovieDeal(
-                    title: deal.title, appleURL: deal.appleURL, priceInCents: deal.priceInCents,
+                    title: deal.title, appleURL: deal.appleURL, artworkURL: deal.artworkURL,
+                    priceInCents: deal.priceInCents,
                     contentIdentifier: deal.contentIdentifier, position: deals.count,
                     retrievedAt: retrievedAt, priceEvidence: deal.priceEvidence
                 ))
@@ -161,10 +162,21 @@ enum AppleMovieDealsParser {
                 let nextToken: String?
             }
             struct Item: Decodable {
+                struct Images: Decodable {
+                    struct Artwork: Decodable {
+                        let url: String
+                        let width: Int?
+                        let height: Int?
+                    }
+
+                    let shelfItemImage: Artwork?
+                }
+
                 let id: String
                 let type: String
                 let title: String
                 let url: URL
+                let images: Images?
             }
             let data: Payload
         }
@@ -177,7 +189,14 @@ enum AppleMovieDealsParser {
                 throw AppleMovieDealsError.pageFormatChanged
             }
             deals.append(AppleMovieDeal(
-                title: item.title, appleURL: item.url, priceInCents: 499,
+                title: item.title,
+                appleURL: item.url,
+                artworkURL: artworkURL(
+                    template: item.images?.shelfItemImage?.url,
+                    sourceWidth: item.images?.shelfItemImage?.width,
+                    sourceHeight: item.images?.shelfItemImage?.height
+                ),
+                priceInCents: 499,
                 contentIdentifier: item.id, position: deals.count, retrievedAt: retrievedAt,
                 priceEvidence: .buyCollectionAndLinkContext
             ))
@@ -242,6 +261,7 @@ enum AppleMovieDealsParser {
                 AppleMovieDeal(
                     title: title,
                     appleURL: url,
+                    artworkURL: artworkURL(in: body),
                     priceInCents: 499,
                     contentIdentifier: contentIdentifier,
                     position: deals.count,
@@ -281,6 +301,63 @@ enum AppleMovieDealsParser {
 
     private static func contentIdentifier(from url: URL) -> String? {
         url.pathComponents.last(where: { $0.hasPrefix("umc.cmc.") })
+    }
+
+    private static func artworkURL(in anchorBody: String) -> URL? {
+        let pattern = #"<source\b(?=[^>]*\bsrcset="([^"]+)")(?=[^>]*\btype="image/jpeg")[^>]*>"#
+        guard let expression = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.caseInsensitive]
+        ),
+        let match = expression.firstMatch(
+            in: anchorBody,
+            range: NSRange(anchorBody.startIndex..., in: anchorBody)
+        ),
+        let range = Range(match.range(at: 1), in: anchorBody) else {
+            return nil
+        }
+
+        return decodeHTMLEntities(String(anchorBody[range]))
+            .split(separator: ",")
+            .reversed()
+            .compactMap { candidate -> URL? in
+                guard let rawURL = candidate.split(whereSeparator: { $0.isWhitespace }).first else {
+                    return nil
+                }
+                return validatedArtworkURL(String(rawURL))
+            }
+            .first
+    }
+
+    private static func artworkURL(
+        template: String?,
+        sourceWidth: Int?,
+        sourceHeight: Int?
+    ) -> URL? {
+        guard var template else { return nil }
+        let width = 450
+        let height: Int
+        if let sourceWidth, sourceWidth > 0, let sourceHeight, sourceHeight > 0 {
+            height = Int((Double(width * sourceHeight) / Double(sourceWidth)).rounded())
+        } else {
+            height = 675
+        }
+        template = template
+            .replacingOccurrences(of: "{w}", with: String(width))
+            .replacingOccurrences(of: "{h}", with: String(height))
+            .replacingOccurrences(of: "{f}", with: "jpg")
+        guard !template.contains("{") else { return nil }
+        return validatedArtworkURL(template)
+    }
+
+    private static func validatedArtworkURL(_ value: String) -> URL? {
+        guard let url = URL(string: value),
+              url.scheme == "https",
+              let host = url.host,
+              host == "mzstatic.com" || host.hasSuffix(".mzstatic.com") else {
+            return nil
+        }
+        return url
     }
 
     private static func cleanTitle(_ value: String) -> String {
