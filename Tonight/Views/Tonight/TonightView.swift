@@ -58,6 +58,9 @@ struct TonightView: View {
                 .padding(.vertical, usesCompactLayout ? 16 : 32)
             }
         }
+        .refreshable {
+            refreshRecommendations()
+        }
         .navigationTitle("Tonight")
         .navigationBarTitleDisplayMode(usesCompactLayout ? .inline : .automatic)
         .alert("Couldn’t Update Recommendations", isPresented: saveErrorIsPresented) {
@@ -335,7 +338,7 @@ struct TonightView: View {
 
     private var refreshButton: some View {
         Button {
-            generateRecommendations()
+            refreshRecommendations()
         } label: {
             if usesCompactLayout {
                 ZStack {
@@ -358,6 +361,7 @@ struct TonightView: View {
             }
         }
         .buttonStyle(.plain)
+        .disabled(!canRefreshRecommendations)
         .accessibilityLabel("Refresh Picks")
         .accessibilityHint("Continues through your library, showing every available movie before repeating any")
     }
@@ -656,6 +660,16 @@ struct TonightView: View {
             eligibleMovieCount = batch.remainingMovieCount
             TonightWidgetSnapshotPublisher.publish(picks: picks, generatedAt: now)
         }
+    }
+
+    private var canRefreshRecommendations: Bool {
+        !isLoadingRecommendationState
+            && (!currentEvents.isEmpty || eligibleMovieCount > 0)
+    }
+
+    private func refreshRecommendations() {
+        guard canRefreshRecommendations else { return }
+        generateRecommendations()
     }
 
     @discardableResult
