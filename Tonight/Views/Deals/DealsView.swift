@@ -377,7 +377,6 @@ private struct DealDestinationView: View {
             displayMovie = Movie(
                 title: item.appleDeal.title,
                 importedTitle: item.appleDeal.title,
-                overviewText: "This Apple deal could not be matched confidently to TMDB. The Apple listing remains available.",
                 resolutionStatus: .unresolved,
                 resolutionNote: item.matchNote ?? "TMDB metadata is unavailable."
             )

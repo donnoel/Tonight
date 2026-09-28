@@ -83,6 +83,28 @@ final class MovieDetailArtworkTests: XCTestCase {
         )
     }
 
+    func testDealOnlyUnresolvedMovieUsesCleanDealPresentation() throws {
+        let view = MovieDetailView(
+            movie: Movie(
+                title: "Flow",
+                resolutionStatus: .unresolved,
+                resolutionNote: "TMDB rejected the saved credential."
+            ),
+            showsPersonalization: false,
+            dealContext: dealContext(artworkURL: nil)
+        )
+
+        XCTAssertFalse(view.showsMatchRecovery)
+        XCTAssertNil(view.summaryLine)
+    }
+
+    func testUnresolvedLibraryMovieKeepsMatchRecovery() {
+        let view = MovieDetailView(movie: Movie(title: "Flow"))
+
+        XCTAssertTrue(view.showsMatchRecovery)
+        XCTAssertEqual(view.summaryLine, "Metadata unavailable")
+    }
+
     private func dealContext(artworkURL: URL?) -> MovieDealContext {
         MovieDealContext(
             appleURL: URL(string: "https://tv.apple.com/us/movie/flow/umc.cmc.flow")!,

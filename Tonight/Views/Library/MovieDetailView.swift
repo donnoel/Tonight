@@ -134,17 +134,19 @@ struct MovieDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text(summaryLine)
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if let summaryLine {
+                Text(summaryLine)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .accessibilityElement(children: .combine)
     }
 
     private var metadataAndOverview: some View {
         VStack(alignment: .leading, spacing: 22) {
-            if movie.resolutionStatus != .resolved {
+            if showsMatchRecovery {
                 VStack(alignment: .leading, spacing: 14) {
                     Label {
                         VStack(alignment: .leading, spacing: 4) {
@@ -342,7 +344,11 @@ struct MovieDetailView: View {
         )
     }
 
-    private var summaryLine: String {
+    var showsMatchRecovery: Bool {
+        showsPersonalization && movie.resolutionStatus != .resolved
+    }
+
+    var summaryLine: String? {
         var values: [String] = []
         if let year = movie.releaseYear {
             values.append(String(year))
@@ -356,7 +362,10 @@ struct MovieDetailView: View {
         if let average = movie.tmdbVoteAverage, let count = movie.tmdbVoteCount {
             values.append("★ \(average.formatted(.number.precision(.fractionLength(1)))) (\(count.formatted()))")
         }
-        return values.isEmpty ? "Metadata unavailable" : values.joined(separator: "  •  ")
+        if values.isEmpty {
+            return dealContext == nil ? "Metadata unavailable" : nil
+        }
+        return values.joined(separator: "  •  ")
     }
 
     private func runtimeText(_ minutes: Int) -> String {
