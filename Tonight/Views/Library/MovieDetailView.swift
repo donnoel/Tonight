@@ -17,6 +17,7 @@ struct MovieRecommendationContext {
 }
 
 struct MovieDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var saveError: String?
@@ -279,6 +280,9 @@ struct MovieDetailView: View {
             } else if context.event.response == .pending {
                 Button {
                     context.onChoose()
+                    if context.event.response == .accepted {
+                        dismiss()
+                    }
                 } label: {
                     Label("Choose", systemImage: "checkmark.circle.fill")
                 }
