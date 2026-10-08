@@ -16,15 +16,17 @@ struct MatchLibraryView: View {
     @State private var selectedCandidate: TMDBSearchCandidate?
     @State private var automaticTask: Task<Void, Never>?
     private let targetMovie: Movie?
+    private let onConsolidated: (() -> Void)?
 
-    init(movie: Movie? = nil) {
+    init(movie: Movie? = nil, onConsolidated: (() -> Void)? = nil) {
         targetMovie = movie
+        self.onConsolidated = onConsolidated
         _mode = State(initialValue: movie == nil ? .overview : .review)
     }
 
     private var unresolvedMovies: [Movie] {
         if let targetMovie {
-            return targetMovie.resolutionStatus == .resolved ? [] : [targetMovie]
+            return [targetMovie]
         }
         return movies.filter { $0.resolutionStatus != .resolved }
     }
@@ -92,7 +94,7 @@ struct MatchLibraryView: View {
                 selectedCandidate = nil
             }
         } message: { _ in
-            Text("This replaces the missing metadata for the imported title with the selected TMDB movie. Your personal history is preserved.")
+            Text("This updates the title, artwork, and details with the selected TMDB movie. Your personal history is preserved.")
         }
         .onDisappear {
             automaticTask?.cancel()
@@ -222,16 +224,17 @@ struct MatchLibraryView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(currentMovie.importedTitle)
+                        Text(currentMovie.resolutionStatus == .resolved ? currentMovie.title : currentMovie.importedTitle)
                             .font(.title3.bold())
-                        if let year = currentMovie.importedYear ?? currentMovie.releaseYear {
+                        if let year = currentMovie.resolutionStatus == .resolved
+                            ? currentMovie.releaseYear : currentMovie.importedYear ?? currentMovie.releaseYear {
                             Text(String(year))
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityElement(children: .combine)
                 } header: {
-                    Text("Imported Title")
+                    Text(currentMovie.resolutionStatus == .resolved ? "Current Movie" : "Imported Title")
                 } footer: {
                     Text(reviewFooter)
                 }
@@ -318,10 +321,14 @@ struct MatchLibraryView: View {
     private func apply(_ candidate: TMDBSearchCandidate) {
         selectedCandidate = nil
         guard let movie = currentMovie else { return }
+        let originalID = movie.id
         Task {
-            let didApply = await model.apply(candidate, to: movie, in: modelContext)
-            if didApply, isSingleMovieMode {
+            let matchedMovie = await model.apply(candidate, to: movie, in: modelContext)
+            if let matchedMovie, isSingleMovieMode {
                 dismiss()
+                if matchedMovie.id != originalID {
+                    onConsolidated?()
+                }
             }
         }
     }

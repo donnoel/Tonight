@@ -61,5 +61,30 @@ final class MovieImportParserTests: XCTestCase {
         XCTAssertEqual(entries.map(\.title), ["Heat", "Alien", "Jaws"])
         XCTAssertEqual(entries.map(\.year), [1995, 1979, nil])
     }
-}
 
+    func testLineBasedImportPreservesCommasInMovieTitles() {
+        let entries = MovieImportParser.parse("Heat (1995)\nI, Robot (2004)\nLock, Stock and Two Smoking Barrels (1998)")
+
+        XCTAssertEqual(entries.map(\.title), ["Heat", "I, Robot", "Lock, Stock and Two Smoking Barrels"])
+        XCTAssertEqual(entries.map(\.year), [1995, 2004, 1998])
+    }
+
+    func testQuotedCommaSeparatedTitleStaysOneMovie() {
+        let entries = MovieImportParser.parse("Heat (1995), \"I, Robot (2004)\", Alien (1979)")
+
+        XCTAssertEqual(entries.map(\.title), ["Heat", "I, Robot", "Alien"])
+        XCTAssertEqual(entries.map(\.year), [1995, 2004, 1979])
+    }
+
+    func testQuotedSingleMovieAndEscapedQuotes() {
+        let entries = MovieImportParser.parse("\"I, Robot (2004)\", \"The \"\"Quoted\"\" Movie\"")
+
+        XCTAssertEqual(entries.map(\.title), ["I, Robot", "The \"Quoted\" Movie"])
+    }
+
+    func testWindowsLinesPreserveCommaTitlesAndRemoveDuplicates() {
+        let entries = MovieImportParser.parse("I, Robot (2004)\r\n\r\nI, Robot (2004)\r\nAlien")
+
+        XCTAssertEqual(entries.map(\.title), ["I, Robot", "Alien"])
+    }
+}

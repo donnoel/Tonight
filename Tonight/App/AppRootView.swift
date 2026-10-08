@@ -97,6 +97,9 @@ struct AppRootView: View {
 
     private func repairDuplicateImports() {
         do {
+            #if DEBUG
+            try DebugLibrarySeeder.consolidateIfRequested(in: modelContext)
+            #endif
             _ = try LocalLibraryDuplicateRepair.repair(in: modelContext)
         } catch {
             modelContext.rollback()

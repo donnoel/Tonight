@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import Tonight
 
 final class MovieFactoryTests: XCTestCase {
@@ -95,5 +96,61 @@ final class MovieFactoryTests: XCTestCase {
         XCTAssertEqual(movie.title, "Blade Runner")
         XCTAssertEqual(movie.resolutionStatus, .resolved)
         XCTAssertNil(movie.resolutionNote)
+    }
+}
+
+@MainActor
+final class MovieMatchRecoveryTests: XCTestCase {
+    func testResolvedMovieSearchUsesCurrentTitleAndYear() {
+        let movie = Movie(tmdbID: 2048, title: "I, Robot", importedTitle: "I",
+                          importedYear: 2016, releaseYear: 2004, resolutionStatus: .resolved)
+        let model = UnresolvedMatchViewModel()
+
+        model.prepare(for: movie)
+
+        XCTAssertEqual(model.query, "I, Robot")
+        XCTAssertEqual(model.yearText, "2004")
+    }
+
+    func testUnresolvedMovieSearchPreservesImportedIdentity() {
+        let movie = Movie(title: "Wrong details", importedTitle: "Blade Runner (Director's Cut)",
+                          importedYear: 1982, releaseYear: 2016)
+        let model = UnresolvedMatchViewModel()
+
+        model.prepare(for: movie)
+
+        XCTAssertEqual(model.query, "Blade Runner")
+        XCTAssertEqual(model.yearText, "1982")
+    }
+
+    func testCorrectingResolvedMovieToExistingMatchPreservesHistoryWithoutNetworking() async throws {
+        let container = try ModelContainer(for: Movie.self, RecommendationEvent.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = container.mainContext
+        let incorrect = Movie(tmdbID: 646690, title: "The Robot", importedTitle: "Robot",
+                              releaseYear: 2016, resolutionStatus: .resolved)
+        incorrect.isWatched = true
+        incorrect.isLiked = true
+        incorrect.userRating = 4
+        let correct = Movie(tmdbID: 2048, title: "I, Robot", releaseYear: 2004,
+                            posterPath: "/poster.jpg", resolutionStatus: .resolved)
+        let event = RecommendationEvent(movie: incorrect, kind: .hiddenGem, response: .accepted)
+        context.insert(incorrect); context.insert(correct); context.insert(event)
+        try context.save()
+        let candidate = TMDBSearchCandidate(id: 2048, title: "I, Robot", originalTitle: "I, Robot",
+                                            releaseYear: 2004, rank: 0, popularity: 100)
+        let model = UnresolvedMatchViewModel()
+
+        let matched = await model.apply(candidate, to: incorrect, in: context)
+
+        XCTAssertTrue(matched === correct)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Movie>()), 1)
+        XCTAssertTrue(event.movie === correct)
+        XCTAssertEqual(event.response, .accepted)
+        XCTAssertTrue(correct.isWatched)
+        XCTAssertTrue(correct.isLiked)
+        XCTAssertEqual(correct.userRating, 4)
+        XCTAssertEqual(correct.posterPath, "/poster.jpg")
+        XCTAssertNil(model.message)
     }
 }

@@ -17,6 +17,20 @@ enum DebugLibrarySeeder {
         }
     }
 
+    static func consolidateIfRequested(in modelContext: ModelContext) throws {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flag = arguments.firstIndex(of: "-TonightConsolidateMovie"),
+              arguments.indices.contains(flag + 2),
+              let sourceID = UUID(uuidString: arguments[flag + 1]),
+              let targetTMDBID = Int(arguments[flag + 2]) else { return }
+        let movies = try modelContext.fetch(FetchDescriptor<Movie>())
+        guard let source = movies.first(where: { $0.id == sourceID }),
+              let target = movies.first(where: {
+                  $0.id != sourceID && $0.tmdbID == targetTMDBID && $0.resolutionStatus == .resolved
+              }) else { return }
+        try LocalLibraryDuplicateRepair.consolidate(source, into: target, in: modelContext)
+    }
+
     private static func installPreviewMovie(in modelContext: ModelContext) {
         let fixtures = [
             Movie(

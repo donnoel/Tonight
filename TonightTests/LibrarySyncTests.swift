@@ -129,6 +129,33 @@ final class LibrarySyncTests: XCTestCase {
         XCTAssertEqual(try store.mainContext.fetchCount(FetchDescriptor<Movie>()), 3)
     }
 
+    func testConfirmedMatchCorrectionRedirectsOtherDeviceHistory() throws {
+        let left = try container(); let right = try container()
+        let wrongLeft = movie(646690, title: "The Robot")
+        let correctLeft = movie(2048, title: "I, Robot")
+        let wrongRight = movie(646690, title: "The Robot")
+        let correctRight = movie(2048, title: "I, Robot")
+        try seed([wrongLeft, correctLeft], in: left.mainContext)
+        try seed([wrongRight, correctRight], in: right.mainContext)
+        let event = RecommendationEvent(movie: wrongRight, kind: .hiddenGem, response: .accepted)
+        right.mainContext.insert(event); try right.mainContext.save()
+
+        try LocalLibraryDuplicateRepair.consolidate(wrongLeft, into: correctLeft, in: left.mainContext)
+        try exchange(from: left.mainContext, to: right.mainContext)
+        try exchange(from: right.mainContext, to: left.mainContext)
+
+        for context in [left.mainContext, right.mainContext] {
+            let movies = try context.fetch(FetchDescriptor<Movie>())
+            XCTAssertEqual(movies.count, 1)
+            XCTAssertEqual(movies.first?.tmdbID, 2048)
+            let alias = try XCTUnwrap(try entries(context).first { $0.recordName == "tmdb-646690" })
+            XCTAssertEqual(try alias.document().redirectTo, "tmdb-2048")
+            XCTAssertFalse(try alias.document().deleted)
+        }
+        XCTAssertTrue(event.movie === correctRight)
+        XCTAssertEqual(event.response, .accepted)
+    }
+
     func testMissingYearMergesOnlyWhenThereIsOneResolvedCandidate() throws {
         let store = try container()
         let unknown = movie(nil); unknown.importedYear = nil; unknown.releaseYear = nil

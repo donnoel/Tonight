@@ -54,6 +54,18 @@ struct MovieDetailView: View {
         }
         .navigationTitle(movie.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if showsPersonalization {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        movieToMatch = movie
+                    } label: {
+                        Label("Change Movie Match", systemImage: "link")
+                    }
+                    .accessibilityHint("Searches for the correct movie title, artwork, and details while keeping your history")
+                }
+            }
+        }
         .alert("Couldn’t Save Your Taste", isPresented: saveErrorIsPresented) {
             Button("OK", role: .cancel) {
                 saveError = nil
@@ -62,7 +74,7 @@ struct MovieDetailView: View {
             Text(saveError ?? "Please try again.")
         }
         .sheet(item: $movieToMatch) { unresolvedMovie in
-            MatchLibraryView(movie: unresolvedMovie)
+            MatchLibraryView(movie: unresolvedMovie, onConsolidated: { dismiss() })
         }
         .task(id: dealContext?.appleURL) {
             guard dealContext != nil else { return }
@@ -151,9 +163,11 @@ struct MovieDetailView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Label {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("TMDB match needed")
+                            Text(movie.resolutionStatus == .resolved ? "Artwork missing" : "TMDB match needed")
                                 .font(.headline)
-                            Text(movie.resolutionNote ?? "This imported title is preserved in your library.")
+                            Text(movie.resolutionStatus == .resolved
+                                 ? "Search for this movie to find its artwork and details."
+                                 : movie.resolutionNote ?? "This imported title is preserved in your library.")
                                 .font(.subheadline)
                         }
                     } icon: {
@@ -165,7 +179,7 @@ struct MovieDetailView: View {
                         Button {
                             movieToMatch = movie
                         } label: {
-                            Label("Find TMDB Match", systemImage: "link.badge.plus")
+                            Label(movie.resolutionStatus == .resolved ? "Find Artwork" : "Find TMDB Match", systemImage: "link.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .accessibilityHint("Searches TMDB so you can associate artwork and movie details")
@@ -349,7 +363,7 @@ struct MovieDetailView: View {
     }
 
     var showsMatchRecovery: Bool {
-        showsPersonalization && movie.resolutionStatus != .resolved
+        showsPersonalization && (movie.resolutionStatus != .resolved || posterArtworkURL == nil)
     }
 
     var summaryLine: String? {

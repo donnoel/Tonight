@@ -105,6 +105,12 @@ final class MovieDetailArtworkTests: XCTestCase {
         XCTAssertEqual(view.summaryLine, "Metadata unavailable")
     }
 
+    func testResolvedLibraryMovieWithMissingPosterOffersRecovery() {
+        let movie = Movie(title: "The Robot", resolutionStatus: .resolved)
+
+        XCTAssertTrue(MovieDetailView(movie: movie).showsMatchRecovery)
+    }
+
     private func dealContext(artworkURL: URL?) -> MovieDealContext {
         MovieDealContext(
             appleURL: URL(string: "https://tv.apple.com/us/movie/flow/umc.cmc.flow")!,

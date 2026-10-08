@@ -8,6 +8,10 @@ The library syncs through the same private iCloud account on iPad and iPhone. Ti
 
 Ambiguous titles and special editions remain visible as **Needs Match**. Select one of those movies and use **Find TMDB Match** on its detail screen to associate the correct artwork and metadata directly, or use **Match Movies** from the Library toolbar to retry safe matches in a batch before reviewing the remainder. Automatic matching recognizes common canonical-title variations, collector-edition suffixes, and uniquely confirmed TMDB alternative titles while keeping genuine remake ambiguity for confirmation. A confirmed match enriches the existing local record without replacing personal history.
 
+Every personal-library detail screen also offers **Change Movie Match**. Matched movies without a poster show **Find Artwork**, using the same editable title/year search and confirmation. If the selected movie already exists in the library, the records consolidate while preserving personal history, and sync redirects the old match to the correct movie on other devices.
+
+Line-based imports preserve commas within movie titles, including `I, Robot`. For a comma-separated list on one line, quote titles that contain commas, such as `Heat, "I, Robot (2004)", Alien`.
+
 Library search matches titles, years, genres, directors, and cast. **Library Options** can show all, unwatched, or watched movies and sort by title, release year, date added, runtime, rating, or last watched in either direction. Shuffle remains a one-tap toolbar action. These choices only change the grid presentation and never modify the stored collection.
 
 On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
@@ -57,6 +61,8 @@ xcodebuild -project Tonight.xcodeproj -scheme Tonight \
 ```
 
 Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLibrary`, and `-TonightOpenDeals` as explicit launch arguments. The first two insert local fixtures only when requested; the third opens Deals directly for layout and retrieval smokes without changing normal app launches.
+
+For an explicitly authorized record correction, `-TonightConsolidateMovie <local-movie-UUID> <existing-TMDB-ID>` uses the normal consolidation path to merge only that local record into an already resolved movie. It does nothing if either record is absent and is unavailable in Release builds.
 
 ## Architecture
 

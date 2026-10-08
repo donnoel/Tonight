@@ -19,7 +19,7 @@ enum LocalLibraryDuplicateRepair {
             }
             guard candidates.count == 1, let canonical = candidates.first else { continue }
 
-            consolidate(
+            try consolidate(
                 duplicate,
                 into: canonical,
                 events: events,
@@ -43,7 +43,7 @@ enum LocalLibraryDuplicateRepair {
         in modelContext: ModelContext
     ) throws {
         let events = try modelContext.fetch(FetchDescriptor<RecommendationEvent>())
-        consolidate(
+        try consolidate(
             duplicate,
             into: canonical,
             events: events,
@@ -57,7 +57,7 @@ enum LocalLibraryDuplicateRepair {
         into canonical: Movie,
         events: [RecommendationEvent],
         in modelContext: ModelContext
-    ) {
+    ) throws {
         canonical.importedTitle = preferredText(canonical.importedTitle, duplicate.importedTitle)
         canonical.importedYear = canonical.importedYear ?? duplicate.importedYear
         mergeWatchedState(from: duplicate, into: canonical)
@@ -78,6 +78,7 @@ enum LocalLibraryDuplicateRepair {
         for event in events where event.movie === duplicate {
             event.movie = canonical
         }
+        try LibrarySyncStore.redirect(duplicate, to: canonical, in: modelContext)
         modelContext.delete(duplicate)
     }
 

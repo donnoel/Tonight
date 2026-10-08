@@ -189,6 +189,25 @@ enum LibrarySyncStore {
         }
     }
 
+    static func redirect(_ duplicate: Movie, to canonical: Movie, in context: ModelContext) throws {
+        guard supported(in: context) else { return }
+        let duplicateID = duplicate.id
+        let descriptor = FetchDescriptor<LibrarySyncEntry>(
+            predicate: #Predicate { $0.localMovieID == duplicateID }
+        )
+        let targetName = SyncedLibraryMovie(movie: canonical).details.recordName
+        let state = try state(in: context)
+        for entry in try context.fetch(descriptor) where entry.recordName != targetName {
+            var document = try entry.document()
+            document.redirectTo = targetName
+            document.deleted = false
+            document.membershipRevision = LibraryRevision(date: .now, device: state.deviceID)
+            try entry.setDocument(document)
+            entry.localMovieID = nil
+            entry.localSnapshotData = nil
+        }
+    }
+
     /// Recommendation refreshes touch at most a few movies. Fetch only their
     /// current sync entries instead of materializing the entire library index.
     private static func entriesMatching(

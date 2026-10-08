@@ -42,8 +42,10 @@ final class UnresolvedMatchViewModel {
     }
 
     func prepare(for movie: Movie) {
-        query = MovieSearchQuery.title(from: movie.importedTitle)
-        yearText = (movie.importedYear ?? movie.releaseYear).map(String.init) ?? ""
+        let title = movie.resolutionStatus == .resolved ? movie.title : movie.importedTitle
+        query = MovieSearchQuery.title(from: title)
+        yearText = (movie.resolutionStatus == .resolved
+                    ? movie.releaseYear : movie.importedYear ?? movie.releaseYear).map(String.init) ?? ""
         candidates = []
         message = nil
     }
@@ -80,7 +82,7 @@ final class UnresolvedMatchViewModel {
         _ candidate: TMDBSearchCandidate,
         to movie: Movie,
         in modelContext: ModelContext
-    ) async -> Bool {
+    ) async -> Movie? {
         isApplying = true
         message = nil
         defer { isApplying = false }
@@ -101,7 +103,7 @@ final class UnresolvedMatchViewModel {
                     throw UnresolvedMatchError.localSave
                 }
                 candidates = []
-                return true
+                return existingMatch
             }
 
             let client = try await makeClient()
@@ -114,12 +116,12 @@ final class UnresolvedMatchViewModel {
                 throw UnresolvedMatchError.localSave
             }
             candidates = []
-            return true
+            return movie
         } catch is CancellationError {
-            return false
+            return nil
         } catch {
             message = userMessage(for: error)
-            return false
+            return nil
         }
     }
 

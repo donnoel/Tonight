@@ -93,7 +93,7 @@ struct ImportLibraryView: View {
 
     private var editor: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Paste one movie per line. A year in parentheses helps Tonight distinguish remakes. Basic comma-separated lists also work.")
+            Text("Paste one movie per line. A year in parentheses helps Tonight distinguish remakes. For a comma-separated list on one line, put titles containing commas in double quotes.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -308,4 +308,3 @@ private struct SummaryTile: View {
         .accessibilityElement(children: .combine)
     }
 }
-

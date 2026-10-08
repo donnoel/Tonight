@@ -2,10 +2,13 @@ import Foundation
 
 enum MovieImportParser {
     static func parse(_ input: String) -> [LibraryImportEntry] {
-        let rawLines = input
+        let lines = input
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
-            .split(whereSeparator: { $0 == "\n" || $0 == "," })
+            .split(separator: "\n")
+            .map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let rawLines = lines.count > 1 ? lines : lines.flatMap(commaSeparatedTitles)
 
         var seen = Set<String>()
         var entries: [LibraryImportEntry] = []
@@ -26,6 +29,33 @@ enum MovieImportParser {
         }
 
         return entries
+    }
+
+    private static func commaSeparatedTitles(_ line: String) -> [String] {
+        var titles: [String] = []
+        var title = ""
+        var isQuoted = false
+        let characters = Array(line)
+        var index = 0
+        while index < characters.count {
+            let character = characters[index]
+            if character == "\"" {
+                if isQuoted, index + 1 < characters.count, characters[index + 1] == "\"" {
+                    title.append("\"")
+                    index += 1
+                } else {
+                    isQuoted.toggle()
+                }
+            } else if character == ",", !isQuoted {
+                titles.append(title)
+                title = ""
+            } else {
+                title.append(character)
+            }
+            index += 1
+        }
+        titles.append(title)
+        return titles
     }
 
     private static func parseLine(_ line: String) -> (title: String, year: Int?) {
