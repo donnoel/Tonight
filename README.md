@@ -77,4 +77,6 @@ For an explicitly authorized record correction, `-TonightConsolidateMovie <local
 
 TMDB requests use `GET /3/search/movie` and `GET /3/movie/{id}?append_to_response=credits,alternative_titles`. The details response supplies runtime, genres, ratings, language, artwork paths, director, primary cast, and the alternative titles used for narrow fallback confirmation without redundant requests.
 
-General TMDB discovery outside the Deals enrichment context, streaming availability, accounts, whole-library cloud sync, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.
+General TMDB discovery outside the Deals enrichment context, streaming availability, custom accounts, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.
+
+Whole-library CloudKit sync is implemented; see [library sync](docs/LIBRARY_SYNC.md) for its merge rules, durable outbox, recorded device qualification, and separate production-release requirements. Recommendation history and the TMDB credential remain device-local.
