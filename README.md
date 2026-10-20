@@ -9,7 +9,7 @@
 
 ---
 
-## ✨ Overview
+## 🧭 Overview
 
 Tonight is an iPad-first personal movie recommendation app built with SwiftUI and SwiftData. The imported library is the source of truth for movies the user owns; TMDB is used only to enrich those entries with metadata and artwork.
 
