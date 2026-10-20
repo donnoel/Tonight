@@ -1,6 +1,31 @@
-# Tonight
+# **Tonight**
+
+### *Find tonight's movie in the library you already own.*
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Built%20with-SwiftUI%20%2B%20SwiftData-orange?logo=swift&logoColor=white" alt="Built with: SwiftUI + SwiftData">
+  <img src="https://img.shields.io/badge/Platforms-iOS%20%2B%20iPadOS-blue" alt="Platforms: iOS + iPadOS">
+</p>
+
+---
+
+## ✨ Overview
 
 Tonight is an iPad-first personal movie recommendation app built with SwiftUI and SwiftData. The imported library is the source of truth for movies the user owns; TMDB is used only to enrich those entries with metadata and artwork.
+
+## 💎 Core Features
+
+| Feature | What it does |
+| --- | --- |
+| **Personal picks** | Choose movies from the user's resolved, owned library. |
+| **Import and matching** | Preserve ambiguous titles and confirm TMDB metadata and artwork. |
+| **Private library sync** | Merge library changes across iPad and iPhone while retaining local data. |
+| **Widget and Deals** | Show the latest pick and browse the separate cached Apple deal collection. |
+
+<details>
+<summary>Feature details and controls</summary>
+
+### Library and recommendations
 
 The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally and appear in History.
 
@@ -16,13 +41,17 @@ Library search matches titles, years, genres, directors, and cast. **Library Opt
 
 On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
 
-## Tonight's Pick widget
+<a id="tonights-pick-widget"></a>
+
+### Tonight's Pick widget
 
 The medium **Tonight's Pick** widget presents one clear recommendation from the latest successfully saved set; tapping it opens the Tonight screen. The shared snapshot retains alternates so marking the displayed movie watched or not interested can promote the next eligible pick immediately.
 
 The widget reads only a display-ready binary property-list snapshot in the `group.com.donnoel.Tonight` App Group. It does not access SwiftData, make TMDB API requests, or receive the TMDB credential. Poster data is downloaded by the main app and copied into that local snapshot when available.
 
-## Apple $4.99 movie deals
+<a id="apple-499-movie-deals"></a>
+
+### Apple $4.99 movie deals
 
 **Deals** shows Apple’s current U.S. **Buy for $4.99** movie collection without adding those titles to the personal Library. The adaptive grid includes the verified deal price, TMDB artwork and metadata when available, and an **In Library** badge for movies Tonight already knows you own. Filters show all deals, titles not already in the Library, or deals ranked with the same local taste signals used by Tonight’s recommendation engine.
 
@@ -30,13 +59,23 @@ The catalog is read from Apple’s public, unauthenticated Apple TV collection p
 
 Deal results and temporary TMDB matches are cached locally for six hours. A cached catalog appears immediately and remains usable with its last refresh time if Apple or TMDB is temporarily unavailable. The cache is disposable and is never coupled to SwiftData Library records. Unmatched Apple titles remain visible rather than disappearing.
 
-## Requirements
+</details>
+
+---
+
+## 🚀 Getting Started
+
+<a id="requirements"></a>
+
+### Requirements
 
 - Xcode 26 or later
 - iOS 18 or later
 - A TMDB API Read Access Token for live import
 
-## Configure TMDB
+<a id="configure-tmdb"></a>
+
+### Configure TMDB
 
 1. Build and run Tonight.
 2. Open **Settings** in the app.
@@ -46,7 +85,9 @@ Tonight stores the token as a generic-password item in the device Keychain with 
 
 After configuration, Settings keeps the credential controls collapsed. Choose **Update Credential** to reveal the secure token field again.
 
-## Generate and build
+<a id="generate-and-build"></a>
+
+### Generate and build
 
 ```sh
 xcodegen generate
@@ -64,7 +105,11 @@ Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLi
 
 For an explicitly authorized record correction, `-TonightConsolidateMovie <local-movie-UUID> <existing-TMDB-ID>` uses the normal consolidation path to merge only that local record into an already resolved movie. It does nothing if either record is absent and is unavailable in Release builds.
 
-## Architecture
+## 🧠 How It Works
+
+<a id="architecture"></a>
+
+### Architecture
 
 - `Models/`: SwiftData `Movie` and persisted `RecommendationEvent`
 - `Recommendation/`: deterministic, explainable local scoring and three-pick selection
@@ -80,3 +125,14 @@ TMDB requests use `GET /3/search/movie` and `GET /3/movie/{id}?append_to_respons
 General TMDB discovery outside the Deals enrichment context, streaming availability, custom accounts, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.
 
 Whole-library CloudKit sync is implemented; see [library sync](docs/LIBRARY_SYNC.md) for its merge rules, durable outbox, recorded device qualification, and separate production-release requirements. Recommendation history and the TMDB credential remain device-local.
+
+## 📚 Documentation
+
+- [Repository guidance](AGENTS.md)
+- [Project guide](AGENTS.project.md)
+
+---
+
+## 🤝 Credits
+
+Maintained by **Don Noel**.
