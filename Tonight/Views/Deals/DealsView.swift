@@ -10,7 +10,7 @@ private enum DealsFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: "All"
+        case .all: "Everything"
         case .notInLibrary: "Not in Library"
         case .recommended: "Recommended"
         }
