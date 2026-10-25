@@ -57,7 +57,7 @@ struct AppRootView: View {
         #endif
         return .tonight
     }()
-    @State private var tvLibrary = TVLibraryStore()
+    @State private var tvLibrary = TVLibraryStore.shared
 
     var body: some View {
         GeometryReader { proxy in
@@ -71,6 +71,7 @@ struct AppRootView: View {
             .environment(\.tvWindowSize, proxy.size)
         }
         .environment(tvLibrary)
+        .task { await TVSyncCoordinator.shared.start(store: tvLibrary) }
         .task {
             #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
@@ -86,6 +87,14 @@ struct AppRootView: View {
                 _ = tvLibrary.importTitles(TVStarterLibrary.confirmedVersions)
                 await tvLibrary.loadDetails()
             }
+            if let flag = arguments.firstIndex(of: "-TonightTVFavorite"),
+               arguments.indices.contains(flag + 2), let id = Int(arguments[flag + 1]),
+               ["true", "false"].contains(arguments[flag + 2]),
+               var show = tvLibrary.shows.first(where: { $0.tmdbID == id }) {
+                show.isFavorite = arguments[flag + 2] == "true"
+                tvLibrary.updateShow(show)
+                await TVSyncCoordinator.shared.syncNow()
+            }
             #endif
         }
         #if DEBUG
@@ -99,7 +108,10 @@ struct AppRootView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
-            Task { await LibrarySyncCoordinator.shared.syncNow() }
+            Task {
+                await LibrarySyncCoordinator.shared.syncNow()
+                await TVSyncCoordinator.shared.syncNow()
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(

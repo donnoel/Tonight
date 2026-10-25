@@ -131,6 +131,21 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("iCloud TV Library") {
+                Text(TVSyncCoordinator.shared.status)
+                    .accessibilityIdentifier("settings.tvSyncStatus")
+                if let date = TVSyncCoordinator.shared.lastSync {
+                    LabeledContent("Last sync") { Text(date, style: .relative) }
+                }
+                if TVSyncCoordinator.shared.pendingCount > 0 {
+                    LabeledContent("Pending changes", value: TVSyncCoordinator.shared.pendingCount, format: .number)
+                }
+                Button("Sync TV Now") { Task { await TVSyncCoordinator.shared.syncNow() } }
+                    .disabled(TVSyncCoordinator.shared.isSyncing)
+                Text("TV shows, owned seasons, favorites, episode progress, and viewing history sync through your private iCloud account. Viewing plans, moods, and layout choices stay on this device.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+
             Section("Library") {
                 LabeledContent("Movies", value: movies.count, format: .number)
                 LabeledContent("Unresolved", value: unresolvedCount, format: .number)

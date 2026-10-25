@@ -82,7 +82,7 @@ struct TVShowDetailView: View {
                         }
                     }
                     Section {
-                        Text("Metadata and episode order from TMDB. TV progress is saved on this device.")
+                        Text("Metadata and episode order from TMDB. TV progress and history sync through your private iCloud account.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
@@ -107,7 +107,7 @@ struct TVShowDetailView: View {
         }
         .confirmationDialog("Remove this show from your TV library?", isPresented: $confirmsRemoval, titleVisibility: .visible) {
             Button("Remove Show", role: .destructive) { store.removeShow(showID); dismiss() }
-        } message: { Text("This removes the show on this device. Past viewing sessions stay in TV History.") }
+        } message: { Text("This removes the show from your synced TV library. Past viewing sessions stay in TV History. Offline removals sync when iCloud is available.") }
         .confirmationDialog("Begin a fresh rewatch?", isPresented: $confirmsRewatch, titleVisibility: .visible) {
             Button("Begin Rewatch") { edit { $0.resumeAfter = nil } }
         } message: { Text("Your viewing history will be kept. Your next session will begin a new rewatch.") }

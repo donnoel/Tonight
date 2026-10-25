@@ -4,6 +4,7 @@ import Foundation
 struct TVLibraryFile {
     let url: URL
     var backupURL: URL { url.appendingPathExtension("backup") }
+    var preSyncBackupURL: URL { url.appendingPathExtension("pre-sync-backup") }
 
     static var live: Self {
         let support = URL.applicationSupportDirectory.appending(path: "Tonight", directoryHint: .isDirectory)
@@ -29,6 +30,14 @@ struct TVLibraryFile {
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(document)
         try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    func backupBeforeSync() throws {
+        guard FileManager.default.fileExists(atPath: url.path),
+              !FileManager.default.fileExists(atPath: preSyncBackupURL.path) else { return }
+        let original = try Data(contentsOf: url)
+        _ = try decode(original)
+        try original.write(to: preSyncBackupURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     private func decode(_ data: Data) throws -> TVLibraryDocument {

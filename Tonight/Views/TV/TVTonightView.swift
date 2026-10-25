@@ -61,7 +61,7 @@ struct TVTonightView: View {
                         .buttonStyle(.bordered)
                         .accessibilityHint("Offers other viewing sessions without recording anything as watched")
                     }
-                    Text("TV progress and history are saved on this device. A session is only recorded when you mark episodes watched.")
+                    Text("TV progress and history sync through your private iCloud account. A session is only recorded when you mark episodes watched.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }

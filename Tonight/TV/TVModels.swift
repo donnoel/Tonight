@@ -140,7 +140,7 @@ struct TVViewingSession: Codable, Identifiable, Equatable, Sendable {
     var durationLabel: String { "\(usesEstimatedRuntime ? "About " : "")\(estimatedMinutes) min" }
 }
 
-struct TVWatchSession: Codable, Identifiable, Sendable {
+struct TVWatchSession: Codable, Identifiable, Equatable, Sendable {
     var id: UUID
     var showID: UUID
     var showTitle: String
@@ -162,6 +162,7 @@ struct TVLibraryDocument: Codable, Sendable {
     var suggestedShowIDs: [UUID] = []
     /// iPad's current orientation determines the row size. nil keeps the compact presentation.
     var sessionCount: Int?
+    var sync: TVSyncState?
 }
 
 enum TVSeasonSelection {

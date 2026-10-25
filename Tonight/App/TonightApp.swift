@@ -39,6 +39,7 @@ final class LibrarySyncAppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         Task { @MainActor in
             await LibrarySyncCoordinator.shared.syncNow()
+            await TVSyncCoordinator.shared.syncNow()
             completionHandler(.newData)
         }
     }

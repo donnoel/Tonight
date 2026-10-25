@@ -3,6 +3,7 @@ import Observation
 
 @MainActor @Observable
 final class TVLibraryStore {
+    static let shared = TVLibraryStore()
     private(set) var document = TVLibraryDocument()
     private(set) var isBusy = false
     private(set) var progress = ""
@@ -11,6 +12,7 @@ final class TVLibraryStore {
     var errorMessage: String?
     private let file: TVLibraryFile
     private var stopRequested = false
+    @ObservationIgnored var syncDidSave: (() -> Void)?
 
     init(file: TVLibraryFile = .live) {
         self.file = file
@@ -345,12 +347,41 @@ final class TVLibraryStore {
         doc.suggestedShowIDs = Array(Set(doc.suggestedShowIDs + doc.suggestions.map(\.showID)))
     }
 
+    func prepareSync() throws {
+        guard storageReady else { throw TVSyncError.localStorage }
+        guard document.sync == nil else { return }
+        try file.backupBeforeSync()
+        var next = document
+        TVSyncStore.seed(&next)
+        try file.save(next)
+        document = next
+    }
+
+    /// Sync metadata and received edits commit atomically without echoing a local-save callback.
+    func saveSyncChanges(reconcile: Bool = false, _ edit: (inout TVLibraryDocument) throws -> Void) throws {
+        guard storageReady else { throw TVSyncError.localStorage }
+        var next = document
+        try edit(&next)
+        if reconcile {
+            TVSyncStore.reconcile(&next)
+            if next.shows != document.shows || next.history != document.history { refreshSuggestions(&next) }
+        }
+        try file.save(next)
+        document = next
+    }
+
     @discardableResult
     private func change(_ edit: (inout TVLibraryDocument) -> Void) -> Bool {
         guard storageReady else { return false }
         var next = document
         edit(&next)
-        do { try file.save(next); document = next; return true }
+        let syncChanged = TVSyncStore.capture(previous: document, next: &next)
+        do {
+            try file.save(next)
+            document = next
+            if syncChanged { syncDidSave?() }
+            return true
+        }
         catch { errorMessage = "Your TV change couldn’t be saved. \(error.localizedDescription)"; return false }
     }
 }

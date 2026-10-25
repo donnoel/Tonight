@@ -52,7 +52,7 @@ On iPad, viewing-session rows show three distinct eligible shows in portrait and
 
 Starting a session saves its plan without marking it watched. Record the first episode or the full session afterward; the latest logged session can be undone. Unknown runtimes are labeled as estimates. Only matched, owned, aired episodes with fully loaded owned-season metadata qualify. Ownership is frozen to the initially matched season list, so future releases do not become owned automatically.
 
-TV ownership, metadata, plans, and viewing history persist in an independent, atomically saved local file with a previous-snapshot backup. **TV data is device-local in this version**; existing movie CloudKit sync and movie widget behavior are unchanged. TV uses the existing device Keychain credential for TMDB TV search, series details, and season/episode details.
+TV ownership, metadata, and viewing history persist in an independent, atomically saved local file with a durable outbox and a backup made before initial sync. **TV shows, owned seasons, favorites, viewing styles, episode progress, and viewing history sync through private iCloud**. Planned sessions, recommendations, moods, and layouts remain device-local; existing movie sync and widget behavior are unchanged. TV uses the existing device Keychain credential for TMDB TV search, series details, and season/episode details. The credential never syncs. See [TV sync](docs/TV_SYNC.md) for merge and recovery rules.
 
 <a id="tonights-pick-widget"></a>
 
@@ -120,6 +120,8 @@ Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLi
 
 `-TonightConfirmTVVersions` applies the five explicitly confirmed version years (Entourage 2004, Killing Eve 2018, Lost 2004, The Boys 2019, Yellowstone 2018) through normal duplicate-safe import, then resumes loading pending TV details. It preserves existing show identity, ownership, and viewing history and is available only in Debug builds.
 
+`-TonightTVFavorite <TMDB-ID> <true|false>` applies a normal TV favorite edit for reversible device-sync qualification. Restore the original setting after verification. `-TonightDisableCloudSync` disables movie and TV cloud writes in simulator smokes; unit-test hosts also disable automatic cloud work.
+
 For an explicitly authorized record correction, `-TonightConsolidateMovie <local-movie-UUID> <existing-TMDB-ID>` uses the normal consolidation path to merge only that local record into an already resolved movie. It does nothing if either record is absent and is unavailable in Release builds.
 
 ## 🧠 How It Works
@@ -129,7 +131,7 @@ For an explicitly authorized record correction, `-TonightConsolidateMovie <local
 ### Architecture
 
 - `Models/`: SwiftData `Movie` and persisted `RecommendationEvent`
-- `TV/`: independent TV ownership and episode metadata, atomic persistence, import/matching, and explainable viewing-session planning
+- `TV/`: independent TV ownership and episode metadata, atomic persistence/outbox, import/matching, explainable viewing-session planning, and private CloudKit TV synchronization
 - `Recommendation/`: deterministic, explainable local scoring and three-pick selection
 - `Deals/`: isolated Apple collection retrieval/parsing, disposable caching, bounded TMDB enrichment, ownership matching, and Deals screen state
 - `Import/`: parsing, collector-suffix search cleanup, normalization, duplicate detection, progress state, and reliable per-title persistence
@@ -142,7 +144,7 @@ TMDB requests use `GET /3/search/movie` and `GET /3/movie/{id}?append_to_respons
 
 General TMDB discovery outside the Deals enrichment context, streaming availability, custom accounts, AI/LLM interpretation, and advanced collaborative filtering remain intentionally deferred.
 
-Whole-library CloudKit sync is implemented; see [library sync](docs/LIBRARY_SYNC.md) for its merge rules, durable outbox, recorded device qualification, and separate production-release requirements. Recommendation history and the TMDB credential remain device-local.
+Movie CloudKit sync is implemented; see [library sync](docs/LIBRARY_SYNC.md) for its merge rules, durable outbox, recorded device qualification, and separate production-release requirements. Movie recommendation history and the TMDB credential remain device-local. [TV sync](docs/TV_SYNC.md) includes TV viewing history while retaining local session plans and presentation preferences.
 
 ## 📚 Documentation
 
