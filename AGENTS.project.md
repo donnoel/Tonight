@@ -2,7 +2,7 @@
 
 ## Product intent
 
-Tonight is a personal movie recommendation app. Its defining product rule is that recommendations come from the user's own imported movie library. TMDB enriches that library with metadata and artwork; it never decides what the user owns and must not become the library source of truth.
+Tonight is a personal recommendation app for owned movies and TV shows. Its defining product rule is that recommendations come from the user's own imported collections. TMDB enriches those collections with metadata and artwork; it never decides what the user owns and must not become the library source of truth.
 
 Success for the current milestone means the established library remains reliable while Tonight produces explainable, responsive recommendations from resolved movies the user owns and can separately rank Apple’s current U.S. $4.99 purchase collection without treating deals as owned movies.
 
@@ -26,6 +26,7 @@ Current scope:
 - A medium WidgetKit widget showing the top persisted Tonight recommendation
 - A disposable, cached Apple $4.99 Deals catalog with TMDB enrichment, ownership badges, and taste-based ranking
 - Functional Tonight, Library, Deals, History, and Settings screens
+- TV collection and viewing sessions within Tonight/Library/History, using a Movies / TV Shows switch
 
 Explicitly out of scope:
 
@@ -59,6 +60,11 @@ Explicitly out of scope:
 
 ## Behavior invariants
 
+- TV is an explicitly supported owned-library recommendation pool, separate from movies and Deals. `TVLibraryStore` owns a versioned local TV file; do not migrate or repurpose existing movie records for TV. TV ownership, sessions, history, and preferences are device-local in this version; movie CloudKit sync and the movie widget remain unchanged.
+- Preserve season limits on import and reimport. Unannotated ownership freezes to the initially matched aired regular seasons; never silently add future seasons or specials. Only fully loaded, matched, owned, aired episodes qualify for sessions.
+- TV series with meaningful match ambiguity require manual selection. Preserve unresolved titles and successful season downloads when later requests fail. Use the existing device Keychain credential only.
+- TV ordered stories continue from an explicit position; standalone viewing may rotate individual episodes, and season stories begin at episode one. Starting a TV plan never marks it watched. Log viewing only after an explicit watched action; preserve history through fresh rewatches, and support undo of the last logged session.
+
 - The local imported library is the source of truth for owned movies.
 - TMDB is metadata enrichment only.
 - Never silently discard an imported title because it is ambiguous, not found, unauthenticated, offline, or failed.
@@ -77,8 +83,8 @@ Explicitly out of scope:
 - Stored rich metadata should power library/detail UI without redundant detail requests.
 - Library sorting and shuffling change presentation order only; they must not rewrite movie records or personal history.
 - Clearing the library requires explicit confirmation that removals propagate to other synced devices.
-- Normal Tonight recommendations must select only resolved, non-disliked records already present in the local library.
-- Deal recommendations are the sole exception: their candidate pool is the current Apple $4.99 catalog, while the personal library and recommendation history remain the taste source.
+- Movie recommendations must select only resolved, non-disliked records already present in the local library.
+- Deals are the only recommendation pool outside the owned collections: their candidates are the current Apple $4.99 catalog, while the personal movie library and recommendation history remain the taste source.
 - Deal refreshes must never insert, update, or delete personal-library records.
 - Apple deals without a confident TMDB match remain visible; one failed enrichment must not prevent the remaining catalog from loading.
 - An In Library badge may use exact TMDB identity or a unique normalized title/year fallback, but must not guess when ownership is ambiguous.

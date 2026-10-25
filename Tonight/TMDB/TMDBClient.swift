@@ -81,7 +81,7 @@ struct TMDBClient: Sendable {
         )
     }
 
-    private func request<Response: Decodable & Sendable>(
+    func request<Response: Decodable & Sendable>(
         path: String,
         queryItems: [URLQueryItem]
     ) async throws -> Response {

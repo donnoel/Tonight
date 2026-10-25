@@ -57,14 +57,36 @@ struct AppRootView: View {
         #endif
         return .tonight
     }()
+    @State private var tvLibrary = TVLibraryStore()
 
     var body: some View {
-        Group {
-            if horizontalSizeClass == .regular {
-                regularWidthLayout
-            } else {
-                compactWidthLayout
+        GeometryReader { proxy in
+            Group {
+                if horizontalSizeClass == .regular {
+                    regularWidthLayout
+                } else {
+                    compactWidthLayout
+                }
             }
+            .environment(\.tvWindowSize, proxy.size)
+        }
+        .environment(tvLibrary)
+        .task {
+            #if DEBUG
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("-TonightOpenTV") || arguments.contains("-TonightImportTV") ||
+                arguments.contains("-TonightConfirmTVVersions") {
+                UserDefaults.standard.set(TonightMedia.tv.rawValue, forKey: "tonightMedia")
+            }
+            if arguments.contains("-TonightImportTV") {
+                if tvLibrary.shows.isEmpty { _ = tvLibrary.importTitles(TVStarterLibrary.titles) }
+                await tvLibrary.loadDetails()
+            }
+            if arguments.contains("-TonightConfirmTVVersions") {
+                _ = tvLibrary.importTitles(TVStarterLibrary.confirmedVersions)
+                await tvLibrary.loadDetails()
+            }
+            #endif
         }
         #if DEBUG
         .task {
@@ -165,13 +187,13 @@ struct AppRootView: View {
     private func sectionContent(for section: AppSection) -> some View {
         switch section {
         case .tonight:
-            TonightView()
+            TVMediaView(page: .tonight)
         case .library:
-            LibraryView()
+            TVMediaView(page: .library)
         case .deals:
             DealsView()
         case .history:
-            HistoryView()
+            TVMediaView(page: .history)
         case .settings:
             SettingsView()
         }

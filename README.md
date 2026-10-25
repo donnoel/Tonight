@@ -11,7 +11,7 @@
 
 ## 🧭 Overview
 
-Tonight is an iPad-first personal movie recommendation app built with SwiftUI and SwiftData. The imported library is the source of truth for movies the user owns; TMDB is used only to enrich those entries with metadata and artwork.
+Tonight is an iPad-first personal recommendation app built with SwiftUI and SwiftData. Imported collections are the source of truth for owned movies and TV shows; TMDB enriches those entries with metadata and artwork.
 
 ## 💎 Core Features
 
@@ -21,6 +21,7 @@ Tonight is an iPad-first personal movie recommendation app built with SwiftUI an
 | **Import and matching** | Preserve ambiguous titles and confirm TMDB metadata and artwork. |
 | **Private library sync** | Merge library changes across iPad and iPhone while retaining local data. |
 | **Widget and Deals** | Show the latest pick and browse the separate cached Apple deal collection. |
+| **TV viewing sessions** | Rediscover owned shows with time-sized episode plans, season limits, and local viewing history. |
 
 <details>
 <summary>Feature details and controls</summary>
@@ -40,6 +41,18 @@ Line-based imports preserve commas within movie titles, including `I, Robot`. Fo
 Library search matches titles, years, genres, directors, and cast. **Library Options** can show all, unwatched, or watched movies and sort by title, release year, date added, runtime, rating, or last watched in either direction. Shuffle remains a one-tap toolbar action. These choices only change the grid presentation and never modify the stored collection.
 
 On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
+
+### TV viewing sessions
+
+Use the **Movies / TV Shows** switch in Tonight, Library, and History. Paste one show name per line in TV Library; optional years identify versions and annotations such as `American Horror Story (Seasons 1–3)` restrict ownership. Review the list before importing. Ambiguous matches stay visible for manual confirmation, and interrupted metadata loads preserve completed seasons.
+
+Choose 30 minutes, an hour, or the evening, then a mood. **Keep Going** continues an existing position; **Change the Pace** varies the collection using recent viewing; **Rediscover** favors shows and episodes not revisited recently. Story-driven shows stay in order, standalone shows can select individual episodes, and season anthologies start a season at episode one. Viewing styles, owned seasons, favorites, and paused shows remain editable.
+
+On iPad, viewing-session rows show three distinct eligible shows in portrait and four in landscape, with additional Rediscover or Change the Pace choices when no continuation is available. Narrow layouts retain the single-column presentation. Fewer sessions appear if fewer shows fit the selected mood, ownership, progress, and time limits.
+
+Starting a session saves its plan without marking it watched. Record the first episode or the full session afterward; the latest logged session can be undone. Unknown runtimes are labeled as estimates. Only matched, owned, aired episodes with fully loaded owned-season metadata qualify. Ownership is frozen to the initially matched season list, so future releases do not become owned automatically.
+
+TV ownership, metadata, plans, and viewing history persist in an independent, atomically saved local file with a previous-snapshot backup. **TV data is device-local in this version**; existing movie CloudKit sync and movie widget behavior are unchanged. TV uses the existing device Keychain credential for TMDB TV search, series details, and season/episode details.
 
 <a id="tonights-pick-widget"></a>
 
@@ -103,6 +116,10 @@ xcodebuild -project Tonight.xcodeproj -scheme Tonight \
 
 Debug builds also accept `-TonightSeedPreviewLibrary`, `-TonightSeedUnresolvedLibrary`, and `-TonightOpenDeals` as explicit launch arguments. The first two insert local fixtures only when requested; the third opens Deals directly for layout and retrieval smokes without changing normal app launches.
 
+`-TonightOpenTV` opens the TV collection. `-TonightImportTV` imports the prepared personal TV list into an empty TV library and loads metadata using that device’s saved credential. Both arguments are Debug-only; no fixtures are used as normal TV recommendations.
+
+`-TonightConfirmTVVersions` applies the five explicitly confirmed version years (Entourage 2004, Killing Eve 2018, Lost 2004, The Boys 2019, Yellowstone 2018) through normal duplicate-safe import, then resumes loading pending TV details. It preserves existing show identity, ownership, and viewing history and is available only in Debug builds.
+
 For an explicitly authorized record correction, `-TonightConsolidateMovie <local-movie-UUID> <existing-TMDB-ID>` uses the normal consolidation path to merge only that local record into an already resolved movie. It does nothing if either record is absent and is unavailable in Release builds.
 
 ## 🧠 How It Works
@@ -112,6 +129,7 @@ For an explicitly authorized record correction, `-TonightConsolidateMovie <local
 ### Architecture
 
 - `Models/`: SwiftData `Movie` and persisted `RecommendationEvent`
+- `TV/`: independent TV ownership and episode metadata, atomic persistence, import/matching, and explainable viewing-session planning
 - `Recommendation/`: deterministic, explainable local scoring and three-pick selection
 - `Deals/`: isolated Apple collection retrieval/parsing, disposable caching, bounded TMDB enrichment, ownership matching, and Deals screen state
 - `Import/`: parsing, collector-suffix search cleanup, normalization, duplicate detection, progress state, and reliable per-title persistence
