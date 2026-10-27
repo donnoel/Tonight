@@ -20,6 +20,7 @@ enum TonightMedia: String, CaseIterable, Identifiable {
 struct TVMediaView: View {
     enum Page { case tonight, library, history }
     let page: Page
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @AppStorage("tonightMedia") private var media = TonightMedia.movies
 
     var body: some View {
@@ -42,6 +43,8 @@ struct TVMediaView: View {
                 }
             }
         }
+        .padding(.top, page == .tonight && sizeClass != .regular ? 22 : 0)
+        .toolbar(page == .tonight && sizeClass != .regular ? .hidden : .automatic, for: .navigationBar)
     }
 }
 
