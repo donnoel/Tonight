@@ -21,12 +21,13 @@ struct TVTonightView: View {
                         Spacer(minLength: 0)
                         if !store.shows.isEmpty {
                             Button { store.refresh() } label: {
-                                Image(systemName: "arrow.clockwise.circle.fill")
-                                    .font(.title)
-                                    .frame(minWidth: 44, minHeight: 44)
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.title2.weight(.semibold))
+                                    .frame(minWidth: 96, minHeight: 48)
+                                    .foregroundStyle(.white)
+                                    .background(.tint, in: Capsule())
                             }
                             .buttonStyle(.plain)
-                            .foregroundStyle(.tint)
                             .accessibilityLabel("More TV ideas")
                             .accessibilityHint("Offers other viewing sessions without recording anything as watched")
                             .accessibilityIdentifier("tv.refreshSuggestions")
