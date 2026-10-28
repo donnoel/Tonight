@@ -67,7 +67,7 @@ struct TVShowDetailView: View {
                             Button("Continue in Order from Here") { setPosition(show) }.disabled(store.isBusy)
                             Text("Sets your place without adding anything to viewing history.").font(.caption).foregroundStyle(.secondary)
                             if show.resumeAfter != nil {
-                                Button("Begin a Fresh Rewatch") { confirmsRewatch = true }.disabled(store.isBusy)
+                                Button("Clear Saved Position") { confirmsRewatch = true }.disabled(store.isBusy)
                             }
                         }
                     }
@@ -108,9 +108,9 @@ struct TVShowDetailView: View {
         .confirmationDialog("Remove this show from your TV library?", isPresented: $confirmsRemoval, titleVisibility: .visible) {
             Button("Remove Show", role: .destructive) { store.removeShow(showID); dismiss() }
         } message: { Text("This removes the show from your synced TV library. Past viewing sessions stay in TV History. Offline removals sync when iCloud is available.") }
-        .confirmationDialog("Begin a fresh rewatch?", isPresented: $confirmsRewatch, titleVisibility: .visible) {
-            Button("Begin Rewatch") { edit { $0.resumeAfter = nil } }
-        } message: { Text("Your viewing history will be kept. Your next session will begin a new rewatch.") }
+        .confirmationDialog("Clear your saved position?", isPresented: $confirmsRewatch, titleVisibility: .visible) {
+            Button("Clear Position") { edit { $0.resumeAfter = nil } }
+        } message: { Text("Your viewing history is kept. Rediscovery can still suggest episodes from anywhere in your owned seasons.") }
     }
 
     private func edit(_ change: (inout TVShow) -> Void) {

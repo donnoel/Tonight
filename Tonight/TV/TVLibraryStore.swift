@@ -19,6 +19,12 @@ final class TVLibraryStore {
         do {
             document = try file.load()
             storageReady = true
+            if document.sessionEngineVersion != TVSessionEngine.version {
+                _ = change { doc in
+                    // Saved plans and viewing positions survive the recommendation upgrade.
+                    refreshSuggestions(&doc)
+                }
+            }
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -114,7 +120,7 @@ final class TVLibraryStore {
             let previous = doc.shows[index].resumeAfter
             doc.history.append(TVWatchSession(id: session.id, showID: session.showID,
                 showTitle: doc.shows[index].title, episodes: episodes, watchedAt: now, previousResume: previous))
-            if doc.shows[index].viewingStyle != .anyEpisode {
+            if session.isRediscovery != true && doc.shows[index].viewingStyle != .anyEpisode {
                 doc.shows[index].resumeAfter = episodes.last?.position
             }
             // Keep the rest of a session available when only its first episode was watched.
@@ -341,10 +347,21 @@ final class TVLibraryStore {
 
     private func refreshSuggestions(_ doc: inout TVLibraryDocument) {
         doc.generation &+= 1
-        let eligibleIDs = Set(doc.shows.filter { !$0.isPaused && $0.metadataComplete && doc.mood.accepts($0) }.map(\.id))
+        let eligibleIDs = Set(TVSessionEngine.eligibleShows(document: doc).map(\.id))
         if eligibleIDs.isSubset(of: Set(doc.suggestedShowIDs)) { doc.suggestedShowIDs = [] }
         doc.suggestions = TVSessionEngine.suggestions(document: doc)
         doc.suggestedShowIDs = Array(Set(doc.suggestedShowIDs + doc.suggestions.map(\.showID)))
+        var offers = doc.episodeOffers ?? [:]
+        for session in doc.suggestions {
+            for episode in session.episodes {
+                offers[TVSessionEngine.offerKey(showID: session.showID, episodeID: episode.id)] = doc.generation
+            }
+        }
+        let validKeys = Set(doc.shows.flatMap { show in
+            show.eligibleEpisodes.map { TVSessionEngine.offerKey(showID: show.id, episodeID: $0.id) }
+        })
+        doc.episodeOffers = offers.filter { validKeys.contains($0.key) }
+        doc.sessionEngineVersion = TVSessionEngine.version
     }
 
     func prepareSync() throws {

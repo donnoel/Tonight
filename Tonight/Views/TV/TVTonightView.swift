@@ -15,8 +15,23 @@ struct TVTonightView: View {
                         .font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
                     Text("Find a fresh way into the shows you love. Tonight plans the episodes; you settle in.")
                         .font(.title3).foregroundStyle(.secondary)
-                    Text("\(store.shows.count) shows · From your own collection")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                    HStack(spacing: 16) {
+                        Text("\(store.shows.count) shows · From your own collection")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                        if !store.shows.isEmpty {
+                            Button { store.refresh() } label: {
+                                Image(systemName: "arrow.clockwise.circle.fill")
+                                    .font(.title)
+                                    .frame(minWidth: 44, minHeight: 44)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.tint)
+                            .accessibilityLabel("More TV ideas")
+                            .accessibilityHint("Offers other viewing sessions without recording anything as watched")
+                            .accessibilityIdentifier("tv.refreshSuggestions")
+                        }
+                    }
                 }
                 TVStatusView()
                 if store.shows.isEmpty {
@@ -48,21 +63,12 @@ struct TVTonightView: View {
                             ForEach(store.document.suggestions) { session in
                                 if let show = store.show(session.showID) {
                                     TVSessionCard(session: session, show: show) {
-                                        if store.document.activeSession != nil { replacingSession = session }
-                                        else { store.start(session) }
+                                        plan(session)
                                     }
                                 }
                             }
                         }
-                        Button { store.refresh() } label: {
-                            Label("More Ideas", systemImage: "arrow.clockwise")
-                                .frame(minHeight: 44)
-                        }
-                        .buttonStyle(.bordered)
-                        .accessibilityHint("Offers other viewing sessions without recording anything as watched")
                     }
-                    Text("TV progress and history sync through your private iCloud account. A session is only recorded when you mark episodes watched.")
-                        .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .padding(24)
@@ -88,6 +94,10 @@ struct TVTonightView: View {
         }
         return sizeClass == .regular ? [GridItem(.adaptive(minimum: 260), spacing: 20, alignment: .top)] : [GridItem(.flexible())]
     }
+    private func plan(_ session: TVViewingSession) {
+        if store.document.activeSession != nil { replacingSession = session }
+        else { store.start(session) }
+    }
     private var sessionCount: Int? {
         guard UIDevice.current.userInterfaceIdiom == .pad, sizeClass == .regular else { return nil }
         return windowSize.width > windowSize.height ? 4 : 3
@@ -109,6 +119,21 @@ struct TVTonightView: View {
                 Text("An hour").tag(60)
                 Text("The evening").tag(120)
             }.pickerStyle(.segmented)
+            let continuations = TVSessionEngine.continuations(document: store.document)
+            if !continuations.isEmpty {
+                Menu {
+                    ForEach(continuations) { session in
+                        if let show = store.show(session.showID), let first = session.episodes.first {
+                            Button("\(show.title) · \(first.position.label)") { plan(session) }
+                        }
+                    }
+                } label: {
+                    Label("Continue Watching", systemImage: "play.circle")
+                        .frame(minHeight: 44)
+                }
+                .accessibilityHint("Choose a show to continue from its saved position")
+                .accessibilityIdentifier("tv.continueWatching")
+            }
             LabeledContent("In the mood for") {
                 Picker("TV mood", selection: Binding(
                     get: { store.document.mood },
@@ -178,6 +203,10 @@ private struct TVActiveSessionView: View {
         VStack(alignment: .leading, spacing: 14) {
             Label("Your Session", systemImage: "play.circle.fill").font(.headline).foregroundStyle(.tint)
             Text(show.title).font(.title2.bold())
+            if session.isRediscovery == true {
+                Text("A rediscovery visit. Your saved continuation point is kept.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             ForEach(session.episodes) { episode in
                 Text("\(episode.position.label)  \(episode.name)").font(.subheadline)
             }

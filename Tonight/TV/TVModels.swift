@@ -5,16 +5,16 @@ enum TVViewingStyle: String, Codable, CaseIterable, Identifiable, Sendable {
     var id: Self { self }
     var title: String {
         switch self {
-        case .inOrder: "Watch in order"
+        case .inOrder: "Consecutive episodes"
         case .anyEpisode: "Pick any episode"
         case .bySeason: "Season stories"
         }
     }
     var explanation: String {
         switch self {
-        case .inOrder: "Begin a rewatch or continue from your place, in episode order."
-        case .anyEpisode: "Drop into an episode, favoring ones you haven’t revisited lately."
-        case .bySeason: "Start a season’s story at episode one, then continue in order."
+        case .inOrder: "Revisit a short, consecutive run from a familiar show. New-to-you shows stay in order."
+        case .anyEpisode: "Mix standalone episodes, favoring ones not offered or watched lately. New-to-you shows stay in order."
+        case .bySeason: "Revisit a short run within one owned season. New-to-you shows stay in order."
         }
     }
 }
@@ -137,6 +137,8 @@ struct TVViewingSession: Codable, Identifiable, Equatable, Sendable {
     var usesEstimatedRuntime: Bool
     var rationale: String
     var createdAt: Date
+    /// Rediscovery logs history without moving a separately saved continuation point.
+    var isRediscovery: Bool?
     var durationLabel: String { "\(usesEstimatedRuntime ? "About " : "")\(estimatedMinutes) min" }
 }
 
@@ -160,6 +162,9 @@ struct TVLibraryDocument: Codable, Sendable {
     var unseenOnly = false
     var generation: UInt64 = 0
     var suggestedShowIDs: [UUID] = []
+    /// Device-local browsing evidence, separate from actual viewing history. Additive to older files.
+    var episodeOffers: [String: UInt64]?
+    var sessionEngineVersion: Int?
     /// iPad's current orientation determines the row size. nil keeps the compact presentation.
     var sessionCount: Int?
     var sync: TVSyncState?

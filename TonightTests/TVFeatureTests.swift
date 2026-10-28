@@ -65,7 +65,7 @@ final class TVSessionEngineTests: XCTestCase {
         XCTAssertNil(TVSessionEngine.session(for: show, lane: .keepGoing, document: doc, now: .now))
     }
 
-    func testAnthologyStartsAtSeasonOneEpisodeAndDoesNotCrossSeason() throws {
+    func testFamiliarSeasonStoryRevisitsOneSeasonWithoutCrossingIt() throws {
         var doc = TVLibraryDocument()
         var show = Self.show()
         show.viewingStyle = .bySeason
@@ -73,7 +73,8 @@ final class TVSessionEngineTests: XCTestCase {
         show.episodes += [Self.episode(21, season: 2, number: 1), Self.episode(22, season: 2, number: 2)]
         doc.minutes = 120
         let plan = try XCTUnwrap(TVSessionEngine.session(for: show, lane: .rediscover, document: doc, now: .now))
-        XCTAssertEqual(plan.episodes.first?.episodeNumber, 1)
+        XCTAssertEqual(plan.isRediscovery, true)
+        XCTAssertLessThanOrEqual(plan.episodes.count, 2)
         XCTAssertEqual(Set(plan.episodes.map(\.seasonNumber)).count, 1)
     }
 
@@ -91,7 +92,7 @@ final class TVSessionEngineTests: XCTestCase {
     func testUnknownRuntimeIsEstimatedAndMoodAndPauseAreHardFilters() throws {
         var doc = TVLibraryDocument()
         var show = Self.show()
-        show.episodes[0].runtime = nil
+        for index in show.episodes.indices { show.episodes[index].runtime = nil }
         doc.shows = [show]
         let plan = try XCTUnwrap(TVSessionEngine.session(for: show, lane: .rediscover, document: doc, now: .now))
         XCTAssertTrue(plan.usesEstimatedRuntime)
@@ -185,7 +186,8 @@ final class TVLibraryStoreTests: XCTestCase {
     func testStartingDoesNotMarkWatchedAndLoggingIsIdempotentAndUndoable() throws {
         let file = file()
         var document = TVLibraryDocument()
-        let show = TVSessionEngineTests.show()
+        var show = TVSessionEngineTests.show()
+        show.seenBefore = false
         document.shows = [show]
         try file.save(document)
         let store = TVLibraryStore(file: file)

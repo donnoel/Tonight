@@ -108,8 +108,10 @@ final class TVSyncTests: XCTestCase {
     }
 
     func testRemoteWatchAdvancesOtherDeviceAndClearsAlreadyWatchedPlan() throws {
-        let first = try store(shows: [TVSessionEngineTests.show()])
-        let second = try store(shows: [TVSessionEngineTests.show()])
+        var show = TVSessionEngineTests.show()
+        show.seenBefore = false
+        let first = try store(shows: [show])
+        let second = try store(shows: [show])
         first.refresh(); second.refresh()
         let plan = try XCTUnwrap(first.document.suggestions.first)
         first.start(plan)

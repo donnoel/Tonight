@@ -1,143 +1,222 @@
 import Foundation
 
 enum TVSessionEngine {
-    static func suggestions(document: TVLibraryDocument, now: Date = .now) -> [TVViewingSession] {
-        let eligible = document.shows.filter {
-            !$0.isPaused && $0.tmdbID != nil && $0.metadataComplete &&
-            document.mood.accepts($0) && (!document.unseenOnly || !$0.seenBefore) &&
-            !availableEpisodes(for: $0, document: document).isEmpty
-        }
-        let recent = document.history.sorted { $0.watchedAt > $1.watchedAt }.first
-        let recentShow = eligible.first { $0.id == recent?.showID }
-            ?? document.shows.first { $0.id == recent?.showID }
-        let previouslySuggested = Set(document.suggestedShowIDs)
-        var remaining = eligible
-        var picks: [TVViewingSession] = []
+    static let version = 2
 
-        for lane in [TVSessionLane.keepGoing, .changePace, .rediscover] {
-            let candidates = remaining.filter { show in
-                lane != .keepGoing || (show.resumeAfter != nil && show.viewingStyle != .anyEpisode)
+    static func eligibleShows(document: TVLibraryDocument, now: Date = .now) -> [TVShow] {
+        document.shows.filter { show in
+            guard !show.isPaused, show.tmdbID != nil, show.metadataComplete,
+                  document.mood.accepts(show), !document.unseenOnly || !show.seenBefore else { return false }
+            let episodes = availableEpisodes(for: show, document: document, now: now)
+            if !show.seenBefore {
+                return episodes.first.map { duration(of: $0, show: show).minutes <= document.minutes } == true
             }
-            let ranked = candidates.sorted { left, right in
+            return episodes.contains { duration(of: $0, show: show).minutes <= document.minutes }
+        }
+    }
+
+    static func suggestions(document: TVLibraryDocument, now: Date = .now) -> [TVViewingSession] {
+        var remaining = eligibleShows(document: document, now: now)
+        let recentShow = document.shows.first { $0.id == latestWatch(document)?.showID }
+        let previouslySuggested = Set(document.suggestedShowIDs)
+        var picks: [TVViewingSession] = []
+        // Continue Watching has its own control; every suggestion slot participates in rotation.
+        for index in 0..<max(0, document.sessionCount ?? 2) {
+            let lane: TVSessionLane = index.isMultiple(of: 2) ? .rediscover : .changePace
+            let ranked = remaining.sorted { left, right in
                 let lhs = score(left, lane: lane, document: document, recentShow: recentShow,
                                 previouslySuggested: previouslySuggested, now: now)
                 let rhs = score(right, lane: lane, document: document, recentShow: recentShow,
                                 previouslySuggested: previouslySuggested, now: now)
                 return lhs == rhs ? left.id.uuidString < right.id.uuidString : lhs > rhs
             }
-            for show in ranked {
-                guard let session = session(for: show, lane: lane, document: document, now: now) else { continue }
-                picks.append(session)
-                remaining.removeAll { $0.id == show.id }
-                break
-            }
-        }
-        // Fill the requested iPad row using additional distinct shows. A continuation
-        // is never invented when the user has not established a viewing position.
-        if let count = document.sessionCount {
-            while picks.count < count {
-                let lane: TVSessionLane = picks.count.isMultiple(of: 2) ? .rediscover : .changePace
-                let ranked = remaining.sorted {
-                    let left = score($0, lane: lane, document: document, recentShow: recentShow,
-                                     previouslySuggested: previouslySuggested, now: now)
-                    let right = score($1, lane: lane, document: document, recentShow: recentShow,
-                                      previouslySuggested: previouslySuggested, now: now)
-                    return left == right ? $0.id.uuidString < $1.id.uuidString : left > right
-                }
-                var added = false
-                for show in ranked {
-                    guard let plan = session(for: show, lane: lane, document: document, now: now) else { continue }
-                    picks.append(plan)
-                    remaining.removeAll { $0.id == show.id }
-                    added = true
-                    break
-                }
-                if !added { break }
-            }
+            guard let plan = ranked.lazy.compactMap({ session(for: $0, lane: lane, document: document, now: now) }).first else { break }
+            picks.append(plan)
+            remaining.removeAll { $0.id == plan.showID }
         }
         return picks
     }
 
-    static func availableEpisodes(for show: TVShow, document: TVLibraryDocument) -> [TVEpisode] {
-        var episodes = show.eligibleEpisodes
+    static func continuations(document: TVLibraryDocument, now: Date = .now) -> [TVViewingSession] {
+        document.shows.filter {
+            !$0.isPaused && $0.tmdbID != nil && $0.metadataComplete && $0.resumeAfter != nil &&
+            $0.viewingStyle != .anyEpisode
+        }.sorted { left, right in
+            let lhs = document.history.filter { $0.showID == left.id }.map(\.watchedAt).max() ?? .distantPast
+            let rhs = document.history.filter { $0.showID == right.id }.map(\.watchedAt).max() ?? .distantPast
+            return lhs == rhs ? left.title.localizedStandardCompare(right.title) == .orderedAscending : lhs > rhs
+        }.compactMap { session(for: $0, lane: .keepGoing, document: document, now: now) }
+    }
+
+    static func availableEpisodes(for show: TVShow, document: TVLibraryDocument,
+                                  now: Date = .now, continuing: Bool = false) -> [TVEpisode] {
+        var episodes = show.eligibleEpisodes.filter {
+            MovieDateParser.date(from: $0.airDate).map { $0 <= now } == true
+        }
         if !show.seenBefore {
             let watched = Set(document.history.filter { $0.showID == show.id }.flatMap { $0.episodes.map(\.id) })
-            episodes = episodes.filter { !watched.contains($0.id) }
+            episodes.removeAll { watched.contains($0.id) }
         }
-        if show.viewingStyle != .anyEpisode, let resume = show.resumeAfter {
-            return episodes.filter { $0.position > resume }
+        if (continuing || !show.seenBefore), let resume = show.resumeAfter {
+            episodes.removeAll { $0.position <= resume }
         }
         return episodes
     }
 
     static func session(for show: TVShow, lane: TVSessionLane, document: TVLibraryDocument,
                         now: Date) -> TVViewingSession? {
-        var available = availableEpisodes(for: show, document: document)
+        let rediscovery = show.seenBefore && lane != .keepGoing
+        let available = availableEpisodes(for: show, document: document, now: now, continuing: lane == .keepGoing)
         guard !available.isEmpty else { return nil }
-        if show.viewingStyle == .anyEpisode {
-            let watches = document.history.filter { $0.showID == show.id }
-            let lastWatch = Dictionary(grouping: watches.flatMap { watch in
-                watch.episodes.map { ($0.id, watch.watchedAt) }
-            }, by: { $0.0 }).mapValues { $0.map(\.1).max() ?? .distantPast }
-            available.sort {
-                let left = lastWatch[$0.id] ?? .distantPast
-                let right = lastWatch[$1.id] ?? .distantPast
-                if left != right { return left < right }
-                return rotation($0.id, generation: document.generation) > rotation($1.id, generation: document.generation)
+        let scores = rediscovery ? Dictionary(available.map {
+            ($0.id, episodeScore($0, show: show, document: document, now: now))
+        }, uniquingKeysWith: max) : [:]
+        let selected: [TVEpisode]
+        if !rediscovery {
+            selected = run(startingAt: 0, in: available, show: show, minutes: document.minutes, limit: 6,
+                           sameSeason: show.viewingStyle == .bySeason)
+        } else if show.viewingStyle == .anyEpisode {
+            let ranked = available.sorted {
+                let left = scores[$0.id] ?? 0
+                let right = scores[$1.id] ?? 0
+                return left == right ? $0.id < $1.id : left > right
             }
-        } else if show.viewingStyle == .bySeason && show.resumeAfter == nil {
-            let starts = available.filter { $0.episodeNumber == 1 }
-            let first = starts.max {
-                rotation($0.id, generation: document.generation) < rotation($1.id, generation: document.generation)
+            var mix: [TVEpisode] = []
+            var remaining = document.minutes
+            for episode in ranked where mix.count < 3 {
+                let minutes = duration(of: episode, show: show).minutes
+                if minutes <= remaining { mix.append(episode); remaining -= minutes }
             }
-            guard let first else { return nil }
-            available = available.filter { $0.seasonNumber == first.seasonNumber }
-        }
-
-        var selected: [TVEpisode] = []
-        var total = 0
-        var estimated = false
-        for episode in available {
-            if selected.count == 6 { break }
-            // Unknown runtimes use a visible estimate, never a fabricated exact runtime.
-            let duration = duration(of: episode, show: show)
-            if total + duration.minutes > document.minutes {
-                if show.viewingStyle == .anyEpisode { continue }
-                break
-            }
-            if show.viewingStyle == .bySeason, let first = selected.first,
-               episode.seasonNumber != first.seasonNumber { break }
-            selected.append(episode)
-            total += duration.minutes
-            estimated = estimated || duration.estimated
+            selected = mix
+        } else {
+            // Small consecutive visits can begin anywhere, but never jump over a missing episode.
+            let runs = available.indices.map {
+                run(startingAt: $0, in: available, show: show, minutes: document.minutes, limit: 2, sameSeason: true)
+            }.filter { !$0.isEmpty }
+            selected = runs.max { left, right in
+                let lhs = runScore(left, scores: scores)
+                let rhs = runScore(right, scores: scores)
+                return lhs == rhs ? (left.first?.id ?? 0) < (right.first?.id ?? 0) : lhs < rhs
+            } ?? []
         }
         guard !selected.isEmpty else { return nil }
-        let reason: String
-        switch lane {
-        case .keepGoing:
-            reason = "Pick up after \(show.resumeAfter?.label ?? "your last episode"), with the story kept in order."
-        case .changePace:
-            if let recent = document.history.sorted(by: { $0.watchedAt > $1.watchedAt }).first,
-               let previous = document.shows.first(where: { $0.id == recent.showID }),
-               Set(previous.genres).isDisjoint(with: Set(show.genres)) {
-                reason = "A different mix of genres after \(previous.title), chosen from your own collection."
-            } else {
-                reason = "A different corner of your collection, with room for \(selected.count == 1 ? "one episode" : "\(selected.count) episodes") tonight."
-            }
-        case .rediscover:
-            let hasHistory = document.history.contains { $0.showID == show.id }
-            if !show.seenBefore {
-                reason = "An episode you haven’t logged as watched, from a show you marked as new to you."
-            } else if show.viewingStyle == .inOrder && show.resumeAfter == nil {
-                reason = "Begin a fresh rewatch at the start of your owned collection."
-            } else {
-                reason = hasHistory ? "Return to a familiar show, favoring episodes you haven’t revisited lately."
-                    : "Rediscover a familiar show you haven’t logged a session with yet."
-            }
-        }
+        let durations = selected.map { duration(of: $0, show: show) }
         return TVViewingSession(showID: show.id, lane: lane, episodes: selected,
-                                estimatedMinutes: total, usesEstimatedRuntime: estimated,
-                                rationale: reason, createdAt: now)
+            estimatedMinutes: durations.reduce(0) { $0 + $1.minutes },
+            usesEstimatedRuntime: durations.contains { $0.estimated },
+            rationale: rationale(selected, show: show, lane: lane, document: document, rediscovery: rediscovery),
+            createdAt: now, isRediscovery: rediscovery)
+    }
+
+    static func offerKey(showID: UUID, episodeID: Int) -> String { "\(showID.uuidString):\(episodeID)" }
+
+    private static func run(startingAt index: Int, in available: [TVEpisode], show: TVShow,
+                            minutes: Int, limit: Int, sameSeason: Bool) -> [TVEpisode] {
+        var result: [TVEpisode] = []
+        var total = 0
+        for episode in available.dropFirst(index) {
+            guard result.count < limit else { break }
+            if let previous = result.last {
+                if episode.seasonNumber == previous.seasonNumber {
+                    guard episode.episodeNumber == previous.episodeNumber + 1 else { break }
+                } else {
+                    guard !sameSeason, episode.seasonNumber == previous.seasonNumber + 1,
+                          episode.episodeNumber == 1 else { break }
+                }
+            }
+            let duration = duration(of: episode, show: show).minutes
+            guard total + duration <= minutes else { break }
+            result.append(episode); total += duration
+        }
+        return result
+    }
+
+    private static func runScore(_ episodes: [TVEpisode], scores: [Int: Double]) -> Double {
+        episodes.map { scores[$0.id] ?? 0 }.reduce(0, +)
+            + (episodes.count == 2 ? 3 : 0)
+    }
+
+    private static func episodeScore(_ episode: TVEpisode, show: TVShow,
+                                     document: TVLibraryDocument, now: Date) -> Double {
+        let key = offerKey(showID: show.id, episodeID: episode.id)
+        let offer = document.episodeOffers?[key]
+        var result = offer.map { Double(min(document.generation &- min($0, document.generation), 100)) } ?? 1_000
+        if document.suggestions.contains(where: { $0.showID == show.id && $0.episodes.contains(where: { $0.id == episode.id }) }) {
+            result -= 2_000
+        }
+        let lastWatch = document.history.filter { $0.showID == show.id && $0.episodes.contains { $0.id == episode.id } }
+            .map(\.watchedAt).max()
+        if let lastWatch {
+            let days = max(0, now.timeIntervalSince(lastWatch) / 86_400)
+            result -= max(0, 30 - days) * 50
+        }
+        let themes = episodeThemes(episode)
+        result += Double(themes.intersection(recentThemes(document)).count) * 12
+        result += Double(themes.intersection(moodThemes(document.mood)).count) * 12
+        // Prefer a visit beyond the pilot when otherwise equally suitable, without excluding pilots.
+        if episode.episodeNumber > 1 { result += 2 }
+        return result + Double(rotation(episode.id, generation: document.generation) % 1_000) / 1_000
+    }
+
+    private static func rationale(_ episodes: [TVEpisode], show: TVShow, lane: TVSessionLane,
+                                   document: TVLibraryDocument, rediscovery: Bool) -> String {
+        if lane == .keepGoing {
+            return "Continue after \(show.resumeAfter?.label ?? "your starting point"), with the story kept in order."
+        }
+        if !rediscovery { return "A show marked new to you, starting at your next unwatched episode and staying in order." }
+        let introduction: String
+        if show.viewingStyle == .anyEpisode { introduction = "A standalone mix from your owned seasons." }
+        else if let first = episodes.first, let last = episodes.last {
+            introduction = episodes.count == 1
+                ? "Drop into season \(first.seasonNumber), episode \(first.episodeNumber)."
+                : "A short visit to season \(first.seasonNumber), episodes \(first.episodeNumber)–\(last.episodeNumber), kept in order."
+        } else { introduction = "A fresh visit to your collection." }
+        let themes = episodes.reduce(into: Set<String>()) { $0.formUnion(episodeThemes($1)) }
+        if let theme = themes.intersection(recentThemes(document)).sorted().first {
+            return introduction + " Episode descriptions echo the \(theme) in your recent viewing."
+        }
+        if let theme = themes.intersection(moodThemes(document.mood)).sorted().first {
+            return introduction + " Episode descriptions suggest \(theme), matching your mood."
+        }
+        if lane == .changePace, let recent = latestWatch(document),
+           let previous = document.shows.first(where: { $0.id == recent.showID }),
+           Set(previous.genres).isDisjoint(with: Set(show.genres)) {
+            return introduction + " A different mix of genres after \(previous.title)."
+        }
+        return introduction + " Favoring episodes not offered or logged lately."
+    }
+
+    // These descriptions are evidence for lightweight themes, never invented episode arcs or ratings.
+    private static let themeWords: [String: Set<String>] = [
+        "mystery": ["mystery", "mysterious", "investigate", "investigation", "clue", "murder", "detective"],
+        "secrets": ["secret", "secrets", "identity", "truth", "reveal", "hidden"],
+        "family ties": ["family", "father", "mother", "brother", "sister", "parents"],
+        "friendship": ["friend", "friends", "friendship", "reunion"],
+        "rivalry": ["rival", "rivalry", "competition", "enemy", "enemies"],
+        "pressure": ["deadline", "crisis", "pressure", "escape", "threat", "trapped"],
+        "strange turns": ["alien", "aliens", "strange", "dream", "dreams", "supernatural", "unexplained", "experiment"]
+    ]
+
+    private static func episodeThemes(_ episode: TVEpisode) -> Set<String> {
+        let words = Set(episode.overview.lowercased().split { !$0.isLetter }.map(String.init))
+        return Set(themeWords.filter { !$0.value.isDisjoint(with: words) }.keys)
+    }
+
+    private static func recentThemes(_ document: TVLibraryDocument) -> Set<String> {
+        (latestWatch(document)?.episodes ?? []).reduce(into: Set<String>()) { $0.formUnion(episodeThemes($1)) }
+    }
+
+    private static func moodThemes(_ mood: TVSessionMood) -> Set<String> {
+        switch mood {
+        case .anything: []
+        case .light: ["friendship", "family ties"]
+        case .gripping: ["mystery", "secrets", "pressure", "rivalry"]
+        case .strange: ["strange turns", "mystery"]
+        }
+    }
+
+    private static func latestWatch(_ document: TVLibraryDocument) -> TVWatchSession? {
+        document.history.max { $0.watchedAt < $1.watchedAt }
     }
 
     static func duration(of episode: TVEpisode, show: TVShow) -> (minutes: Int, estimated: Bool) {
@@ -154,8 +233,9 @@ enum TVSessionEngine {
         let stableID = show.tmdbID ?? show.title.utf8.reduce(0) { ($0 &* 31 &+ Int($1)) & 0x7fff_ffff }
         var result = Double(rotation(stableID, generation: document.generation) % 1000) / 1000
         result += show.isFavorite ? 2 : 0
-        // A full library rotation before reusing suggestions, while allowing a continued story.
-        if lane != .keepGoing && !previouslySuggested.contains(show.id) { result += 1000 }
+        // Exposure rotates independently of watch history, including across a completed browsing cycle.
+        if !previouslySuggested.contains(show.id) { result += 1_000 }
+        if !document.suggestions.contains(where: { $0.showID == show.id }) { result += 10_000 }
         switch lane {
         case .keepGoing:
             result += last.map { max(0, 100 - now.timeIntervalSince($0) / 86_400) } ?? 0

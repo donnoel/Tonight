@@ -21,7 +21,7 @@ Tonight is an iPad-first personal recommendation app built with SwiftUI and Swif
 | **Import and matching** | Preserve ambiguous titles and confirm TMDB metadata and artwork. |
 | **Private library sync** | Merge library changes across iPad and iPhone while retaining local data. |
 | **Widget and Deals** | Show the latest pick and browse the separate cached Apple deal collection. |
-| **TV viewing sessions** | Rediscover owned shows with time-sized episode plans, season limits, and local viewing history. |
+| **TV viewing sessions** | Rediscover owned shows with short episode visits, season limits, and synced viewing history. |
 
 <details>
 <summary>Feature details and controls</summary>
@@ -46,11 +46,11 @@ On iPad, Tonight remembers whether the sidebar was visible or hidden and restore
 
 Use the **Movies / TV Shows** switch in Tonight, Library, and History. Paste one show name per line in TV Library; optional years identify versions and annotations such as `American Horror Story (Seasons 1–3)` restrict ownership. Review the list before importing. Ambiguous matches stay visible for manual confirmation, and interrupted metadata loads preserve completed seasons.
 
-Choose 30 minutes, an hour, or the evening, then a mood. **Keep Going** continues an existing position; **Change the Pace** varies the collection using recent viewing; **Rediscover** favors shows and episodes not revisited recently. Story-driven shows stay in order, standalone shows can select individual episodes, and season anthologies start a season at episode one. Viewing styles, owned seasons, favorites, and paused shows remain editable.
+Choose 30 minutes, an hour, or the evening, then a mood. **Rediscover** and **Change the Pace** rotate every suggestion slot. Familiar story-driven shows offer short runs of up to two consecutive episodes from anywhere within an owned season; standalone shows can mix up to three individual episodes. Shows marked new to you stay in order. **Continue Watching** is a separate menu for saved positions. Episode descriptions supply lightweight, explainable theme links to recent viewing and mood when supported; no ratings or story arcs are invented. Refresh sits at the upper-right of the TV header.
 
-On iPad, viewing-session rows show three distinct eligible shows in portrait and four in landscape, with additional Rediscover or Change the Pace choices when no continuation is available. Narrow layouts retain the single-column presentation. Fewer sessions appear if fewer shows fit the selected mood, ownership, progress, and time limits.
+On iPad, viewing-session rows show three distinct eligible shows in portrait and four in landscape. Narrow layouts retain the single-column presentation. Fewer sessions appear if fewer shows fit the selected mood, ownership, and time limits. Device-local browsing evidence favors shows not offered in the current rotation, avoids the previous row when alternatives exist, and remembers which episodes have been offered across relaunches.
 
-Starting a session saves its plan without marking it watched. Record the first episode or the full session afterward; the latest logged session can be undone. Unknown runtimes are labeled as estimates. Only matched, owned, aired episodes with fully loaded owned-season metadata qualify. Ownership is frozen to the initially matched season list, so future releases do not become owned automatically.
+Starting a session saves its plan without marking it watched. Record the first episode or the full session afterward; the latest logged session can be undone. Rediscovery logs viewing history while preserving a separately saved continuation point. Continue Watching advances that point normally. Existing plans and viewing history survive the additive upgrade. Unknown runtimes are labeled as estimates. Only matched, owned, aired episodes with fully loaded owned-season metadata qualify. Ownership is frozen to the initially matched season list, so future releases do not become owned automatically. See [rediscovery rules and qualification](docs/TV_REDISCOVERY.md).
 
 TV ownership, metadata, and viewing history persist in an independent, atomically saved local file with a durable outbox and a backup made before initial sync. **TV shows, owned seasons, favorites, viewing styles, episode progress, and viewing history sync through private iCloud**. Planned sessions, recommendations, moods, and layouts remain device-local; existing movie sync and widget behavior are unchanged. TV uses the existing device Keychain credential for TMDB TV search, series details, and season/episode details. The credential never syncs. See [TV sync](docs/TV_SYNC.md) for merge and recovery rules.
 
