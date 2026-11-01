@@ -171,7 +171,7 @@ Explicitly out of scope:
 - Automatic device signing uses development team `H7LG8SK72M`; the team identifier is not a credential or private key.
 - Warning policy: zero warnings caused by Tonight code
 - Generic build: `xcodebuild -project Tonight.xcodeproj -scheme Tonight -destination 'generic/platform=iOS Simulator' clean build`
-- Tests: `xcodebuild -project Tonight.xcodeproj -scheme Tonight -destination 'platform=iOS Simulator,name=Local CI iPhone,OS=26.4' test`
+- Tests: `xcodebuild -project Tonight.xcodeproj -scheme Tonight -destination 'platform=iOS Simulator,id=4B92A000-EEE2-4682-B9C5-882C4178A250' test`
 
 ## Release-level milestone checks
 

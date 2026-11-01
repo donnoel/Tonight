@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "sessionDefaultsProfiles": {
+    "local-iphone": {
+      "projectPath": "./Tonight.xcodeproj",
+      "scheme": "Tonight",
+      "configuration": "Debug",
+      "arch": "arm64",
+      "useLatestOS": false,
+      "extraArgs": [
+        "-parallel-testing-enabled",
+        "NO",
+        "-maximum-concurrent-test-simulator-destinations",
+        "1"
+      ],
+      "simulatorId": "4B92A000-EEE2-4682-B9C5-882C4178A250",
+      "simulatorName": "Local iPhone",
+      "simulatorPlatform": "iOS Simulator"
+    },
+    "local-ipad": {
+      "projectPath": "./Tonight.xcodeproj",
+      "scheme": "Tonight",
+      "configuration": "Debug",
+      "arch": "arm64",
+      "useLatestOS": false,
+      "extraArgs": [
+        "-parallel-testing-enabled",
+        "NO",
+        "-maximum-concurrent-test-simulator-destinations",
+        "1"
+      ],
+      "simulatorId": "7237AA6A-434E-47C6-9040-7DCC12646BAA",
+      "simulatorName": "Local iPad",
+      "simulatorPlatform": "iOS Simulator"
+    }
+  },
+  "activeSessionDefaultsProfile": "local-iphone"
+}
