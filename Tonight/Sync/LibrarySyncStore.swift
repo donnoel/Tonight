@@ -18,7 +18,7 @@ final class LibrarySyncEntry {
 
     func document() throws -> LibrarySyncDocument {
         let result = try JSONDecoder().decode(LibrarySyncDocument.self, from: documentData)
-        guard result.version == 1 else { throw LibrarySyncFailure.newerFormat }
+        guard result.isSupportedFormat else { throw LibrarySyncFailure.newerFormat }
         return result
     }
 
@@ -269,8 +269,9 @@ enum LibrarySyncStore {
             let title = MovieTitleNormalizer.normalize(details.importedTitle)
             let year = details.importedYear ?? details.releaseYear
             let matches = resolvedByTitle[title, default: []].filter { _, candidate in
-                year == nil || (candidate.movie.details.importedYear ?? candidate.movie.details.releaseYear) == nil ||
-                (candidate.movie.details.importedYear ?? candidate.movie.details.releaseYear) == year
+                candidate.movie.details.editionRawValue == details.editionRawValue &&
+                (year == nil || (candidate.movie.details.importedYear ?? candidate.movie.details.releaseYear) == nil ||
+                (candidate.movie.details.importedYear ?? candidate.movie.details.releaseYear) == year)
             }
             guard !title.isEmpty, matches.count == 1, let match = matches.first else { continue }
             let merged = (documents[match.key] ?? match.value).merged(with: unknown)

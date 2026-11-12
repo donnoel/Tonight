@@ -251,7 +251,7 @@ struct MovieDetailView: View {
                 Label {
                     Text(rationale)
                 } icon: {
-                    Image(systemName: "sparkles")
+                    Image(systemName: "film.stack.fill")
                 }
                 .font(.callout)
                 .foregroundStyle(.secondary)

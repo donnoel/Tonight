@@ -288,7 +288,7 @@ private struct ImportStatusRow: View {
         switch entry.state {
         case .waiting: "clock"
         case .searching: "magnifyingglass"
-        case .enriching: "sparkles"
+        case .enriching: "film.stack.fill"
         case .imported: "checkmark.circle.fill"
         case .duplicate: "equal.circle.fill"
         case .unresolved: "questionmark.circle.fill"

@@ -49,6 +49,29 @@ final class LibrarySyncTests: XCTestCase {
         try destination.save()
     }
 
+    func testThreeCutsSyncSeparatelyAndWatchStateDoesNotCrossEditions() throws {
+        let left = try container(); let right = try container()
+        let original = movie(28, title: "Apocalypse Now", watched: true)
+        let final = movie(28, title: "Apocalypse Now (Final Cut)"); final.edition = .finalCut
+        let redux = movie(28, title: "Apocalypse Now (Redux)"); redux.edition = .redux
+        try seed([original, final, redux], in: left.mainContext)
+        try seed([], in: right.mainContext)
+        try exchange(from: left.mainContext, to: right.mainContext)
+        let received = try right.mainContext.fetch(FetchDescriptor<Movie>())
+        XCTAssertEqual(received.count, 3)
+        XCTAssertEqual(received.filter { $0.isWatched }.count, 1)
+        let receivedFinal = try XCTUnwrap(received.first { $0.edition == .finalCut })
+        receivedFinal.isWatched = true; receivedFinal.watchedStateModifiedAt = .now
+        try LibrarySyncStore.save(right.mainContext)
+        try exchange(from: right.mainContext, to: left.mainContext)
+        XCTAssertTrue(original.isWatched); XCTAssertTrue(final.isWatched); XCTAssertFalse(redux.isWatched)
+        XCTAssertEqual(try LocalLibraryDuplicateRepair.repair(in: left.mainContext).consolidatedMovies, 0)
+        XCTAssertEqual(try left.mainContext.fetchCount(FetchDescriptor<Movie>()), 3)
+        let payloads = try entries(left.mainContext).map { try $0.document() }
+        XCTAssertEqual(payloads.filter { $0.version == 2 }.count, 2)
+        XCTAssertTrue(payloads.allSatisfy(\.isSupportedFormat))
+    }
+
     func testExistingLibrariesMergeWithoutDuplicatingAndKeepRichDetails() throws {
         let left = try container(); let right = try container()
         let rich = movie(watched: true)

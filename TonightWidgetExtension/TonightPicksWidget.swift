@@ -64,7 +64,7 @@ struct TonightPicksWidgetView: View {
             artwork(for: primaryPick, width: 88, height: 126, cornerRadius: 12)
 
             VStack(alignment: .leading, spacing: 7) {
-                Label("Tonight's Pick", systemImage: "moon.stars.fill")
+                Label("Tonight's Pick", systemImage: "movieclapper.fill")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.tint)
                     .lineLimit(1)
@@ -102,7 +102,7 @@ struct TonightPicksWidgetView: View {
             ZStack {
                 Circle()
                     .fill(.tint.opacity(0.16))
-                Image(systemName: "moon.stars.fill")
+                Image(systemName: "movieclapper.fill")
                     .font(.system(size: 32, weight: .semibold))
                     .foregroundStyle(.tint)
             }

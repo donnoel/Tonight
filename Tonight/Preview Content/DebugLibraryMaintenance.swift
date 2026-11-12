@@ -9,6 +9,38 @@ enum DebugLibraryMaintenance {
 
     static func performIfRequested(in context: ModelContext) async throws {
         let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-TonightImportMovies") {
+            guard arguments.indices.contains(index + 1) else { throw Failure.invalidRequest }
+            let directory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask,
+                                                        appropriateFor: nil, create: true)
+            let url = directory.appendingPathComponent(URL(fileURLWithPath: arguments[index + 1]).lastPathComponent)
+            let model = ImportViewModel()
+            model.input = try String(contentsOf: url, encoding: .utf8)
+            model.prepareReview()
+            await model.importLibrary(modelContext: context)
+            guard model.summary != nil,
+                  model.entries.allSatisfy({ $0.state == .imported || $0.state == .duplicate }) else {
+                throw Failure.matchUnavailable
+            }
+        }
+        if let index = arguments.firstIndex(of: "-TonightEditionRuntimes") {
+            guard arguments.indices.contains(index + 1) else { throw Failure.invalidRequest }
+            let directory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask,
+                                                        appropriateFor: nil, create: true)
+            let url = directory.appendingPathComponent(URL(fileURLWithPath: arguments[index + 1]).lastPathComponent)
+            let edits = try JSONDecoder().decode([EditionRuntime].self, from: Data(contentsOf: url))
+            let movies = try context.fetch(FetchDescriptor<Movie>())
+            var changes: [(Movie, Int)] = []
+            for edit in edits {
+                let matches = movies.filter { $0.tmdbID == edit.tmdbID && $0.edition == edit.edition }
+                guard matches.count == 1, let movie = matches.first, (1...1440).contains(edit.minutes) else {
+                    throw Failure.invalidRequest
+                }
+                changes.append((movie, edit.minutes))
+            }
+            for (movie, minutes) in changes { movie.runtimeMinutes = minutes }
+            try LibrarySyncStore.save(context)
+        }
         if let index = arguments.firstIndex(of: "-TonightRemoveMovies") {
             guard arguments.indices.contains(index + 1) else { throw Failure.invalidRequest }
             let values = arguments[index + 1].split(separator: ",", omittingEmptySubsequences: false)
@@ -35,6 +67,12 @@ enum DebugLibraryMaintenance {
                 throw Failure.matchUnavailable
             }
         }
+    }
+
+    private struct EditionRuntime: Decodable {
+        let tmdbID: Int
+        let edition: MovieEdition
+        let minutes: Int
     }
 
     static func removeMovies(ids: Set<UUID>, in context: ModelContext) throws {

@@ -219,7 +219,7 @@ struct DealsView: View {
             case .notInLibrary:
                 Label("Every Deal Is in Your Library", systemImage: "checkmark.circle")
             case .recommended:
-                Label("No Recommended Deals Yet", systemImage: "sparkles")
+                Label("No Recommended Deals Yet", systemImage: "film.stack.fill")
             }
         } description: {
             switch selectedFilter {

@@ -30,6 +30,12 @@ final class Movie {
     var originalLanguage: String?
     var resolutionStatusRawValue: String
     var resolutionNote: String?
+    var editionRawValue: String?
+
+    var edition: MovieEdition? {
+        get { editionRawValue.flatMap(MovieEdition.init(rawValue:)) }
+        set { editionRawValue = newValue?.rawValue }
+    }
 
     var isWatched: Bool
     var dateWatched: Date?

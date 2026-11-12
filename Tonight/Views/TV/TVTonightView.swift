@@ -50,7 +50,7 @@ struct TVTonightView: View {
                     }
                     if store.document.suggestions.isEmpty {
                         ContentUnavailableView {
-                            Label("Make Room for a Session", systemImage: "moon.stars")
+                            Label("Make Room for a Session", systemImage: "movieclapper")
                         } description: {
                             Text(emptyMessage)
                         } actions: {

@@ -31,11 +31,13 @@ struct LibraryMovieDetails: Codable, Equatable, Sendable {
     var originalLanguage: String?
     var resolutionStatusRawValue: String
     var resolutionNote: String?
+    var editionRawValue: String? = nil
 
     var recordName: String {
-        if let tmdbID { return "tmdb-\(tmdbID)" }
+        let suffix = editionRawValue.map { "-edition-" + $0 } ?? ""
+        if let tmdbID { return "tmdb-\(tmdbID)" + suffix }
         let identity = MovieTitleNormalizer.normalize(importedTitle) + "|" + (importedYear ?? releaseYear).map(String.init, default: "unknown")
-        return "title-" + SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
+        return "title-" + SHA256.hash(data: Data((identity + suffix).utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     var completeness: Int {
@@ -91,6 +93,7 @@ struct SyncedLibraryMovie: Codable, Equatable, Sendable {
             resolutionStatusRawValue: movie.resolutionStatusRawValue,
             resolutionNote: movie.resolutionNote
         )
+        details.editionRawValue = movie.editionRawValue
         watched = LibraryWatchState(isWatched: movie.isWatched, dateWatched: movie.dateWatched,
                                     lastWatchedDate: movie.lastWatchedDate, modifiedAt: movie.watchedStateModifiedAt)
         taste = LibraryTaste(userRating: movie.userRating, isLiked: movie.isLiked, isDisliked: movie.isDisliked)
@@ -119,6 +122,7 @@ struct SyncedLibraryMovie: Codable, Equatable, Sendable {
         movie.originalLanguage = details.originalLanguage
         movie.resolutionStatusRawValue = details.resolutionStatusRawValue
         movie.resolutionNote = details.resolutionNote
+        movie.editionRawValue = details.editionRawValue
         movie.isWatched = watched.isWatched
         movie.dateWatched = watched.dateWatched
         movie.lastWatchedDate = watched.lastWatchedDate
@@ -141,8 +145,15 @@ struct LibrarySyncDocument: Codable, Equatable, Sendable {
     var deleted = false
     var redirectTo: String?
 
+    var isSupportedFormat: Bool {
+        guard version == 1 || version == 2 else { return false }
+        guard let edition = movie.details.editionRawValue else { return version == 1 }
+        return version == 2 && MovieEdition(rawValue: edition) != nil
+    }
+
     init(movie: SyncedLibraryMovie, revision: LibraryRevision, initial: Bool) {
         self.movie = movie
+        version = movie.details.editionRawValue == nil ? 1 : 2
         detailsRevision = initial ? .initial : revision
         tasteRevision = initial ? .initial : revision
         membershipRevision = initial ? .initial : revision
@@ -155,6 +166,7 @@ struct LibrarySyncDocument: Codable, Equatable, Sendable {
     mutating func update(_ snapshot: SyncedLibraryMovie, previous: SyncedLibraryMovie?, revision: LibraryRevision) {
         movie.browsing = LibraryBrowsingProgress.merged(movie.browsing, snapshot.browsing)
         if previous?.details != snapshot.details { movie.details = snapshot.details; detailsRevision = revision }
+        version = movie.details.editionRawValue == nil ? 1 : 2
         if previous?.watched != snapshot.watched { movie.watched = snapshot.watched; watchRevision = revision }
         if previous?.taste != snapshot.taste { movie.taste = snapshot.taste; tasteRevision = revision }
         movie.dateAdded = min(movie.dateAdded, snapshot.dateAdded)
@@ -182,6 +194,7 @@ struct LibrarySyncDocument: Codable, Equatable, Sendable {
             result.membershipRevision = other.membershipRevision
         }
         result.movie.dateAdded = min(movie.dateAdded, other.movie.dateAdded)
+        result.version = result.movie.details.editionRawValue == nil ? 1 : 2
         return result
     }
 

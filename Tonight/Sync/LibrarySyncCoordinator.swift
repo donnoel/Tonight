@@ -303,7 +303,7 @@ final class LibrarySyncCoordinator: CKSyncEngineDelegate {
 
     private func decode(_ data: Data) throws -> LibrarySyncDocument {
         let result = try JSONDecoder().decode(LibrarySyncDocument.self, from: data)
-        guard result.version == 1 else { throw LibrarySyncFailure.newerFormat }
+        guard result.isSupportedFormat else { throw LibrarySyncFailure.newerFormat }
         return result
     }
 

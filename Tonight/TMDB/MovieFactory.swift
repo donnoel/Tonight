@@ -10,11 +10,13 @@ enum MovieFactory {
             importedTitle: importedEntry.title,
             importedYear: importedEntry.year
         )
+        movie.edition = importedEntry.edition
         enrich(movie, from: details)
         return movie
     }
 
     static func enrich(_ movie: Movie, from details: TMDBMovieDetailsDTO) {
+        let editionRuntime = movie.edition == nil ? nil : movie.runtimeMinutes
         let director = details.credits?.crew.first(where: { $0.job == "Director" })?.name
         let cast = details.credits?.cast
             .sorted { $0.order < $1.order }
@@ -39,6 +41,11 @@ enum MovieFactory {
         movie.originalLanguage = details.originalLanguage
         movie.resolutionStatus = .resolved
         movie.resolutionNote = nil
+        if let edition = movie.edition {
+            movie.title = details.title + " (" + edition.title + ")"
+            movie.normalizedTitle = MovieTitleNormalizer.normalize(movie.title)
+            movie.runtimeMinutes = editionRuntime
+        }
     }
 
     static func unresolvedMovie(
@@ -46,7 +53,7 @@ enum MovieFactory {
         status: MovieResolutionStatus,
         note: String
     ) -> Movie {
-        Movie(
+        let movie = Movie(
             title: entry.title,
             importedTitle: entry.title,
             importedYear: entry.year,
@@ -54,5 +61,7 @@ enum MovieFactory {
             resolutionStatus: status,
             resolutionNote: note
         )
+        movie.edition = entry.edition
+        return movie
     }
 }

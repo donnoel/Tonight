@@ -90,7 +90,7 @@ final class UnresolvedMatchViewModel {
         do {
             let allMovies = try modelContext.fetch(FetchDescriptor<Movie>())
             if let existingMatch = allMovies.first(where: {
-                $0.id != movie.id && $0.tmdbID == candidate.id
+                $0.id != movie.id && $0.tmdbID == candidate.id && $0.edition == movie.edition
             }) {
                 do {
                     try LocalLibraryDuplicateRepair.consolidate(
@@ -159,11 +159,11 @@ final class UnresolvedMatchViewModel {
                 do {
                     let candidates = try await client.searchMovies(
                         title: title,
-                        year: movie.importedYear ?? movie.releaseYear
+                        year: movie.edition == nil ? movie.importedYear ?? movie.releaseYear : nil
                     )
                     guard case .matched(let candidate, let details) = try await resolver.resolve(
                         title: title,
-                        year: movie.importedYear ?? movie.releaseYear,
+                        year: movie.edition == nil ? movie.importedYear ?? movie.releaseYear : nil,
                         candidates: candidates
                     ), !matchedTMDBIDs.contains(candidate.id) else {
                         retryCompleted += 1

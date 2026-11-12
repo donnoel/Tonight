@@ -35,5 +35,7 @@ struct LibraryImportEntry: Identifiable, Hashable, Sendable {
     }
 
     var normalizedTitle: String { MovieTitleNormalizer.normalize(title) }
+    var edition: MovieEdition? { MovieEdition.parse(title)?.edition }
+    var searchYear: Int? { edition == nil ? year : nil }
 }
 

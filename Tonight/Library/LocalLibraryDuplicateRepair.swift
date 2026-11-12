@@ -83,6 +83,7 @@ enum LocalLibraryDuplicateRepair {
     }
 
     private static func isSameImportedMovie(_ lhs: Movie, _ rhs: Movie) -> Bool {
+        guard lhs.edition == rhs.edition else { return false }
         let leftTitle = MovieTitleNormalizer.normalize(lhs.importedTitle)
         let rightTitle = MovieTitleNormalizer.normalize(rhs.importedTitle)
         guard !leftTitle.isEmpty, leftTitle == rightTitle else { return false }

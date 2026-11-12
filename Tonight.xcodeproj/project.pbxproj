@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		05764EBE08ABC383CBCEEA29 /* MovieEditionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C9A4C40F2A461A5E0C3E0A /* MovieEditionTests.swift */; };
 		08F29C5FB89A49BA98E15FA6 /* TMDBCredentialStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF769B52149A2651A7682D3 /* TMDBCredentialStoreTests.swift */; };
 		0ACEC764A82FDAD006D5BAE9 /* TVMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C321B5C6847F704877EAF4D7 /* TVMetadataService.swift */; };
 		104BD56AA1FB328335A30B67 /* TMDBDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F9CFEEF5F937F424EAECB3 /* TMDBDTOs.swift */; };
@@ -40,6 +41,7 @@
 		4E7702BAEB2DDEF77910A03E /* ArtworkTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB914699FEDFCA68193A1E57 /* ArtworkTint.swift */; };
 		56F724A5B5B4AF2837C75921 /* TonightWidgetSnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF4AE4B5F0CD88257436DBC3 /* TonightWidgetSnapshotStoreTests.swift */; };
 		5E1F127C5383F959223C903B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 273C7F6468F6814164BAD49D /* SettingsView.swift */; };
+		62F02537EE141FBDFD7B9370 /* MovieEdition.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EA16D307D25F407BF4896F /* MovieEdition.swift */; };
 		6515A0613CF5FEF02C50A70F /* DealsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A726B43E883A1D284A74ED /* DealsViewModel.swift */; };
 		6607362DA6CB5AAC1EC513E9 /* TVSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 951F6901AED9E48B77E80908 /* TVSyncCoordinator.swift */; };
 		6792EAA3396D9596C5B3CFEC /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61EE47CDD0229C7E88507DDA /* AppRootView.swift */; };
@@ -164,6 +166,7 @@
 		3FAEB0589C850A551538EE41 /* TVImportParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVImportParser.swift; sourceTree = "<group>"; };
 		4064933EE42E3F529BD05818 /* AppleMovieDealsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMovieDealsProvider.swift; sourceTree = "<group>"; };
 		42969613C516A421595EB87D /* TVRediscoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVRediscoveryTests.swift; sourceTree = "<group>"; };
+		44C9A4C40F2A461A5E0C3E0A /* MovieEditionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieEditionTests.swift; sourceTree = "<group>"; };
 		494AB0713C221BD9B526449C /* Movie.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Movie.swift; sourceTree = "<group>"; };
 		4A0AB202274C7344342FB06F /* TVTonightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTonightView.swift; sourceTree = "<group>"; };
 		52737890FEE329F8FE1F07D9 /* MatchLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchLibraryView.swift; sourceTree = "<group>"; };
@@ -239,6 +242,7 @@
 		F7DF4CAC765FAE80F58242D9 /* TMDBMatchResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBMatchResolver.swift; sourceTree = "<group>"; };
 		F8DDB0921934E94066C553F7 /* TonightPicksWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonightPicksWidget.swift; sourceTree = "<group>"; };
 		F9099D797A08BAB40BFAF712 /* LibraryDuplicateDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDuplicateDetectorTests.swift; sourceTree = "<group>"; };
+		F9EA16D307D25F407BF4896F /* MovieEdition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieEdition.swift; sourceTree = "<group>"; };
 		FEB9CDF6EBAA40BC701358F9 /* TVSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVSyncTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -286,6 +290,7 @@
 				1E8AE9AE7EFAB4670C1731A9 /* LocalLibraryDuplicateRepairTests.swift */,
 				30E32B4AE5F9E39586E8A58C /* MovieDealsCacheTests.swift */,
 				B9577494FDE3B1579E7A3675 /* MovieDealsRepositoryTests.swift */,
+				44C9A4C40F2A461A5E0C3E0A /* MovieEditionTests.swift */,
 				A8A2417CE6AD332F4479AFEA /* MovieFactoryTests.swift */,
 				0AFF371A7DC034A964406ECE /* MovieImportParserTests.swift */,
 				55DF23CD38BFC18B59F75825 /* MovieListDocumentTests.swift */,
@@ -405,6 +410,7 @@
 			isa = PBXGroup;
 			children = (
 				494AB0713C221BD9B526449C /* Movie.swift */,
+				F9EA16D307D25F407BF4896F /* MovieEdition.swift */,
 				2A4CE5AC06A3181ED4590A48 /* RecommendationEvent.swift */,
 			);
 			path = Models;
@@ -730,6 +736,7 @@
 				A5133438EBF3AB4EDE0FA12A /* LocalLibraryDuplicateRepairTests.swift in Sources */,
 				D36A79F12DA7E49877800A4C /* MovieDealsCacheTests.swift in Sources */,
 				4AE0395EEDFBB5053AC9547C /* MovieDealsRepositoryTests.swift in Sources */,
+				05764EBE08ABC383CBCEEA29 /* MovieEditionTests.swift in Sources */,
 				FAA92D3DE5C1A0738020B615 /* MovieFactoryTests.swift in Sources */,
 				A475CB1D04283927E6721815 /* MovieImportParserTests.swift in Sources */,
 				CEC5E229FD37B7AFA02350D8 /* MovieListDocumentTests.swift in Sources */,
@@ -778,6 +785,7 @@
 				2246A84BFF70A8144376E6E2 /* MovieDealsCache.swift in Sources */,
 				791901926B931740F78BC20C /* MovieDealsRepository.swift in Sources */,
 				6E377B6C4FFA933A2CF15D1A /* MovieDetailView.swift in Sources */,
+				62F02537EE141FBDFD7B9370 /* MovieEdition.swift in Sources */,
 				B69B3A2B1EE2EFEA9DE20C7F /* MovieFactory.swift in Sources */,
 				D85CB583812F9113FF59E31A /* MovieImportParser.swift in Sources */,
 				6F853D0DACDEB95CB9402DFC /* MovieListDocument.swift in Sources */,
@@ -940,7 +948,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1046,7 +1054,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;

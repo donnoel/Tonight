@@ -333,7 +333,7 @@ struct TonightView: View {
         } label: {
             Label(
                 currentEvents.isEmpty ? "Find Something to Watch" : "Refresh Picks",
-                systemImage: currentEvents.isEmpty ? "sparkles" : "arrow.clockwise"
+                systemImage: currentEvents.isEmpty ? "film.stack.fill" : "arrow.clockwise"
             )
         }
         .buttonStyle(.borderedProminent)
@@ -409,7 +409,7 @@ struct TonightView: View {
                 .frame(maxWidth: 720, alignment: .leading)
 
             HStack(spacing: 24) {
-                conceptLabel("Best Fit", systemImage: "sparkles")
+                conceptLabel("Best Fit", systemImage: "film.stack.fill")
                 conceptLabel("Fresh Angles", systemImage: "square.stack.3d.up")
                 conceptLabel("No Repeats", systemImage: "checkmark.circle")
             }

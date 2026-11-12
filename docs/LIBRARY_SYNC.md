@@ -45,3 +45,10 @@ The real iPhone backup was also migrated in an isolated simulator with cloud wri
 After live CloudKit synchronization, independently copied databases from both physical devices passed SQLite integrity checks. Each had **960 movies, 135 watched, 809 resolved, and zero pending uploads**. The complete active synchronization payloads matched for all 960 records, including all movie details, artwork references, watched state, and revisions. The extra retained sync record is a resolution redirect, not a duplicate movie. The iPad artwork cache contained 2,420 downloaded image files during qualification; initial downloads on another device may continue separately from record synchronization.
 
 Offline conflicts, deletion/reimport, and relaunch safety were exercised through isolated tests; no test movie was added to or deleted from the live personal library. Deliberately signing out of iCloud, exhausting account storage, production CloudKit deployment, and prolonged background-delivery timing were not exercised on the user's devices.
+
+
+## Explicit film cuts (1.1 build 8)
+
+Named Final Cut and Redux copies use an optional persisted edition value. Ordinary film IDs remain `tmdb-ID`; cut IDs use `tmdb-ID-edition-final-cut` or `tmdb-ID-edition-redux`. The cut is part of duplicate detection, matching correction, local repair and sync identity. Each copy keeps independent personal state and an owned runtime; unavailable cut runtimes are not replaced by the theatrical duration.
+
+Existing payloads without the optional field remain format 1. Cut payloads use format 2, which this build accepts. Earlier builds reject format 2 and pause sync instead of merging editions as one movie. Update every device before adding cuts. The original film record and its watched history are not migrated or relabeled. Export preserves cut labels and the original film-release year; reimport searches the base film and then restores the explicit cut identity.

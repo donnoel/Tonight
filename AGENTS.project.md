@@ -72,7 +72,7 @@ Explicitly out of scope:
 - Automatic matching may treat leading articles, `and`, common number words/digits, and trailing Roman numerals/digits as equivalent title forms.
 - When equivalent search results collide, popularity and vote evidence may reject an obscure duplicate, but established remakes must remain ambiguous without a supplied year.
 - Alternative titles may resolve a no-match or scored ambiguity only when exactly one of the top relevant candidates confirms the imported title; direct same-title ambiguity must remain unresolved.
-- A matched TMDB ID is the strongest duplicate key; normalized title plus year is the pre-resolution fallback.
+- A matched TMDB ID plus an explicitly named cut is the strongest duplicate key; normalized title plus year is the pre-resolution fallback.
 - Importing the same library twice must not create duplicate movies.
 - Failure for one title must not terminate the rest of a bulk import.
 - Authentication and rate-limit failures are batch-level failures: stop without creating one failed library record per title.
@@ -124,6 +124,8 @@ Explicitly out of scope:
 ## UX and accessibility rules
 
 - Prioritize artwork, typography, generous regular-width spacing, and native navigation.
+- Do not use sparkle, magic-wand, or decorative star symbols in the UI or widget. Prefer film, clapperboard, and playback symbols. Keep stars only when they convey an actual numeric rating.
+- Explicit Final Cut and Redux entries have separate edition identities, synced metadata, runtimes and personal state even when TMDB groups them under one film. Ordinary movie record names remain unchanged.
 - Use an adaptive poster grid; unresolved entries need a clear non-artwork state.
 - Keep Shuffle directly available in the Library toolbar; present watched-state filtering and multi-field sorting with contextual direction labels in a native, accessible options sheet.
 - Keep configured TMDB settings compact; reveal the secure token field only while adding or explicitly updating the credential.

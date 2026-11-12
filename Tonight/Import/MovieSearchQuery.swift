@@ -10,7 +10,7 @@ enum MovieSearchQuery {
             #"\s*[-–—:]\s*(?:(?:\d+(?:st|nd|rd|th)\s+)?anniversary|special|extended|unrated|theatrical|deluxe|ultimate|limited|collector'?s|remastered)\s+edition\s*$"#
         ]
 
-        return patterns.reduce(importedTitle) { title, pattern in
+        return patterns.reduce(MovieEdition.parse(importedTitle)?.baseTitle ?? importedTitle) { title, pattern in
             title.replacingOccurrences(
                 of: pattern,
                 with: "",

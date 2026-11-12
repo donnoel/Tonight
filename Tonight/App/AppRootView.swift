@@ -23,7 +23,7 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .tonight: "moon.stars.fill"
+        case .tonight: "movieclapper.fill"
         case .library: "rectangle.stack.fill"
         case .deals: "tag.fill"
         case .history: "clock.arrow.circlepath"

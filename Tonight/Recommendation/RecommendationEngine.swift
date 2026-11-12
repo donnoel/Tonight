@@ -29,7 +29,7 @@ enum RecommendationMood: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var systemImage: String {
         switch self {
-        case .anything: "sparkles"
+        case .anything: "film.stack.fill"
         case .funAndEasy: "face.smiling"
         case .scaryMovies: "moon.fill"
         case .scienceFiction: "atom"
@@ -927,7 +927,7 @@ extension RecommendationKind {
 
     var systemImage: String {
         switch self {
-        case .bestMatch: "sparkles"
+        case .bestMatch: "film.stack.fill"
         case .hiddenGem: "diamond.fill"
         case .shortAndSharp: "timer"
         case .comfortRewatch: "sofa.fill"

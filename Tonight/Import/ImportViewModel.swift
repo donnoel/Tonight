@@ -137,10 +137,10 @@ final class ImportViewModel {
 
             do {
                 let searchTitle = MovieSearchQuery.title(from: entry.title)
-                let candidates = try await client.searchMovies(title: searchTitle, year: entry.year)
+                let candidates = try await client.searchMovies(title: searchTitle, year: entry.searchYear)
                 switch try await resolver.resolve(
                     title: searchTitle,
-                    year: entry.year,
+                    year: entry.searchYear,
                     candidates: candidates
                 ) {
                 case .noMatch:
@@ -171,7 +171,8 @@ final class ImportViewModel {
                     let matchedIdentity = MovieIdentity(
                         tmdbID: candidate.id,
                         title: candidate.title,
-                        releaseYear: candidate.releaseYear
+                        releaseYear: candidate.releaseYear,
+                        edition: entry.edition
                     )
                     if LibraryDuplicateDetector.contains(matchedIdentity, in: identities) {
                         setState(

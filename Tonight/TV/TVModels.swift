@@ -123,7 +123,7 @@ enum TVSessionLane: String, Codable, Sendable {
         switch self {
         case .keepGoing: "play.circle.fill"
         case .changePace: "shuffle"
-        case .rediscover: "sparkles"
+        case .rediscover: "film.stack.fill"
         }
     }
 }
