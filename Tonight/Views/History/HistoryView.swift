@@ -2,36 +2,47 @@ import SwiftData
 import SwiftUI
 
 struct HistoryView: View {
-    @Query(sort: \RecommendationEvent.recommendedAt, order: .reverse)
-    private var events: [RecommendationEvent]
+    @Query private var events: [RecommendationEvent]
+    @Query(filter: #Predicate<Movie> { $0.isWatched }) private var watchedMovies: [Movie]
 
-    private var displayedEvents: [RecommendationEvent] {
-        events.sorted { left, right in
-            if left.recommendedAt != right.recommendedAt {
-                return left.recommendedAt > right.recommendedAt
-            }
-            return left.kind.sortOrder < right.kind.sortOrder
-        }
+    private var entries: [MovieViewingHistory] {
+        MovieViewingHistory.entries(events: events, watchedMovies: watchedMovies)
     }
 
     var body: some View {
+        let history = entries
         Group {
-            if events.isEmpty {
+            if history.isEmpty {
                 ContentUnavailableView {
-                    Label("No History Yet", systemImage: "clock.arrow.circlepath")
+                    Label("No Viewing History Yet", systemImage: "clock.arrow.circlepath")
                 } description: {
-                    Text("Watched movies and recommendation responses will appear here once recommendations are available.")
+                    Text("Choose a movie or mark one watched to start your viewing history.")
                 }
             } else {
-                List(displayedEvents) { event in
-                    if let movie = event.movie {
-                        NavigationLink {
-                            MovieDetailView(movie: movie)
-                        } label: {
-                            RecommendationHistoryRow(event: event, movieTitle: movie.title)
+                let days = Dictionary(grouping: history) { Calendar.current.startOfDay(for: $0.date) }
+                List {
+                    ForEach(days.keys.sorted(by: >), id: \.self) { day in
+                        Section {
+                            ForEach(days[day] ?? []) { entry in
+                                if let movie = entry.movie {
+                                    NavigationLink {
+                                        MovieDetailView(movie: movie)
+                                    } label: {
+                                        ViewingHistoryRow(entry: entry)
+                                    }
+                                } else {
+                                    ViewingHistoryRow(entry: entry)
+                                }
+                            }
+                        } header: {
+                            if Calendar.current.isDateInToday(day) {
+                                Text("Today")
+                            } else if Calendar.current.isDateInYesterday(day) {
+                                Text("Yesterday")
+                            } else {
+                                Text(day, format: .dateTime.month().day().year())
+                            }
                         }
-                    } else {
-                        RecommendationHistoryRow(event: event, movieTitle: "Removed Movie")
                     }
                 }
             }
@@ -40,36 +51,20 @@ struct HistoryView: View {
     }
 }
 
-private struct RecommendationHistoryRow: View {
-    let event: RecommendationEvent
-    let movieTitle: String
+private struct ViewingHistoryRow: View {
+    let entry: MovieViewingHistory
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack {
-                Label(event.kind.title, systemImage: event.kind.systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.tint)
-
-                Spacer()
-
-                Text(event.recommendedAt, format: .dateTime.month().day().year())
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(movieTitle)
+            Text(entry.movie?.title ?? "Removed Movie")
                 .font(.headline)
 
-            Label(event.mood.title, systemImage: event.mood.systemImage)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Label(event.response.title, systemImage: event.response.systemImage)
+            Label(entry.response == .accepted ? "Chosen" : "Marked watched",
+                  systemImage: entry.response.systemImage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
     }
 }

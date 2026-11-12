@@ -38,8 +38,7 @@ Explicitly out of scope:
 ## Architecture snapshot
 
 - `TonightApp` owns the root SwiftData model container for `Movie` and `RecommendationEvent`.
-- `AppRootView` uses `NavigationSplitView` on regular width and a native `TabView` adaptation on compact width.
-- The regular-width sidebar visibility is a display-only `AppStorage` preference and must restore its last visible or hidden state after relaunch.
+- `AppRootView` uses native `.tabBarOnly` `TabView` navigation on iPad for the system's floating top tab bar, without a sidebar or sidebar toggle. Each iPad tab owns its navigation stack. Preserve the existing iPhone bottom tabs and regular-width adaptation.
 - SwiftData `Movie` records represent both enriched and unresolved personal-library entries.
 - `RecommendationEngine` combines a human mood profile with runtime, watch state, era, language, quality evidence, cast/director familiarity, local response history, and controlled randomness from a credible shortlist.
 - Each recommendation set contains a Best Fit plus two rotating lanes such as Hidden Gem, Short & Sharp, Comfort Rewatch, Different Decade, Deep Cut, or Wildcard.
@@ -94,7 +93,7 @@ Explicitly out of scope:
 - Under Two Hours and Unwatched Only are hard tuning filters; Something Older and More Adventurous are ranking and lane preferences.
 - Best Fit balances explicit taste, mood, watch state, quality evidence, and recency; the other two lanes must truthfully match their displayed perspective.
 - Show every available movie before repeating any, then continue automatically. Persist browsing progress with recommendation events across refreshes and relaunches; never reset by day or mood/runtime filter changes. A final set may contain fewer than three movies. Legacy history and lifetime recommendation counters must not permanently exhaust the library. Keep this automatic, with no user-facing rounds, resets, or extra controls. Continue honoring watched-state and eligibility filters.
-- Not Tonight immediately removes the pick from Tonight and its widget; the movie remains available in Library and History. Not Interested remains a user-controlled exclusion.
+- Not Tonight immediately removes the pick from Tonight and its widget; the movie remains available in Library. Keep exposure and skipped-response records for recommendation rotation, but show only chosen/watched actions in movie History, grouped by day. Include explicit Library watched state without duplicating the same recommendation action. New responses capture an immutable action date; legacy events fall back to their recommendation date. Not Interested remains a user-controlled exclusion.
 - A recommendation set should reduce repeated genres, directors, principal cast, and decades when credible alternatives exist.
 - Recommendation responses and watched/liked/disliked taste signals must persist locally and remain user-controlled.
 - Choosing a recommendation for tonight must immediately mark that movie watched while preserving the accepted response in History.
@@ -128,7 +127,7 @@ Explicitly out of scope:
 - Use an adaptive poster grid; unresolved entries need a clear non-artwork state.
 - Keep Shuffle directly available in the Library toolbar; present watched-state filtering and multi-field sorting with contextual direction labels in a native, accessible options sheet.
 - Keep configured TMDB settings compact; reveal the secure token field only while adding or explicitly updating the credential.
-- Honor the user’s last iPad sidebar visibility instead of forcing the sidebar open on every launch.
+- Keep iPad primary navigation together in the native top tab bar, without custom pill drawing, a sidebar option, or third-party navigation dependencies.
 - Keep import progress textual as well as visual so status never relies only on color or an icon.
 - Use semantic buttons and native controls, useful accessibility labels/hints, Dynamic Type text styles, and sufficiently large tap targets.
 - Keep empty, loading, failure, and missing-configuration states plain-language and actionable.
@@ -144,7 +143,7 @@ Explicitly out of scope:
 - Library browsing: metadata search, watched-state filters, title/year/added/runtime/rating/last-watched ordering with missing values last, and stable explicit shuffle ranks
 - Bulk import: one-item failure does not prevent later entries, and unresolved input is preserved
 - Persistence/startup: saved library survives container recreation/relaunch
-- UI restoration: regular-width sidebar visible and hidden choices each survive relaunch
+- iPad navigation: all five top tabs remain reachable in portrait and landscape, with working detail/back navigation and no sidebar toggle; iPhone retains bottom tabs
 - Recommendation selection: resolved-only eligibility, distinct picks, human mood scoring, tuning filters, rotating lanes, diversity, disliked exclusion, fixed-seed reproducibility, full-library browsing without repeats, sparse-pool exhaustion, and persisted exposure exclusion
 - Recommendation persistence: generated events with mood, responses, and watched/liked/disliked signals survive relaunch
 - Library sync: additive migration and backups, initial union without duplicates, metadata/watch conflict independence, deletion and reimport, unresolved redirects, ambiguous-title preservation, durable outbox recovery, account isolation, offline catch-up, and physical iPad/iPhone convergence

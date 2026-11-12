@@ -77,6 +77,7 @@ struct TVTonightView: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Tonight")
+        .preference(key: TonightArtworkPreferenceKey.self, value: backdropArtwork)
         .onChange(of: sessionCount, initial: true) { _, count in store.setSessionCount(count) }
         .sheet(isPresented: $showsImport) { TVImportView() }
         .confirmationDialog("Replace your planned session?", isPresented: Binding(
@@ -94,6 +95,13 @@ struct TVTonightView: View {
             return Array(repeating: GridItem(.flexible(minimum: 0), spacing: 20, alignment: .top), count: sessionCount)
         }
         return sizeClass == .regular ? [GridItem(.adaptive(minimum: 260), spacing: 20, alignment: .top)] : [GridItem(.flexible())]
+    }
+    private var backdropArtwork: [URL] {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return [] }
+        return store.document.suggestions.prefix(3).compactMap { session in
+            guard let show = store.show(session.showID) else { return nil }
+            return TMDBImageURL.make(path: show.backdropPath ?? show.posterPath, size: .backdrop)
+        }
     }
     private func plan(_ session: TVViewingSession) {
         if store.document.activeSession != nil { replacingSession = session }

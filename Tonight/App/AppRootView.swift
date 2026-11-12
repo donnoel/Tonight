@@ -62,7 +62,10 @@ struct AppRootView: View {
     var body: some View {
         GeometryReader { proxy in
             Group {
-                if horizontalSizeClass == .regular {
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    compactWidthLayout
+                        .tabViewStyle(.tabBarOnly)
+                } else if horizontalSizeClass == .regular {
                     regularWidthLayout
                 } else {
                     compactWidthLayout

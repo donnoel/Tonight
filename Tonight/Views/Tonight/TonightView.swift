@@ -63,6 +63,7 @@ struct TonightView: View {
         }
         .navigationTitle("Tonight")
         .navigationBarTitleDisplayMode(usesCompactLayout ? .inline : .automatic)
+        .preference(key: TonightArtworkPreferenceKey.self, value: backdropArtwork)
         .alert("Couldn’t Update Recommendations", isPresented: saveErrorIsPresented) {
             Button("OK", role: .cancel) {
                 saveError = nil
@@ -110,18 +111,27 @@ struct TonightView: View {
         }
     }
 
+    private var backdropArtwork: [URL] {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return [] }
+        return currentEvents.prefix(3).compactMap {
+            TMDBImageURL.make(path: $0.movie?.posterPath, size: .posterDetail)
+        }
+    }
+
     private func regularHero(currentEvents: [RecommendationEvent]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "moon.stars.fill")
-                .font(.system(size: 42))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Image(systemName: "moon.stars.fill")
+                    .font(.title)
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
 
-            Text("What are you in the mood for?")
-                .font(.largeTitle.bold())
-                .fixedSize(horizontal: false, vertical: true)
+                Text("Make it a movie night.")
+                    .font(.largeTitle.bold())
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
-            Text("Tonight weighs your taste, watch history, movie quality, and recent recommendations then chooses only from your own library.")
+            Text("Something for your mood, from your own collection.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 760, alignment: .leading)
@@ -149,10 +159,6 @@ struct TonightView: View {
                 }
             }
 
-            Text(selectedMood.detail)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: 760, alignment: .leading)
         }
     }
 
@@ -765,7 +771,7 @@ struct TonightView: View {
         with response: RecommendationResponse
     ) {
         let responseDate = Date.now
-        event.response = response
+        event.recordResponse(response, at: responseDate)
 
         if response == .accepted {
             for otherEvent in currentEvents where
@@ -773,8 +779,6 @@ struct TonightView: View {
                 otherEvent.response = .notTonight
             }
         }
-
-        response.applyMovieState(to: event.movie, at: responseDate)
 
         if saveChanges() {
             if response == .accepted {

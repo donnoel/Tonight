@@ -22,6 +22,7 @@ struct TVMediaView: View {
     let page: Page
     @Environment(\.horizontalSizeClass) private var sizeClass
     @AppStorage("tonightMedia") private var media = TonightMedia.movies
+    @State private var artworkURLs: [URL] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,6 +44,14 @@ struct TVMediaView: View {
                 }
             }
         }
+        .onPreferenceChange(TonightArtworkPreferenceKey.self) { artworkURLs = $0 }
+        .background {
+            if UIDevice.current.userInterfaceIdiom == .pad && page == .tonight {
+                TonightArtworkBackground(urls: artworkURLs).ignoresSafeArea()
+            }
+        }
+        .toolbarBackground(UIDevice.current.userInterfaceIdiom == .pad && page == .tonight ? .hidden : .automatic,
+                           for: .navigationBar)
         .padding(.top, page == .tonight && sizeClass != .regular ? 22 : 0)
         .toolbar(page == .tonight && sizeClass != .regular ? .hidden : .automatic, for: .navigationBar)
     }

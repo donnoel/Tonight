@@ -10,7 +10,7 @@ This is an Apple-platform app repository. Work from concrete repository evidence
 - **Safe persistence.** The imported local library is the source of truth and must survive relaunch.
 - **Privacy-first.** Store the TMDB credential only in the device Keychain. Never log, display, or commit it.
 - **Accessibility matters.** Treat Dynamic Type, VoiceOver, contrast, hit targets, and non-color status communication as part of the feature.
-- **iPad first, iPhone supported.** Preserve the native split-view collection experience on regular-width devices and a clean compact adaptation.
+- **iPad first, iPhone supported.** Use the native iPad top tab bar with no sidebar or sidebar toggle; preserve the established iPhone bottom tabs and clean compact adaptation.
 
 ## Authorization
 

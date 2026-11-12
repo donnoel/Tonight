@@ -28,7 +28,7 @@ Tonight is an iPad-first personal recommendation app built with SwiftUI and Swif
 
 ### Library and recommendations
 
-The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally and appear in History.
+The Tonight screen now produces a **Best Match**, **Wildcard**, and **Forgotten One** from resolved movies in that library. A genre mood can guide the result, immediate refreshes rotate away from recent picks, and watched/liked/disliked choices improve later recommendations. Generated picks and responses are saved locally for recommendation rotation. History shows only chosen and watched movies, grouped by day, including watched movies from Library. New recommendation responses retain their action date; older records retain their original recommendation date when no response date was captured.
 
 The library syncs through the same private iCloud account on iPad and iPhone. Titles, matched details, artwork references, watched/unwatched state, and movie taste are merged through CloudKit. Each device keeps its local library and a durable queue of offline changes. Artwork downloads into a persistent local cache. Settings shows sync status and **Sync Now**. Recommendation history, mood/layout settings, and the TMDB credential remain device-local.
 
@@ -40,7 +40,9 @@ Line-based imports preserve commas within movie titles, including `I, Robot`. Fo
 
 Library search matches titles, years, genres, directors, and cast. **Library Options** can show all, unwatched, or watched movies and sort by title, release year, date added, runtime, rating, or last watched in either direction. Shuffle remains a one-tap toolbar action. These choices only change the grid presentation and never modify the stored collection.
 
-On iPad, Tonight remembers whether the sidebar was visible or hidden and restores that choice on the next launch.
+On iPad, Tonight, Library, Deals, History, and Settings live together in Apple's native floating top tab bar, with no sidebar or sidebar toggle. Each iPad section retains its own detail navigation. iPhone navigation is unchanged.
+
+The iPad Tonight page uses gentle background colors sampled from the current movie posters or TV artwork. Colors update with the picks, use the existing artwork cache, and stay pale in light appearance or deep in dark appearance. Missing or neutral artwork uses a calm fallback palette. Increased Contrast reduces the tint and Reduce Motion disables the color transition. Recommendations, saved data, and iPhone styling are unaffected.
 
 ### TV viewing sessions
 

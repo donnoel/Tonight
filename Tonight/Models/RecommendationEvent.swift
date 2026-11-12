@@ -30,6 +30,13 @@ final class RecommendationEvent {
     var moodRawValue: String?
     var rotationID: UUID?
     var browsingGeneration: Int?
+    var respondedAt: Date?
+
+    func recordResponse(_ response: RecommendationResponse, at date: Date) {
+        self.response = response
+        respondedAt = date
+        response.applyMovieState(to: movie, at: date)
+    }
 
     var kind: RecommendationKind {
         get { RecommendationKind(rawValue: kindRawValue) ?? .bestMatch }

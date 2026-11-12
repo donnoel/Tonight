@@ -12,6 +12,7 @@ actor LibraryArtworkCache {
     )
     private var inFlight: [URL: Task<Data, Error>] = [:]
     private var isPrefetching = false
+    private var tints: [URL: ArtworkTint] = [:]
     private let decodedImages: NSCache<NSString, CGImage> = {
         let cache = NSCache<NSString, CGImage>()
         cache.countLimit = 18
@@ -80,6 +81,16 @@ actor LibraryArtworkCache {
             cost: image.bytesPerRow * image.height
         )
         return image
+    }
+
+    func tint(for url: URL) async throws -> ArtworkTint? {
+        if let cached = tints[url] { return cached }
+        let image = try await image(for: url, maxPixelSize: 48)
+        try Task.checkCancellation()
+        let tint = ArtworkTint.extract(from: image)
+        if tints.count >= 48 { tints.removeAll(keepingCapacity: true) }
+        tints[url] = tint
+        return tint
     }
 
     func prefetch(_ urls: [URL]) async {
