@@ -166,10 +166,10 @@ struct TonightView: View {
     }
 
     private func compactHero(currentEvents: [RecommendationEvent]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Image(systemName: "moon.stars.fill")
-                    .font(.title2)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "movieclapper.fill")
+                    .font(.title)
                     .foregroundStyle(.tint)
                     .accessibilityHidden(true)
 
@@ -177,10 +177,6 @@ struct TonightView: View {
                     .font(.title2.bold())
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Text("Personalized picks from movies already in your library.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
                 HStack(spacing: 0) {
@@ -204,6 +200,7 @@ struct TonightView: View {
                 recommendationButton(currentEvents: currentEvents)
             }
         }
+        .padding(.top, 8)
         .accessibilityIdentifier("tonight.compact.header")
     }
 
