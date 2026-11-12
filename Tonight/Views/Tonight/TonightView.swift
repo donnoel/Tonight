@@ -25,6 +25,7 @@ struct TonightView: View {
     @State private var isLoadingRecommendationState = true
     @State private var isVisible = false
     @State private var saveError: String?
+    @ScaledMetric(relativeTo: .largeTitle) private var movieNightSymbolSize = 44
 
     private var usesCompactLayout: Bool {
         horizontalSizeClass != .regular
@@ -119,47 +120,49 @@ struct TonightView: View {
     }
 
     private func regularHero(currentEvents: [RecommendationEvent]) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Image(systemName: "moon.stars.fill")
-                    .font(.title)
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 32) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 16) {
+                    Image(systemName: "movieclapper.fill")
+                        .font(.system(size: movieNightSymbolSize))
+                        .foregroundStyle(.tint)
+                        .accessibilityHidden(true)
 
-                Text("Make it a movie night.")
-                    .font(.largeTitle.bold())
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text("Make it a movie night.")
+                        .font(.largeTitle.bold())
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Text("Something for your mood, from your own collection.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: 760, alignment: .leading)
             }
-
-            Text("Something for your mood, from your own collection.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: 760, alignment: .leading)
 
             if currentEvents.isEmpty {
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 20) {
                         moodMenu
                         tuningMenu
                         recommendationButton(currentEvents: currentEvents)
                     }
 
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 20) {
                         moodMenu
                         tuningMenu
                         recommendationButton(currentEvents: currentEvents)
                     }
                 }
             } else {
-                HStack(spacing: 12) {
+                HStack(spacing: 20) {
                     moodMenu
                     tuningMenu
                     Spacer(minLength: 20)
                     refreshButton
                 }
             }
-
         }
+        .padding(.vertical, 12)
     }
 
     private func compactHero(currentEvents: [RecommendationEvent]) -> some View {
