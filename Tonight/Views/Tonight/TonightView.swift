@@ -689,6 +689,9 @@ struct TonightView: View {
                     sortBy: [SortDescriptor(\RecommendationEvent.recommendedAt, order: .reverse)]
                 )
             )
+            if LibrarySyncStore.detachMissingMovieReferences(events: recommendationHistory, liveMovies: movies) {
+                try LibrarySyncStore.save(modelContext, source: .recommendations)
+            }
             isLoadingRecommendationState = false
             refreshDerivedRecommendationState()
             return true

@@ -24,6 +24,23 @@ final class ImportViewModel {
     private(set) var phase: ImportPhase = .editor
     private(set) var summary: ImportSummary?
     var message: String?
+    private(set) var isReadingFile = false
+
+    func loadTextFile(_ url: URL) async {
+        guard phase == .editor, !isReadingFile else { return }
+        isReadingFile = true
+        defer { isReadingFile = false }
+        do {
+            let text = try await MovieListDocument.readText(from: url)
+            guard phase == .editor, !Task.isCancelled else { return }
+            input = text
+            message = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            message = "Tonight couldn’t read that text file. Choose a UTF-8 text file with one movie per line."
+        }
+    }
 
     var completedCount: Int {
         entries.count { entry in

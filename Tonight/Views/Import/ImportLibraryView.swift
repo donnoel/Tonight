@@ -1,11 +1,13 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ImportLibraryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var model = ImportViewModel()
     @State private var importTask: Task<Void, Never>?
+    @State private var showsTextFileImport = false
 
     var body: some View {
         NavigationStack {
@@ -15,6 +17,16 @@ struct ImportLibraryView: View {
                 .toolbar { toolbarContent }
         }
         .interactiveDismissDisabled(model.isImporting)
+        .fileImporter(isPresented: $showsTextFileImport, allowedContentTypes: [.plainText]) { result in
+            switch result {
+            case .success(let url):
+                Task { await model.loadTextFile(url) }
+            case .failure(let error):
+                if (error as? CocoaError)?.code != .userCancelled {
+                    model.message = "Tonight couldn’t open that file. Please try again."
+                }
+            }
+        }
         .alert(
             "Import Library",
             isPresented: Binding(
@@ -63,6 +75,7 @@ struct ImportLibraryView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Review") { model.prepareReview() }
+                    .disabled(model.isReadingFile)
             }
 
         case .review:
@@ -93,6 +106,9 @@ struct ImportLibraryView: View {
 
     private var editor: some View {
         VStack(alignment: .leading, spacing: 16) {
+            Button("Open Text File", systemImage: "doc.text") { showsTextFileImport = true }
+                .buttonStyle(.bordered)
+                .disabled(model.isReadingFile)
             Text("Paste one movie per line. A year in parentheses helps Tonight distinguish remakes. For a comma-separated list on one line, put titles containing commas in double quotes.")
                 .font(.callout)
                 .foregroundStyle(.secondary)

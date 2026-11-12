@@ -107,6 +107,13 @@ struct AppRootView: View {
         #endif
         .task {
             repairDuplicateImports()
+            #if DEBUG
+            do {
+                try await DebugLibraryMaintenance.performIfRequested(in: modelContext)
+            } catch {
+                Self.logger.error("Requested library maintenance did not finish; verify the saved records.")
+            }
+            #endif
             await LibrarySyncCoordinator.shared.start(in: modelContext)
         }
         .onChange(of: scenePhase) { _, newPhase in

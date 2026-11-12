@@ -105,6 +105,32 @@ final class LibrarySyncTests: XCTestCase {
         XCTAssertEqual(try left.mainContext.fetchCount(FetchDescriptor<Movie>()), 1)
     }
 
+    func testLegacyDeletedReferenceIsClearedBeforeRecommendationScoring() throws {
+        let store = try container(); let context = store.mainContext
+        let removed = movie(); context.insert(removed)
+        let event = RecommendationEvent(movie: removed, kind: .bestMatch)
+        context.insert(event); try context.save()
+        context.delete(removed); try context.save()
+        LibrarySyncStore.detachMissingMovieReferences(events: [event], liveMovies: [])
+        XCTAssertNil(event.movie)
+        XCTAssertTrue(RecommendationEngine.activeEvents(from: [event], preferences: .init()).isEmpty)
+        TonightWidgetSnapshotPublisher.publish(events: [event])
+    }
+
+    func testIncomingRemovalDetachesPendingEventsBeforeWidgetPublication() throws {
+        let left = try container(); let right = try container()
+        let a = movie(); let b = movie()
+        try seed([a], in: left.mainContext); try seed([b], in: right.mainContext)
+        let event = RecommendationEvent(movie: b, kind: .bestMatch)
+        right.mainContext.insert(event); try right.mainContext.save()
+        left.mainContext.delete(a); try LibrarySyncStore.save(left.mainContext)
+        try exchange(from: left.mainContext, to: right.mainContext)
+        XCTAssertNil(event.movie)
+        XCTAssertEqual(event.response, .pending)
+        TonightWidgetSnapshotPublisher.publish(events: [event])
+        XCTAssertEqual(try right.mainContext.fetchCount(FetchDescriptor<Movie>()), 0)
+    }
+
     func testUnresolvedResolutionKeepsIdentityAndHistoryAndDoesNotReappear() throws {
         let left = try container(); let right = try container()
         let a = movie(nil); let b = movie(nil)

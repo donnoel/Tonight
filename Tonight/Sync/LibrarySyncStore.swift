@@ -64,6 +64,19 @@ enum LibrarySyncFailure: LocalizedError {
 /// Movie edits and their outbox entries commit in the same local transaction.
 @MainActor
 enum LibrarySyncStore {
+    @discardableResult
+    static func detachMissingMovieReferences(events: [RecommendationEvent], liveMovies: [Movie]) -> Bool {
+        let liveModelIDs = Set(liveMovies.map(\.persistentModelID))
+        var changed = false
+        for event in events {
+            if let movie = event.movie, !liveModelIDs.contains(movie.persistentModelID) {
+                event.movie = nil
+                changed = true
+            }
+        }
+        return changed
+    }
+
     static let didSave = Notification.Name("TonightLibraryDidSave")
     static let saveSourceUserInfoKey = "TonightLibrarySaveSource"
 
@@ -294,7 +307,20 @@ enum LibrarySyncStore {
         let movies = try context.fetch(FetchDescriptor<Movie>())
         var byID = Dictionary(uniqueKeysWithValues: movies.map { ($0.id, $0) })
         let events = try context.fetch(FetchDescriptor<RecommendationEvent>())
+        // A unidirectional SwiftData relationship can retain a deleted movie's
+        // identifier. Clear it without faulting any of that movie's properties.
+        detachMissingMovieReferences(events: events, liveMovies: movies)
         var removedIDs = Set<UUID>()
+        func remove(_ movie: Movie) {
+            let id = movie.id
+            let modelID = movie.persistentModelID
+            for event in events where event.movie?.persistentModelID == modelID {
+                event.movie = nil
+            }
+            context.delete(movie)
+            removedIDs.insert(id)
+            byID[id] = nil
+        }
         let localAliases = Dictionary(entries.compactMap { entry -> (String, UUID)? in
             guard let target = documents[entry.recordName]?.redirectTo, let id = entry.localMovieID else { return nil }
             return (target, id)
@@ -307,7 +333,7 @@ enum LibrarySyncStore {
             let aliasID = localAliases[entry.recordName]
             let existing = (entry.localMovieID ?? aliasID).flatMap { byID[$0] }
             if document.deleted {
-                if let existing { context.delete(existing); removedIDs.insert(existing.id); byID[existing.id] = nil }
+                if let existing { remove(existing) }
                 entry.localMovieID = nil; entry.localSnapshotData = nil
                 continue
             }
@@ -325,7 +351,7 @@ enum LibrarySyncStore {
             guard let target = documents[entry.recordName]?.redirectTo else { continue }
             if documents[target]?.deleted == true {
                 if let oldID = entry.localMovieID, let movie = byID[oldID] {
-                    context.delete(movie); removedIDs.insert(oldID); byID[oldID] = nil
+                    remove(movie)
                 }
                 entry.localMovieID = nil; entry.localSnapshotData = nil
                 continue
@@ -334,7 +360,7 @@ enum LibrarySyncStore {
                   let canonical = byID[canonicalID] else { continue }
             if let oldID = entry.localMovieID, oldID != canonicalID, let duplicate = byID[oldID] {
                 for event in events where event.movie?.id == oldID { event.movie = canonical }
-                context.delete(duplicate); removedIDs.insert(oldID); byID[oldID] = nil
+                remove(duplicate)
             }
             entry.localMovieID = nil; entry.localSnapshotData = nil
         }
@@ -344,7 +370,7 @@ enum LibrarySyncStore {
             guard let canonicalID = byName[SyncedLibraryMovie(movie: movie).details.recordName]?.localMovieID,
                   canonicalID != movie.id, let canonical = byID[canonicalID] else { continue }
             for event in events where event.movie?.id == movie.id { event.movie = canonical }
-            context.delete(movie); removedIDs.insert(movie.id)
+            remove(movie)
         }
         if !removedIDs.isEmpty { TonightWidgetSnapshotPublisher.removeMovies(ids: removedIDs) }
     }

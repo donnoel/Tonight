@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum CredentialStatus: Equatable {
     case loading
@@ -33,6 +34,8 @@ struct SettingsView: View {
     @State private var isEditingCredential = false
     @State private var credentialNotice: String?
     @State private var presentedAlert: SettingsAlert?
+    @State private var showsMovieExport = false
+    @State private var movieExport = MovieListDocument()
     @FocusState private var isTokenFieldFocused: Bool
 
     private var unresolvedCount: Int {
@@ -150,6 +153,17 @@ struct SettingsView: View {
                 LabeledContent("Movies", value: movies.count, format: .number)
                 LabeledContent("Unresolved", value: unresolvedCount, format: .number)
 
+                Button("Export Movie List", systemImage: "square.and.arrow.up") {
+                    movieExport = MovieListDocument(text: MovieListDocument.text(for: movies))
+                    showsMovieExport = true
+                }
+                .disabled(movies.isEmpty)
+                .accessibilityHint("Saves your movie titles and years as a plain text file")
+
+                Text("Export titles and years as a text file to import on another device. Watch history and ratings stay in Tonight.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
                 Button("Clear Library", role: .destructive) {
                     presentedAlert = .clearLibrary
                 }
@@ -157,6 +171,13 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .fileExporter(isPresented: $showsMovieExport, document: movieExport,
+                      contentType: .plainText, defaultFilename: "Tonight-Movies") { result in
+            if case .failure(let error) = result,
+               (error as? CocoaError)?.code != .userCancelled {
+                presentedAlert = .error("Tonight couldn’t export the movie list. Please try another location.")
+            }
+        }
         .task {
             await refreshCredentialStatus()
         }
