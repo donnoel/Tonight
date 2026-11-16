@@ -1,6 +1,10 @@
 import Foundation
 import OSLog
+#if os(tvOS)
+import TVServices
+#else
 import WidgetKit
+#endif
 
 @MainActor
 enum TonightWidgetSnapshotPublisher {
@@ -154,7 +158,11 @@ private actor TonightWidgetSnapshotWriter {
 
         do {
             try store.save(snapshot)
+            #if os(tvOS)
+            TVTopShelfContentProvider.topShelfContentDidChange()
+            #else
             WidgetCenter.shared.reloadTimelines(ofKind: TonightWidgetSnapshotStore.widgetKind)
+            #endif
         } catch {
             logger.error(
                 "Widget snapshot update failed: \(error.localizedDescription, privacy: .public)"

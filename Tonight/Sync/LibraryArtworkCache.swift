@@ -21,7 +21,7 @@ actor LibraryArtworkCache {
     }()
 
     func data(for url: URL) async throws -> Data {
-        let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let base = try TonightStorage.supportDirectory()
         var directory = base.appendingPathComponent("LibraryArtwork", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var values = URLResourceValues(); values.isExcludedFromBackup = true

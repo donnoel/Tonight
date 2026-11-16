@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Built%20with-SwiftUI%20%2B%20SwiftData-orange?logo=swift&logoColor=white" alt="Built with: SwiftUI + SwiftData">
-  <img src="https://img.shields.io/badge/Platforms-iOS%20%2B%20iPadOS-blue" alt="Platforms: iOS + iPadOS">
+  <img src="https://img.shields.io/badge/Platforms-iOS%20%2B%20iPadOS%20%2B%20tvOS-blue" alt="Platforms: iOS + iPadOS + tvOS">
 </p>
 
 ---
@@ -12,6 +12,8 @@
 ## 🧭 Overview
 
 Tonight is an iPad-first personal recommendation app built with SwiftUI and SwiftData. Imported collections are the source of truth for owned movies and TV shows; TMDB enriches those entries with metadata and artwork.
+
+The native Apple TV app presents the same owned collections with large artwork, remote focus navigation, movie picks, TV sessions, Deals, and History. **Get Libraries from iCloud** brings over both collections without a TMDB key. Add titles on iPhone or iPad; Apple TV syncs them automatically. See the [Apple TV guide](docs/APPLE_TV.md).
 
 ## 💎 Core Features
 

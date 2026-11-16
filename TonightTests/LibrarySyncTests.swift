@@ -5,6 +5,31 @@ import SwiftData
 
 @MainActor
 final class LibrarySyncTests: XCTestCase {
+    func testFirstLaunchBackupDoesNotRequireAnExistingStoreDirectory() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = root.appendingPathComponent("not-created/default.store")
+        let backup = root.appendingPathComponent("backup")
+        try LibrarySyncStore.backupBeforeOpeningStore(storeURL: store, directory: backup)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backup.appendingPathComponent("complete").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.deletingLastPathComponent().path))
+    }
+
+    func testBackupPreservesExistingStoreAndJournalsBeforeOpening() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = root.appendingPathComponent("store")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let backup = root.appendingPathComponent("backup")
+        let files = ["default.store", "default.store-wal", "default.store-shm"]
+        for file in files { try Data(file.utf8).write(to: directory.appendingPathComponent(file)) }
+        try LibrarySyncStore.backupBeforeOpeningStore(storeURL: directory.appendingPathComponent("default.store"), directory: backup)
+        for file in files {
+            XCTAssertEqual(try Data(contentsOf: backup.appendingPathComponent(file)), Data(file.utf8))
+            XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent(file)), Data(file.utf8))
+        }
+    }
+
     private func container(url: URL? = nil) throws -> ModelContainer {
         let schema = Schema([Movie.self, RecommendationEvent.self, LibrarySyncEntry.self, LibrarySyncState.self])
         let configuration = url.map { ModelConfiguration(schema: schema, url: $0, cloudKitDatabase: .none) }

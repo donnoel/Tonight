@@ -4,6 +4,7 @@ options:
   xcodeVersion: "26.6"
   deploymentTarget:
     iOS: "18.0"
+    tvOS: "18.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
 configs:
@@ -18,8 +19,64 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     IPHONEOS_DEPLOYMENT_TARGET: 18.0
     MARKETING_VERSION: "1.1"
-    CURRENT_PROJECT_VERSION: 8
+    CURRENT_PROJECT_VERSION: 11
 targets:
+  TonightTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: Tonight
+        excludes:
+          - App/AppRootView.swift
+          - Resources
+          - Preview Content
+          - Views/Import/ImportLibraryView.swift
+          - Views/TV/TVImportView.swift
+          - Import/ImportViewModel.swift
+          - Import/MovieListDocument.swift
+      - path: TonightTV
+        excludes:
+          - Branding
+      - path: Shared
+    dependencies:
+      - target: TonightTopShelf
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.donnoel.Tonight
+        PRODUCT_NAME: TonightTV
+        INFOPLIST_FILE: TonightTV/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Tonight/Resources/Tonight.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "3"
+        SUPPORTED_PLATFORMS: "appletvos appletvsimulator"
+        TVOS_DEPLOYMENT_TARGET: "18.0"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: H7LG8SK72M
+        REGISTER_APP_GROUPS: YES
+      configs:
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+  TonightTopShelf:
+    type: app-extension
+    platform: tvOS
+    sources:
+      - path: TonightTopShelf
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.donnoel.Tonight.TopShelf
+        PRODUCT_NAME: TonightTopShelf
+        INFOPLIST_FILE: TonightTopShelf/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TonightTopShelf/TonightTopShelf.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "3"
+        TVOS_DEPLOYMENT_TARGET: "18.0"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: H7LG8SK72M
+        REGISTER_APP_GROUPS: YES
   Tonight:
     type: application
     platform: iOS
@@ -91,6 +148,18 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.donnoel.TonightTests
         GENERATE_INFOPLIST_FILE: true
 schemes:
+  TonightTV:
+    build:
+      targets:
+        TonightTV: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
   Tonight:
     build:
       targets:

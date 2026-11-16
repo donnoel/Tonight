@@ -26,9 +26,13 @@ struct DealsView: View {
     @State private var selectedFilter = DealsFilter.notInLibrary
     @State private var manualRefreshRequest: UUID?
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 132, maximum: 190), spacing: 20, alignment: .top)
-    ]
+    private var columns: [GridItem] {
+        #if os(tvOS)
+        [GridItem(.adaptive(minimum: 220, maximum: 260), spacing: 48, alignment: .top)]
+        #else
+        [GridItem(.adaptive(minimum: 132, maximum: 190), spacing: 20, alignment: .top)]
+        #endif
+    }
 
     init(client: MovieDealsClient = .live()) {
         _model = State(initialValue: DealsViewModel(client: client))
@@ -48,7 +52,9 @@ struct DealsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        #if !os(tvOS)
         .navigationTitle("Deals")
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -139,15 +145,19 @@ struct DealsView: View {
                                             : nil
                                     )
                                 }
+                                #if os(tvOS)
+                                .buttonStyle(.card)
+                                #else
                                 .buttonStyle(.plain)
+                                #endif
                             }
                         }
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.vertical, compactHeight ? 12 : 24)
+            .padding(.horizontal, catalogPadding)
+            .padding(.vertical, compactHeight ? 12 : catalogPadding)
         }
         .refreshable {
             await model.load(
@@ -163,10 +173,15 @@ struct DealsView: View {
                 .font(compactHeight ? .title.bold() : .largeTitle.bold())
                 .foregroundStyle(.tint)
 
+            #if os(tvOS)
+            Text("Current U.S. Apple TV purchase deals · Ranked with your taste")
+                .font(.callout).foregroundStyle(.secondary)
+            #else
             Text("Current U.S. Apple TV purchase deals, enriched and ranked with Tonight’s local taste signals.")
                 .font(compactHeight ? .body : .title3)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 760, alignment: .leading)
+            #endif
 
             HStack(spacing: 6) {
                 Text("Updated")
@@ -265,6 +280,14 @@ struct DealsView: View {
 
     private var compactHeight: Bool {
         verticalSizeClass == .compact
+    }
+
+    private var catalogPadding: CGFloat {
+        #if os(tvOS)
+        60
+        #else
+        24
+        #endif
     }
 
     private var rankingRevision: String {

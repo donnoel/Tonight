@@ -377,17 +377,25 @@ enum LibrarySyncStore {
     }
 
     static func backupDirectory() throws -> URL {
-        let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let base = try TonightStorage.supportDirectory()
         let directory = base.appendingPathComponent("PreLibrarySyncBackup", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
 
-    static func backupBeforeOpeningStore() throws {
-        let directory = try backupDirectory()
+    static func backupBeforeOpeningStore(
+        storeURL: URL = ModelConfiguration(cloudKitDatabase: .none).url,
+        directory backupDestination: URL? = nil
+    ) throws {
+        let directory = try backupDestination ?? backupDirectory()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let marker = directory.appendingPathComponent("complete")
         guard !FileManager.default.fileExists(atPath: marker.path) else { return }
-        let storeURL = ModelConfiguration(cloudKitDatabase: .none).url
+        // A first installation has no store (or parent directory) to enumerate.
+        guard FileManager.default.fileExists(atPath: storeURL.path) else {
+            try Data("No previous local store before initial launch".utf8).write(to: marker, options: .atomic)
+            return
+        }
         let base = storeURL.deletingLastPathComponent()
         for source in try FileManager.default.contentsOfDirectory(at: base, includingPropertiesForKeys: nil) where source.lastPathComponent.hasPrefix(storeURL.lastPathComponent) {
             let destination = directory.appendingPathComponent(source.lastPathComponent)

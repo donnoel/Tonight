@@ -25,7 +25,13 @@ struct TonightApp: App {
     }
 
     var body: some Scene {
-        WindowGroup { AppRootView() }
+        WindowGroup {
+            #if os(tvOS)
+            AppleTVAppRootView()
+            #else
+            AppRootView()
+            #endif
+        }
             .modelContainer(container)
     }
 }

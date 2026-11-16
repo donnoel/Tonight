@@ -25,6 +25,30 @@ struct TVMediaView: View {
     @State private var artworkURLs: [URL] = []
 
     var body: some View {
+        #if os(tvOS)
+        VStack(spacing: 0) {
+            Picker("Collection", selection: $media) {
+                ForEach(TonightMedia.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 660)
+            .padding(.top, 20)
+            .padding(.bottom, 24)
+            .accessibilityIdentifier("mediaPicker")
+            Group {
+                switch (media, page) {
+                case (.movies, .tonight): TonightView()
+                case (.movies, .library): LibraryView()
+                case (.movies, .history): HistoryView()
+                case (.tv, .tonight): TVTonightView()
+                case (.tv, .library): TVLibraryView()
+                case (.tv, .history): TVHistoryView()
+                }
+            }
+        }
+        .onPreferenceChange(TonightArtworkPreferenceKey.self) { artworkURLs = $0 }
+        .background { TonightArtworkBackground(urls: artworkURLs).ignoresSafeArea() }
+        #else
         VStack(spacing: 0) {
             Picker("Collection", selection: $media) {
                 ForEach(TonightMedia.allCases) { Text($0.title).tag($0) }
@@ -54,6 +78,7 @@ struct TVMediaView: View {
                            for: .navigationBar)
         .padding(.top, page == .tonight && sizeClass != .regular ? 22 : 0)
         .toolbar(page == .tonight && sizeClass != .regular ? .hidden : .automatic, for: .navigationBar)
+        #endif
     }
 }
 

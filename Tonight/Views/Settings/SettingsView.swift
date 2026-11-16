@@ -35,7 +35,9 @@ struct SettingsView: View {
     @State private var credentialNotice: String?
     @State private var presentedAlert: SettingsAlert?
     @State private var showsMovieExport = false
+    #if !os(tvOS)
     @State private var movieExport = MovieListDocument()
+    #endif
     @FocusState private var isTokenFieldFocused: Bool
 
     private var unresolvedCount: Int {
@@ -59,6 +61,11 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            #if os(tvOS)
+            Section("Your iCloud Collections") {
+                AppleTVCloudLibraryView()
+            }
+            #endif
             Section {
                 HStack {
                     Text("Authentication")
@@ -116,7 +123,11 @@ struct SettingsView: View {
             } header: {
                 Text("TMDB")
             } footer: {
+                #if os(tvOS)
+                Text("Synced movies and TV shows work without a key. Use the Apple TV secure keyboard to enter a Read Access Token for new metadata lookups and Deals. The token stays in this Apple TV’s Keychain.")
+                #else
                 Text("Stored securely in this device’s Keychain. The token is never added to the Xcode project, Info.plist, logs, or Git.")
+                #endif
             }
 
             Section("iCloud Library") {
@@ -153,6 +164,7 @@ struct SettingsView: View {
                 LabeledContent("Movies", value: movies.count, format: .number)
                 LabeledContent("Unresolved", value: unresolvedCount, format: .number)
 
+                #if !os(tvOS)
                 Button("Export Movie List", systemImage: "square.and.arrow.up") {
                     movieExport = MovieListDocument(text: MovieListDocument.text(for: movies))
                     showsMovieExport = true
@@ -163,6 +175,10 @@ struct SettingsView: View {
                 Text("Export titles and years as a text file to import on another device. Watch history and ratings stay in Tonight.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                #else
+                Text("Get both collections from iCloud using the button above. You can also import titles on your iPhone or iPad; they will sync here automatically.")
+                    .foregroundStyle(.secondary)
+                #endif
 
                 Button("Clear Library", role: .destructive) {
                     presentedAlert = .clearLibrary
@@ -171,6 +187,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        #if !os(tvOS)
         .fileExporter(isPresented: $showsMovieExport, document: movieExport,
                       contentType: .plainText, defaultFilename: "Tonight-Movies") { result in
             if case .failure(let error) = result,
@@ -178,6 +195,7 @@ struct SettingsView: View {
                 presentedAlert = .error("Tonight couldn’t export the movie list. Please try another location.")
             }
         }
+        #endif
         .task {
             await refreshCredentialStatus()
         }

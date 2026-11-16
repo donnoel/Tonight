@@ -29,31 +29,11 @@ struct MovieDetailView: View {
     var recommendationContext: MovieRecommendationContext?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                backdrop
-
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 32) {
-                        poster(width: 230)
-                        details
-                    }
-
-                    VStack(alignment: .leading, spacing: 24) {
-                        HStack(alignment: .top, spacing: 20) {
-                            poster(width: 130)
-                            titleBlock
-                        }
-                        metadataAndOverview
-                    }
-                }
-                .frame(maxWidth: 980, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 28)
-            }
-        }
+        detailContent
         .navigationTitle(movie.title)
+        #if !os(tvOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             if showsPersonalization {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -85,6 +65,48 @@ struct MovieDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var detailContent: some View {
+        #if os(tvOS)
+        ScrollView {
+            HStack(alignment: .top, spacing: 70) {
+                poster(width: 300)
+                details
+            }
+            .padding(70)
+            .focusSection()
+        }
+        .background {
+            RemoteArtworkView(url: backdropArtworkURL, aspectRatio: 16 / 9, cornerRadius: 0, maxPixelSize: 1920)
+                .opacity(0.12).ignoresSafeArea()
+        }
+        #else
+        ScrollView {
+            VStack(spacing: 0) {
+                backdrop
+
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 32) {
+                        poster(width: 230)
+                        details
+                    }
+
+                    VStack(alignment: .leading, spacing: 24) {
+                        HStack(alignment: .top, spacing: 20) {
+                            poster(width: 130)
+                            titleBlock
+                        }
+                        metadataAndOverview
+                    }
+                }
+                .frame(maxWidth: 980, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 28)
+            }
+        }
+        #endif
+    }
+
     private var backdrop: some View {
         ZStack(alignment: .bottom) {
             RemoteArtworkView(
@@ -95,12 +117,14 @@ struct MovieDetailView: View {
             )
             .frame(maxWidth: .infinity)
 
+            #if !os(tvOS)
             LinearGradient(
                 colors: [.clear, Color(uiColor: .systemBackground)],
                 startPoint: .center,
                 endPoint: .bottom
             )
             .allowsHitTesting(false)
+            #endif
         }
         .frame(maxHeight: 420)
         .clipped()
@@ -416,6 +440,9 @@ struct MovieDetailView: View {
                 .font(.headline)
             content()
                 .foregroundStyle(.secondary)
+                #if os(tvOS)
+                .focusable()
+                #endif
         }
         .accessibilityElement(children: .combine)
     }

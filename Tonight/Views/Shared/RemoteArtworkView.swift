@@ -4,7 +4,13 @@ struct RemoteArtworkView: View {
     let url: URL?
     let aspectRatio: CGFloat
     var cornerRadius: CGFloat = 16
-    var maxPixelSize: Int = 1_200
+    var maxPixelSize: Int = {
+        #if os(tvOS)
+        900
+        #else
+        1_200
+        #endif
+    }()
     var contentAlignment: Alignment = .center
 
     @State private var loadState = ArtworkLoadState.idle

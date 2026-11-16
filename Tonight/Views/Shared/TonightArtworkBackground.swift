@@ -21,13 +21,17 @@ struct TonightArtworkBackground: View {
             }
             ZStack {
                 LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                #if !os(tvOS)
                 RadialGradient(colors: [colors[0], colors[0].opacity(0)], center: .topLeading,
                     startRadius: 0, endRadius: geometry.size.width * 0.85)
                 RadialGradient(colors: [colors[2], colors[2].opacity(0)], center: .bottomTrailing,
                     startRadius: 0, endRadius: geometry.size.height * 0.8)
+                #endif
             }
         }
+        #if !os(tvOS)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.7), value: palette)
+        #endif
         .accessibilityHidden(true)
         .allowsHitTesting(false)
         .task(id: urls, priority: .utility) {

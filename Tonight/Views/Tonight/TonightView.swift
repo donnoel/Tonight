@@ -32,39 +32,7 @@ struct TonightView: View {
     }
 
     var body: some View {
-        return ScrollView {
-            if isLoadingRecommendationState {
-                ProgressView("Loading your picks…")
-                    .frame(maxWidth: .infinity, minHeight: 320)
-            } else {
-                VStack(alignment: .leading, spacing: usesCompactLayout ? 20 : 30) {
-                    hero(currentEvents: currentEvents)
-
-                    if !currentEvents.isEmpty {
-                        currentRecommendations(
-                            currentEvents: currentEvents,
-                            eligibleCount: eligibleMovieCount
-                        )
-                    } else if eligibleMovieCount == 0 {
-                        poolCount(eligibleCount: eligibleMovieCount)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                        emptyState
-                    } else {
-                        readyState(eligibleCount: eligibleMovieCount)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, usesCompactLayout ? 20 : 28)
-                .padding(.vertical, usesCompactLayout ? 16 : 32)
-            }
-        }
-        .refreshable {
-            refreshRecommendations()
-        }
-        .navigationTitle("Tonight")
-        .navigationBarTitleDisplayMode(usesCompactLayout ? .inline : .automatic)
-        .preference(key: TonightArtworkPreferenceKey.self, value: backdropArtwork)
+        recommendationContent
         .alert("Couldn’t Update Recommendations", isPresented: saveErrorIsPresented) {
             Button("OK", role: .cancel) {
                 saveError = nil
@@ -101,6 +69,53 @@ struct TonightView: View {
             guard isVisible, source != LibrarySyncStore.SaveSource.recommendations.rawValue else { return }
             loadRecommendationState()
         }
+    }
+
+    @ViewBuilder
+    private var recommendationContent: some View {
+        #if os(tvOS)
+        AppleTVMoviePicksView(
+            events: currentEvents, remainingCount: eligibleMovieCount, totalCount: movies.count,
+            isLoading: isLoadingRecommendationState, mood: $moodRawValue,
+            underTwoHours: $underTwoHours, unwatchedOnly: $unwatchedOnly,
+            somethingOlder: $somethingOlder, moreAdventurous: $moreAdventurous,
+            refresh: { refreshRecommendations() }, respond: { respond(to: $0, with: $1) }
+        )
+        #else
+        ScrollView {
+            if isLoadingRecommendationState {
+                ProgressView("Loading your picks…")
+                    .frame(maxWidth: .infinity, minHeight: 320)
+            } else {
+                VStack(alignment: .leading, spacing: usesCompactLayout ? 20 : 30) {
+                    hero(currentEvents: currentEvents)
+
+                    if !currentEvents.isEmpty {
+                        currentRecommendations(
+                            currentEvents: currentEvents,
+                            eligibleCount: eligibleMovieCount
+                        )
+                    } else if eligibleMovieCount == 0 {
+                        poolCount(eligibleCount: eligibleMovieCount)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        emptyState
+                    } else {
+                        readyState(eligibleCount: eligibleMovieCount)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, usesCompactLayout ? 20 : 28)
+                .padding(.vertical, usesCompactLayout ? 16 : 32)
+            }
+        }
+        .refreshable {
+            refreshRecommendations()
+        }
+        .navigationTitle("Tonight")
+        .navigationBarTitleDisplayMode(usesCompactLayout ? .inline : .automatic)
+        .preference(key: TonightArtworkPreferenceKey.self, value: backdropArtwork)
+        #endif
     }
 
     @ViewBuilder

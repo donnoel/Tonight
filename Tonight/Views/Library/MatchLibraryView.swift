@@ -58,7 +58,9 @@ struct MatchLibraryView: View {
                 }
             }
             .navigationTitle(isSingleMovieMode ? "Match Movie" : "Match Movies")
+            #if !os(tvOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar { toolbarContent }
         }
         .interactiveDismissDisabled(model.isWorking)

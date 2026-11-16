@@ -47,7 +47,11 @@ nonisolated struct TonightWidgetSnapshotStore: Sendable {
             throw TonightWidgetSnapshotStoreError.appGroupUnavailable
         }
 
+        #if os(tvOS)
+        self.init(directoryURL: groupURL.appendingPathComponent("Library/Caches/Tonight", isDirectory: true))
+        #else
         self.init(directoryURL: groupURL.appendingPathComponent("Tonight", isDirectory: true))
+        #endif
     }
 
     init(directoryURL: URL) {

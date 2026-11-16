@@ -17,6 +17,9 @@ struct LibraryView: View {
     private var sortDirection = LibrarySortDirection.ascending
     @AppStorage("libraryFilter") private var filterOption = LibraryFilterOption.all
     @State private var searchText = ""
+    #if os(tvOS)
+    @State private var showsSearch = false
+    #endif
     @State private var isShuffled = false
     @State private var shuffleRanks: [UUID: Int] = [:]
 
@@ -45,15 +48,22 @@ struct LibraryView: View {
         )
     }
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 132, maximum: 190), spacing: 20, alignment: .top)
-    ]
+    private var columns: [GridItem] {
+        #if os(tvOS)
+        [GridItem(.adaptive(minimum: 220, maximum: 260), spacing: 48, alignment: .top)]
+        #else
+        [GridItem(.adaptive(minimum: 132, maximum: 190), spacing: 20, alignment: .top)]
+        #endif
+    }
 
     var body: some View {
         let displayedMovies = displayedMovies
         let unresolvedCount = unresolvedCount
         return Group {
             if movies.isEmpty {
+                #if os(tvOS)
+                ScrollView { AppleTVCloudLibraryView().padding(60) }
+                #else
                 ContentUnavailableView {
                     Label("Your Library Is Empty", systemImage: "rectangle.stack")
                 } description: {
@@ -64,6 +74,7 @@ struct LibraryView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
+                #endif
             } else if displayedMovies.isEmpty {
                 filteredEmptyState
             } else {
@@ -75,17 +86,33 @@ struct LibraryView: View {
                             } label: {
                                 MovieCard(movie: movie)
                             }
+                            #if os(tvOS)
+                            .buttonStyle(.card)
+                            #else
                             .buttonStyle(.plain)
+                            #endif
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 24)
+                    .padding(.horizontal, libraryPadding)
+                    .padding(.vertical, libraryPadding)
                 }
             }
         }
         .navigationTitle("Library")
+        #if os(tvOS)
+        .sheet(isPresented: $showsSearch) {
+            AppleTVSearchView(title: "Search Movies", prompt: "Title, cast, director, or genre", text: $searchText)
+        }
+        #else
         .searchable(text: $searchText, prompt: "Search your library")
+        #endif
         .toolbar {
+            #if os(tvOS)
+            ToolbarItem(placement: .primaryAction) {
+                Button("Search Movies", systemImage: "magnifyingglass") { showsSearch = true }
+                    .disabled(movies.isEmpty)
+            }
+            #endif
             if !movies.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -127,6 +154,7 @@ struct LibraryView: View {
                 }
             }
 
+            #if !os(tvOS)
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     presentedSheet = .importLibrary
@@ -134,11 +162,16 @@ struct LibraryView: View {
                     Label("Import Library", systemImage: "square.and.arrow.down")
                 }
             }
+            #endif
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .importLibrary:
+                #if !os(tvOS)
                 ImportLibraryView()
+                #else
+                EmptyView()
+                #endif
             case .matchLibrary:
                 MatchLibraryView()
             case .libraryOptions:
@@ -154,6 +187,14 @@ struct LibraryView: View {
         .onChange(of: movies.map(\.id), initial: true) { _, movieIDs in
             updateShuffleRanks(for: movieIDs)
         }
+    }
+
+    private var libraryPadding: CGFloat {
+        #if os(tvOS)
+        60
+        #else
+        24
+        #endif
     }
 
     @ViewBuilder
@@ -272,7 +313,9 @@ private struct LibraryOptionsSheet: View {
                 }
             }
             .navigationTitle("Library Options")
+            #if !os(tvOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {

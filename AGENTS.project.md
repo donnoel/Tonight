@@ -13,6 +13,7 @@ Tonight is in its first recommendation milestone, built on the completed local-l
 Current scope:
 
 - Native SwiftUI app for iPad and iPhone, with iPad-first navigation and layout
+- Native Apple TV presentation sharing the existing collections and engines; see `docs/APPLE_TV.md`
 - Local SwiftData movie library
 - Paste, parse, review, and bulk-import workflow
 - Bearer-token TMDB search, matching, details, credits, and artwork enrichment
@@ -164,6 +165,7 @@ Explicitly out of scope:
 
 - Project: `Tonight.xcodeproj`
 - Scheme: `Tonight`
+- Apple TV scheme/target: `TonightTV`, tvOS 18.0+, physical-device acceptance; iCloud library setup only, with manual additions on iPhone/iPad
 - Widget target: `TonightWidgetExtension` (`systemMedium` only)
 - Platforms: iPadOS and iOS (`TARGETED_DEVICE_FAMILY = 1,2`)
 - Deployment target: iOS 18.0

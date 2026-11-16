@@ -36,6 +36,9 @@ struct TVTonightView: View {
                 }
                 TVStatusView()
                 if store.shows.isEmpty {
+                    #if os(tvOS)
+                    AppleTVCloudLibraryView()
+                    #else
                     ContentUnavailableView {
                         Label("Your TV Collection", systemImage: "tv")
                     } description: {
@@ -43,6 +46,7 @@ struct TVTonightView: View {
                     } actions: {
                         Button("Import TV Shows") { showsImport = true }.buttonStyle(.borderedProminent)
                     }
+                    #endif
                 } else {
                     preferences
                     if let active = store.document.activeSession, let show = store.show(active.showID) {
@@ -72,14 +76,16 @@ struct TVTonightView: View {
                     }
                 }
             }
-            .padding(24)
-            .frame(maxWidth: 1200, alignment: .leading)
+            .padding(contentPadding)
+            .frame(maxWidth: contentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Tonight")
         .preference(key: TonightArtworkPreferenceKey.self, value: backdropArtwork)
         .onChange(of: sessionCount, initial: true) { _, count in store.setSessionCount(count) }
+        #if !os(tvOS)
         .sheet(isPresented: $showsImport) { TVImportView() }
+        #endif
         .confirmationDialog("Replace your planned session?", isPresented: Binding(
             get: { replacingSession != nil }, set: { if !$0 { replacingSession = nil } }
         ), titleVisibility: .visible) {
@@ -97,7 +103,9 @@ struct TVTonightView: View {
         return sizeClass == .regular ? [GridItem(.adaptive(minimum: 260), spacing: 20, alignment: .top)] : [GridItem(.flexible())]
     }
     private var backdropArtwork: [URL] {
+        #if !os(tvOS)
         guard UIDevice.current.userInterfaceIdiom == .pad else { return [] }
+        #endif
         return store.document.suggestions.prefix(3).compactMap { session in
             guard let show = store.show(session.showID) else { return nil }
             return TMDBImageURL.make(path: show.backdropPath ?? show.posterPath, size: .backdrop)
@@ -108,8 +116,26 @@ struct TVTonightView: View {
         else { store.start(session) }
     }
     private var sessionCount: Int? {
+        #if os(tvOS)
+        return 3
+        #else
         guard UIDevice.current.userInterfaceIdiom == .pad, sizeClass == .regular else { return nil }
         return windowSize.width > windowSize.height ? 4 : 3
+        #endif
+    }
+    private var contentPadding: CGFloat {
+        #if os(tvOS)
+        60
+        #else
+        24
+        #endif
+    }
+    private var contentWidth: CGFloat {
+        #if os(tvOS)
+        1800
+        #else
+        1200
+        #endif
     }
     private var emptyMessage: String {
         if store.needsDetails > 0 {
@@ -149,7 +175,11 @@ struct TVTonightView: View {
                     set: { store.setPreferences(minutes: store.document.minutes, mood: $0, unseenOnly: store.document.unseenOnly) }
                 )) {
                     ForEach(TVSessionMood.allCases) { Text($0.title).tag($0) }
-                }.labelsHidden()
+                }
+                #if os(tvOS)
+                .pickerStyle(.menu)
+                #endif
+                .labelsHidden()
             }
             Toggle("Only shows new to me", isOn: Binding(
                 get: { store.document.unseenOnly },
@@ -181,7 +211,13 @@ private struct TVSessionCard: View {
                         .shadow(radius: 3)
                 }
                 .aspectRatio(16 / 9, contentMode: .fit)
-            }.buttonStyle(.plain).accessibilityLabel("Details for \(show.title)")
+            }
+            #if os(tvOS)
+            .buttonStyle(.card)
+            #else
+            .buttonStyle(.plain)
+            #endif
+            .accessibilityLabel("Details for \(show.title)")
             Text("\(session.episodes.count) \(session.episodes.count == 1 ? "episode" : "episodes") · \(session.durationLabel)")
                 .font(.subheadline.weight(.semibold))
             Text(session.rationale).font(.subheadline).foregroundStyle(.secondary)

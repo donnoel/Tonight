@@ -30,10 +30,7 @@ actor MovieDealsCache {
     }
 
     private static func defaultFileURL() -> URL {
-        let applicationSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first ?? FileManager.default.temporaryDirectory
+        let applicationSupport = TonightStorage.supportURL
         return applicationSupport
             .appending(path: "Tonight", directoryHint: .isDirectory)
             .appending(path: "apple-movie-deals.json")

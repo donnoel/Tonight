@@ -7,7 +7,7 @@ struct TVLibraryFile {
     var preSyncBackupURL: URL { url.appendingPathExtension("pre-sync-backup") }
 
     static var live: Self {
-        let support = URL.applicationSupportDirectory.appending(path: "Tonight", directoryHint: .isDirectory)
+        let support = TonightStorage.supportURL.appending(path: "Tonight", directoryHint: .isDirectory)
         return Self(url: support.appending(path: "tv-library.json"))
     }
 
@@ -24,12 +24,12 @@ struct TVLibraryFile {
         if FileManager.default.fileExists(atPath: url.path) {
             let previous = try Data(contentsOf: url)
             _ = try decode(previous)
-            try previous.write(to: backupURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            try previous.write(to: backupURL, options: TonightStorage.atomicWriteOptions)
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(document)
-        try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try data.write(to: url, options: TonightStorage.atomicWriteOptions)
     }
 
     func backupBeforeSync() throws {
@@ -37,7 +37,7 @@ struct TVLibraryFile {
               !FileManager.default.fileExists(atPath: preSyncBackupURL.path) else { return }
         let original = try Data(contentsOf: url)
         _ = try decode(original)
-        try original.write(to: preSyncBackupURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try original.write(to: preSyncBackupURL, options: TonightStorage.atomicWriteOptions)
     }
 
     private func decode(_ data: Data) throws -> TVLibraryDocument {

@@ -332,9 +332,13 @@ final class LibrarySyncCoordinator: CKSyncEngineDelegate {
     }
 
     private func startArtworkDownloads() {
+        // TV caches visible artwork on demand instead of competing with remote navigation
+        // by prefetching the full collection after each CloudKit pass.
+        #if !os(tvOS)
         guard let context, let movies = try? context.fetch(FetchDescriptor<Movie>()) else { return }
         let urls = movies.flatMap { SyncedLibraryMovie(movie: $0).details.artworkURLs }
         Task { await LibraryArtworkCache.shared.prefetch(urls) }
+        #endif
     }
 }
 
