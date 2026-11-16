@@ -36,6 +36,12 @@ Explicitly out of scope:
 - TMDB discovery outside imported titles and the explicit current Apple Deals enrichment context
 - Streaming availability, custom accounts, social features, reviews, trailers, external ratings, and purchase/rental links outside the explicit Apple $4.99 deal link
 
+## Work tracking
+
+- [GitHub Issues in donnoel/Tonight](https://github.com/donnoel/Tonight/issues) are the source of truth for outstanding bugs, UI polish, features, and implementation/acceptance tasks.
+- Review existing issues before planning or filing work; update the relevant issue with implementation and validation evidence. Keep proposals distinct from authorized implementation and completed work distinct from pending acceptance.
+- Keep setup, architecture, decisions, and dated delivery evidence in documentation, with links to the owning issues. Do not maintain competing Markdown task lists or backlog status copies.
+
 ## Architecture snapshot
 
 - `TonightApp` owns the root SwiftData model container for `Movie` and `RecommendationEvent`.

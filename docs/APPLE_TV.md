@@ -49,13 +49,19 @@ python3 /Users/donnoel/Development/DevSystem/scripts/apple-local.py run iphone -
 
 Physical installation/launch, commits, pushes, and distribution require authorization. Retain the signed artifact used for acceptance; a new changed device build increments the build number.
 
-## Owner review follow-up
+## Work tracking and owner review
 
-The November 15 sprint ends with 1.1 (11) left on Living Room. Don confirmed that sync and Library Back worked after the storage/navigation fixes, and that the compact three-pick layout looked much better. Subsequent photos and feedback identify the next design pass:
+[GitHub Issues](https://github.com/donnoel/Tonight/issues) owns all outstanding work. Documentation records behavior and evidence rather than maintaining a second backlog.
 
-- Establish one coherent TV theme across Tonight, Library, Deals, History, and Settings: consistent background, title placement, readable spacing, card geometry, and focus treatment. The current mix of dark Deals, artwork-tinted collection pages, and dense native forms lacks continuity.
-- Keep artwork faces/heads visible; review crop/fit choices and focus enlargement so adjacent cards stay visually level.
-- Verify scrolling and focus smoothness on the physical Apple TV. Code-level cost reductions are implemented, but no instrumented frame-time comparison was performed.
-- Visually qualify the dynamic top shelf and its route back to Tonight; the app-to-extension snapshot was verified, while tvOS presentation/timing remains a hands-on check.
+The November 15 sprint ended with 1.1 (11) on Living Room. Don confirmed working iCloud libraries and Library Back, preferred the compact three-pick layout, and supplied a Home-screen photo showing three Weekend Picks. Further app changes stopped at the owner's request.
 
-Don explicitly stopped further app changes for the evening and requested commit/push of the installed build. These are follow-up notes, not claims of completed fixes.
+| Follow-up | Owning issue |
+| --- | --- |
+| Consistent theme, headings, typography, and spacing across all TV pages | [#4](https://github.com/donnoel/Tonight/issues/4) |
+| Faces/heads in artwork and visually level cards during focus changes | [#5](https://github.com/donnoel/Tonight/issues/5) |
+| Physical-device navigation and scrolling performance | [#6](https://github.com/donnoel/Tonight/issues/6) |
+| Relaunch, offline behavior, and cross-device acceptance | [#7](https://github.com/donnoel/Tonight/issues/7) |
+| Opening the particular movie selected on Top Shelf | [#8](https://github.com/donnoel/Tonight/issues/8) |
+| Optional weekend movie-night plan proposal | [#9](https://github.com/donnoel/Tonight/issues/9) |
+
+Existing [TV-show card polish #1](https://github.com/donnoel/Tonight/issues/1), [public-release exploration #2](https://github.com/donnoel/Tonight/issues/2), and [Recently Added browsing #3](https://github.com/donnoel/Tonight/issues/3) remain tracked in their original issues. Consult GitHub for current state and priorities.
