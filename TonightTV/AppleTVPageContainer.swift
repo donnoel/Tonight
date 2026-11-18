@@ -14,6 +14,7 @@ extension EnvironmentValues {
 /// Visited root pages retain their models and artwork; inactive pages cannot take focus.
 struct AppleTVRetainedPage<Content: View>: View {
     let isActive: Bool
+    let resetRequest: Int
     let onExit: () -> Void
     let onRootVisibilityChanged: (Bool) -> Void
     private let content: Content
@@ -21,9 +22,10 @@ struct AppleTVRetainedPage<Content: View>: View {
     @State private var rootIsVisible = true
     @State private var stackGeneration = 0
 
-    init(isActive: Bool, onExit: @escaping () -> Void,
+    init(isActive: Bool, resetRequest: Int = 0, onExit: @escaping () -> Void,
          onRootVisibilityChanged: @escaping (Bool) -> Void, @ViewBuilder content: () -> Content) {
         self.isActive = isActive
+        self.resetRequest = resetRequest
         self.onExit = onExit
         self.onRootVisibilityChanged = onRootVisibilityChanged
         self.content = content()
@@ -45,6 +47,7 @@ struct AppleTVRetainedPage<Content: View>: View {
         .disabled(!isActive)
         .accessibilityHidden(!isActive)
         .zIndex(isActive ? 1 : 0)
+        .onChange(of: resetRequest) { stackGeneration += 1 }
         .onChange(of: isActive) { _, active in
             // Preserve the established return-to-root behavior after leaving a detail page.
             if !active && !rootIsVisible { stackGeneration += 1 }

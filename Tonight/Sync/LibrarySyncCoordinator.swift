@@ -184,7 +184,12 @@ final class LibrarySyncCoordinator: CKSyncEngineDelegate {
                 try LibrarySyncStore.reconcile(in: context)
                 try context.save()
                 let events = try context.fetch(FetchDescriptor<RecommendationEvent>(sortBy: [SortDescriptor(\.recommendedAt, order: .reverse)]))
+                #if os(tvOS)
+                let library = try context.fetch(FetchDescriptor<Movie>())
+                TonightWidgetSnapshotPublisher.publish(events: events, library: library)
+                #else
                 TonightWidgetSnapshotPublisher.publish(events: events)
+                #endif
                 try refreshPending()
                 // Fetching can create merged local changes that still need an upload.
                 // Queue them immediately, even when this is the final fetch of a pass.

@@ -28,6 +28,9 @@ struct AppleTVAppRootView: View {
     @State private var visitedSections: Set<AppleTVSection> = [.tonight]
     @State private var visibleRoots: Set<AppleTVSection> = []
     @State private var railFocusRequest = 0
+    @State private var shelfResetRequest = 0
+    @State private var shelfSelection: TonightTopShelfMovieSelection?
+    @State private var shelfRouteError: String?
 
     var body: some View {
         let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
@@ -44,6 +47,7 @@ struct AppleTVAppRootView: View {
                     ForEach(AppleTVSection.allCases) { section in
                         if visitedSections.contains(section) || selection == section {
                             AppleTVRetainedPage(isActive: selection == section,
+                                resetRequest: section == .tonight ? shelfResetRequest : 0,
                                 onExit: { railFocusRequest += 1 },
                                 onRootVisibilityChanged: { visible in
                                     if visible { visibleRoots.insert(section) }
@@ -71,11 +75,32 @@ struct AppleTVAppRootView: View {
             await TVSyncCoordinator.shared.start(store: tvLibrary)
         }
         .onOpenURL { url in
-            guard url.scheme == "tonight", url.host == "picks" else { return }
-            UserDefaults.standard.set(TonightMedia.movies.rawValue, forKey: "tonightMedia")
+            guard let route = TonightMovieRoute(url: url) else { return }
+            media = .movies
             selection = .tonight
-            railFocusRequest += 1
+            shelfResetRequest += 1
+            switch route {
+            case .picks: railFocusRequest += 1
+            case .movie(let id):
+                do {
+                    guard let destination = try TonightTopShelfMovieSelection.open(id: id, in: modelContext,
+                        preferences: TonightTopShelfSelection.preferences) else {
+                        shelfRouteError = "This movie is no longer in your library. Your current picks are still available in Tonight."
+                        return
+                    }
+                    shelfSelection = destination
+                } catch {
+                    shelfRouteError = "This movie couldn’t be opened. Please try it from your Library."
+                }
+            }
         }
+        .fullScreenCover(item: $shelfSelection) { selection in
+            AppleTVTopShelfMovieView(selection: selection)
+        }
+        .alert("Movie Unavailable", isPresented: Binding(
+            get: { shelfRouteError != nil }, set: { if !$0 { shelfRouteError = nil } })) {
+            Button("OK") { shelfRouteError = nil }
+        } message: { Text(shelfRouteError ?? "") }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task {
@@ -223,5 +248,26 @@ struct AppleTVCloudLibraryView: View {
         }
         .font(.callout)
         .focusSection()
+    }
+}
+
+
+private struct AppleTVTopShelfMovieView: View {
+    @Environment(\.dismiss) private var dismiss
+    let selection: TonightTopShelfMovieSelection
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        MovieDetailView(movie: selection.movie, recommendationContext: selection.event.map { event in
+            MovieRecommendationContext(event: event,
+                onChoose: { selection.respond(.accepted, in: modelContext) },
+                onRespond: { selection.respond($0, in: modelContext) })
+        })
+        .background { AppleTVCinemaBackground(animates: false).ignoresSafeArea() }
+        .onExitCommand { dismiss() }
+        .alert("Couldn’t Save Your Choice", isPresented: Binding(
+            get: { selection.saveError != nil }, set: { if !$0 { selection.saveError = nil } })) {
+            Button("OK") { selection.saveError = nil }
+        } message: { Text(selection.saveError ?? "") }
     }
 }

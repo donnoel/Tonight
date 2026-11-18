@@ -26,7 +26,14 @@ enum TonightWidgetSnapshotPublisher {
         )
     }
 
-    static func publish(events: [RecommendationEvent]) {
+    static func publish(events: [RecommendationEvent], library: [Movie] = []) {
+        #if os(tvOS)
+        let picks = TonightTopShelfSelection.picks(events: events, library: library,
+            preferences: TonightTopShelfSelection.preferences)
+        publish(snapshot: TonightWidgetSnapshot(
+            generatedAt: events.map(\.recommendedAt).max() ?? .now,
+            picks: picks.map { widgetPick(movie: $0.movie, kind: $0.kind, rationale: $0.rationale) }))
+        #else
         let latestDate = events.map(\.recommendedAt).max()
         let sortedEvents = events
             .filter { event in
@@ -57,6 +64,7 @@ enum TonightWidgetSnapshotPublisher {
                 }
             )
         )
+        #endif
     }
 
     static func removeMovie(id: UUID) {

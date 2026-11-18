@@ -706,7 +706,11 @@ struct TonightView: View {
             recommendationHistory.insert(contentsOf: newEvents, at: 0)
             currentEvents = newEvents.sorted { $0.kind.sortOrder < $1.kind.sortOrder }
             eligibleMovieCount = batch.remainingMovieCount
+            #if os(tvOS)
+            TonightWidgetSnapshotPublisher.publish(events: recommendationHistory, library: movies)
+            #else
             TonightWidgetSnapshotPublisher.publish(picks: picks, generatedAt: now)
+            #endif
         }
     }
 
@@ -790,7 +794,7 @@ struct TonightView: View {
 
     private func reconcileAcceptedRecommendations() {
         guard !didMigrateAcceptedChoicesToWatched else {
-            TonightWidgetSnapshotPublisher.publish(events: currentEvents)
+            publishCurrentSnapshot()
             return
         }
 
@@ -813,7 +817,15 @@ struct TonightView: View {
             from: recommendationHistory,
             preferences: preferences
         )
+        publishCurrentSnapshot()
+    }
+
+    private func publishCurrentSnapshot() {
+        #if os(tvOS)
+        TonightWidgetSnapshotPublisher.publish(events: recommendationHistory, library: movies)
+        #else
         TonightWidgetSnapshotPublisher.publish(events: currentEvents)
+        #endif
     }
 
     private func respond(
