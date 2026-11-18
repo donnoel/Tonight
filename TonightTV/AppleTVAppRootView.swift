@@ -25,46 +25,65 @@ struct AppleTVAppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var tvLibrary = TVLibraryStore.shared
     @State private var selection = AppleTVSection.tonight
+    @State private var isRootPageVisible = false
     @FocusState private var navigationFocus: AppleTVSection?
 
     var body: some View {
         let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
-        VStack(spacing: 0) {
-            HStack(spacing: 24) {
-                ForEach(AppleTVSection.allCases) { section in
-                    Button { selection = section } label: {
-                        Text(section.rawValue)
-                            .font(.callout.weight(.semibold))
-                            .fixedSize(horizontal: true, vertical: false)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
+        HStack(spacing: 0) {
+            VStack(spacing: 24) {
+                Image(systemName: "movieclapper.fill")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(LinearGradient(colors: [.cyan, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(height: 70)
+                    .accessibilityHidden(true)
+                Spacer(minLength: 0)
+                VStack(spacing: 14) {
+                    ForEach(AppleTVSection.allCases) { section in
+                        Button { selection = section } label: {
+                            VStack(spacing: 9) {
+                                Image(systemName: section.symbol).font(.system(size: 32, weight: .regular))
+                                Text(section.rawValue).font(.system(size: 24, weight: .medium))
+                                    .fixedSize(horizontal: true, vertical: false)
+                            }
+                            .frame(width: 146, height: 100)
+                        }
+                        .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section, isSelected: selection == section))
+                        .focused($navigationFocus, equals: section)
+                        .accessibilityAddTraits(selection == section ? .isSelected : [])
                     }
-                    .buttonStyle(AppleTVNavigationButtonStyle(isFocused: navigationFocus == section, isSelected: selection == section))
-                    .focused($navigationFocus, equals: section)
-                    .accessibilityAddTraits(selection == section ? .isSelected : [])
                 }
+                Spacer(minLength: 70)
             }
-            .padding(.horizontal, 60)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity)
-            .background(theme.surface)
+            .padding(.vertical, 20)
+            .frame(width: 170)
+            .background {
+                LinearGradient(colors: [theme.surface.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
+                    .ignoresSafeArea()
+            }
             .focusSection()
 
-            if selection != .tonight || media == .tv {
-                AppleTVPageHeader(title: selection == .tonight ? "A little time. A great show." : selection.rawValue,
-                    subtitle: pageSubtitle, collection: selection == .deals || selection == .settings ? nil : $media)
-            }
+            VStack(spacing: 0) {
+                if selection != .tonight || media == .tv {
+                    AppleTVPageHeader(title: selection == .tonight ? "A little time. A great show." : selection.rawValue,
+                        subtitle: pageSubtitle, collection: selection == .deals || selection == .settings ? nil : $media)
+                }
 
-            NavigationStack {
-                sectionContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(theme.background)
-                    // This handler belongs to the root page; detail destinations keep native Back.
-                    .onExitCommand { navigationFocus = selection }
+                NavigationStack {
+                    sectionContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // This handler belongs to the root page; detail destinations keep native Back.
+                        .onExitCommand { navigationFocus = selection }
+                        .onAppear { isRootPageVisible = true }
+                        .onDisappear { isRootPageVisible = false }
+                }
+                .id(selection)
             }
-            .id(selection)
         }
-        .background(theme.background)
+        .background {
+            AppleTVCinemaBackground(animates: isRootPageVisible && selection == .tonight && media == .movies)
+                .ignoresSafeArea()
+        }
         .tint(theme.accent)
         .buttonStyle(.bordered)
         .environment(tvLibrary)

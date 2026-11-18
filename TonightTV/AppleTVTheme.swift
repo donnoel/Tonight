@@ -89,8 +89,8 @@ struct AppleTVPageHeader: View {
     }
 }
 
-/// Plain navigation labels with a readable blue focus fill, rather than a row of pills.
-struct AppleTVNavigationButtonStyle: ButtonStyle {
+/// A stable cinema rail, with a selection marker and a separate focus outline.
+struct AppleTVCinemaRailButtonStyle: ButtonStyle {
     let isFocused: Bool
     let isSelected: Bool
     @Environment(\.colorScheme) private var scheme
@@ -99,13 +99,35 @@ struct AppleTVNavigationButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
         configuration.label
-            .foregroundStyle(isFocused ? theme.onAccent : Color.primary)
-            .background(isFocused ? theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(isSelected ? theme.accent : .clear)
-                    .frame(height: 3).padding(.horizontal, 24)
+            .foregroundStyle(Color.primary)
+            .opacity(isFocused || isSelected ? 1 : 0.75)
+            .overlay(alignment: .leading) {
+                Capsule().fill(isSelected ? theme.accent : .clear)
+                    .frame(width: 4, height: 42)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 18)
+                    .strokeBorder(isFocused ? Color.primary : .clear, lineWidth: 2)
             }
             .opacity(configuration.isPressed ? 0.75 : 1)
+            .focusEffectDisabled()
+    }
+}
+
+/// Quiet text controls let the invitation and artwork lead, without persistent boxes.
+struct AppleTVCinemaControlStyle: ButtonStyle {
+    @Environment(\.isFocused) private var isFocused
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 26, weight: .medium))
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .foregroundStyle(Color.primary)
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(isFocused ? Color.primary : .clear, lineWidth: 2)
+            }
+            .opacity(configuration.isPressed ? 0.7 : 1)
             .focusEffectDisabled()
     }
 }
