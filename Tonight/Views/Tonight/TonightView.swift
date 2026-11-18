@@ -10,6 +10,10 @@ struct TonightView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
+    #if os(tvOS)
+    @Environment(\.appleTVPageIsActive) private var pageIsActive
+    @State private var needsStateReload = true
+    #endif
     @AppStorage("tonightMood") private var moodRawValue = RecommendationMood.anything.rawValue
     @AppStorage("tonightUnderTwoHours") private var underTwoHours = false
     @AppStorage("tonightUnwatchedOnly") private var unwatchedOnly = false
@@ -57,6 +61,9 @@ struct TonightView: View {
         }
         .onAppear {
             isVisible = true
+            #if os(tvOS)
+            guard pageIsActive, needsStateReload else { return }
+            #endif
             if loadRecommendationState() {
                 reconcileAcceptedRecommendations()
             }
@@ -64,9 +71,29 @@ struct TonightView: View {
         .onDisappear {
             isVisible = false
         }
+        #if os(tvOS)
+        .onChange(of: pageIsActive) { _, active in
+            guard active, isVisible, needsStateReload else { return }
+            if loadRecommendationState() { reconcileAcceptedRecommendations() }
+        }
+        #endif
         .onReceive(NotificationCenter.default.publisher(for: LibrarySyncStore.didSave)) { notification in
             let source = notification.userInfo?[LibrarySyncStore.saveSourceUserInfoKey] as? String
-            guard isVisible, source != LibrarySyncStore.SaveSource.recommendations.rawValue else { return }
+            guard source != LibrarySyncStore.SaveSource.recommendations.rawValue else { return }
+            #if os(tvOS)
+            guard isVisible, pageIsActive else {
+                needsStateReload = true
+                // Drop hidden UI references that a library edit may have deleted.
+                currentEvents = []
+                movies = []
+                recommendationHistory = []
+                eligibleMovieCount = 0
+                isLoadingRecommendationState = true
+                return
+            }
+            #else
+            guard isVisible else { return }
+            #endif
             loadRecommendationState()
         }
     }
@@ -695,6 +722,8 @@ struct TonightView: View {
 
     @discardableResult
     private func loadRecommendationState() -> Bool {
+        let interval = Self.performanceSignposter.beginInterval("Recommendation State Load")
+        defer { Self.performanceSignposter.endInterval("Recommendation State Load", interval) }
         do {
             movies = try modelContext.fetch(
                 FetchDescriptor<Movie>(sortBy: [SortDescriptor(\Movie.title)])
@@ -709,6 +738,9 @@ struct TonightView: View {
             }
             isLoadingRecommendationState = false
             refreshDerivedRecommendationState()
+            #if os(tvOS)
+            needsStateReload = false
+            #endif
             return true
         } catch {
             isLoadingRecommendationState = false

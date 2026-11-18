@@ -19,7 +19,7 @@ struct AppleTVMoviePicksView: View {
     var body: some View {
         VStack(spacing: 26) {
             HStack(alignment: .center, spacing: 36) {
-                AppleTVCinemaGreeting()
+                AppleTVCinemaMarquee()
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 28) {
                     Button { showsCollection = true } label: {
@@ -126,10 +126,18 @@ private struct AppleTVMoviePoster: View {
                         transaction.disablesAnimations = true
                     }
             }
-            Text(movie.title).font(.system(size: 30, weight: .medium, design: .serif)).lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .frame(height: 76, alignment: .top)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("0\(position + 1)")
+                    .font(.system(size: 22, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(movie.title)
+                    .font(.system(size: 32, weight: .semibold, design: .rounded))
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 80, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

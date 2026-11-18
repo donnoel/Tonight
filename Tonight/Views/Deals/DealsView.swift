@@ -19,6 +19,9 @@ private enum DealsFilter: String, CaseIterable, Identifiable {
 
 struct DealsView: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    #if os(tvOS)
+    @Environment(\.appleTVPageIsActive) private var pageIsActive
+    #endif
     @Query(sort: \Movie.title) private var movies: [Movie]
     @Query(sort: \RecommendationEvent.recommendedAt, order: .reverse)
     private var history: [RecommendationEvent]
@@ -68,9 +71,17 @@ struct DealsView: View {
             }
         }
         #endif
+        #if os(tvOS)
+        .task(id: pageIsActive) {
+            guard pageIsActive else { return }
+            guard model.snapshot?.isFresh(at: .now, lifetime: DealsViewModel.cacheLifetime) != true else { return }
+            await model.load(library: librarySnapshots)
+        }
+        #else
         .task {
             await model.load(library: librarySnapshots)
         }
+        #endif
         .task(id: manualRefreshRequest) {
             guard manualRefreshRequest != nil else { return }
             await model.load(

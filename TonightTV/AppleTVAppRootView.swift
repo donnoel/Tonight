@@ -25,44 +25,14 @@ struct AppleTVAppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var tvLibrary = TVLibraryStore.shared
     @State private var selection = AppleTVSection.tonight
-    @State private var isRootPageVisible = false
-    @FocusState private var navigationFocus: AppleTVSection?
+    @State private var visitedSections: Set<AppleTVSection> = [.tonight]
+    @State private var visibleRoots: Set<AppleTVSection> = []
+    @State private var railFocusRequest = 0
 
     var body: some View {
         let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
         HStack(spacing: 0) {
-            VStack(spacing: 24) {
-                Image(systemName: "movieclapper.fill")
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(LinearGradient(colors: [.cyan, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(height: 70)
-                    .accessibilityHidden(true)
-                Spacer(minLength: 0)
-                VStack(spacing: 14) {
-                    ForEach(AppleTVSection.allCases) { section in
-                        Button { selection = section } label: {
-                            VStack(spacing: 9) {
-                                Image(systemName: section.symbol).font(.system(size: 32, weight: .regular))
-                                Text(section.rawValue).font(.system(size: 24, weight: .medium))
-                                    .fixedSize(horizontal: true, vertical: false)
-                            }
-                            .frame(width: 146, height: 100)
-                        }
-                        .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section,
-                            isSelected: selection == section, magnification: railMagnification(for: section)))
-                        .focused($navigationFocus, equals: section)
-                        .accessibilityAddTraits(selection == section ? .isSelected : [])
-                    }
-                }
-                Spacer(minLength: 70)
-            }
-            .padding(.vertical, 20)
-            .frame(width: 170)
-            .background {
-                LinearGradient(colors: [theme.surface.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
-                    .ignoresSafeArea()
-            }
-            .focusSection()
+            AppleTVCinemaRail(selection: $selection, focusRequest: railFocusRequest)
 
             VStack(spacing: 0) {
                 if selection != .tonight || media == .tv {
@@ -70,32 +40,30 @@ struct AppleTVAppRootView: View {
                         subtitle: pageSubtitle, collection: selection == .deals || selection == .settings ? nil : $media)
                 }
 
-                NavigationStack {
-                    sectionContent
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        // This handler belongs to the root page; detail destinations keep native Back.
-                        .onExitCommand { navigationFocus = selection }
-                        .onAppear { isRootPageVisible = true }
-                        .onDisappear { isRootPageVisible = false }
+                ZStack {
+                    ForEach(AppleTVSection.allCases) { section in
+                        if visitedSections.contains(section) || selection == section {
+                            AppleTVRetainedPage(isActive: selection == section,
+                                onExit: { railFocusRequest += 1 },
+                                onRootVisibilityChanged: { visible in
+                                    if visible { visibleRoots.insert(section) }
+                                    else { visibleRoots.remove(section) }
+                                }) {
+                                    sectionContent(section)
+                                }
+                        }
+                    }
                 }
-                .id(selection)
             }
         }
         .background {
-            AppleTVCinemaBackground(animates: isRootPageVisible && selection == .tonight && media == .movies)
+            AppleTVCinemaBackground(animates: visibleRoots.contains(.tonight) && selection == .tonight && media == .movies)
                 .ignoresSafeArea()
         }
         .tint(theme.accent)
         .buttonStyle(.bordered)
         .environment(tvLibrary)
-        .defaultFocus($navigationFocus, .tonight)
-        .task(id: navigationFocus) {
-            guard let focused = navigationFocus, focused != selection else { return }
-            // Let a quick swipe pass over intermediate tabs without loading each page.
-            do { try await Task.sleep(for: .milliseconds(120)) } catch { return }
-            guard !Task.isCancelled else { return }
-            selection = focused
-        }
+        .onChange(of: selection) { _, section in visitedSections.insert(section) }
         .task {
             await LibrarySyncCoordinator.shared.start(in: modelContext)
         }
@@ -106,7 +74,7 @@ struct AppleTVAppRootView: View {
             guard url.scheme == "tonight", url.host == "picks" else { return }
             UserDefaults.standard.set(TonightMedia.movies.rawValue, forKey: "tonightMedia")
             selection = .tonight
-            navigationFocus = .tonight
+            railFocusRequest += 1
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -120,19 +88,6 @@ struct AppleTVAppRootView: View {
         }
     }
 
-    private func railMagnification(for section: AppleTVSection) -> CGFloat {
-        guard let focused = navigationFocus,
-              let focusIndex = AppleTVSection.allCases.firstIndex(of: focused),
-              let index = AppleTVSection.allCases.firstIndex(of: section) else {
-            return section == selection ? 1.12 : 1
-        }
-        switch abs(index - focusIndex) {
-        case 0: return 1.18
-        case 1: return 1.06
-        default: return 1
-        }
-    }
-
     private var pageSubtitle: String {
         switch selection {
         case .tonight: media == .movies ? "Great movies. Already yours." : "A little time. A great show."
@@ -143,13 +98,76 @@ struct AppleTVAppRootView: View {
         }
     }
 
-    @ViewBuilder private var sectionContent: some View {
-        switch selection {
+    @ViewBuilder private func sectionContent(_ section: AppleTVSection) -> some View {
+        switch section {
         case .tonight: TVMediaView(page: .tonight)
         case .library: TVMediaView(page: .library)
         case .deals: DealsView()
         case .history: TVMediaView(page: .history)
         case .settings: SettingsView()
+        }
+    }
+}
+
+/// Focus animation is isolated here so every highlight does not invalidate the data-heavy page.
+private struct AppleTVCinemaRail: View {
+    @Binding var selection: AppleTVSection
+    let focusRequest: Int
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @FocusState private var navigationFocus: AppleTVSection?
+
+    var body: some View {
+        let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
+        VStack(spacing: 24) {
+            Image(systemName: "movieclapper.fill")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(LinearGradient(colors: [.cyan, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(height: 70).accessibilityHidden(true)
+            Spacer(minLength: 0)
+            VStack(spacing: 14) {
+                ForEach(AppleTVSection.allCases) { section in
+                    Button { selection = section } label: {
+                        VStack(spacing: 9) {
+                            Image(systemName: section.symbol).font(.system(size: 32, weight: .regular))
+                            Text(section.rawValue).font(.system(size: 24, weight: .medium))
+                                .fixedSize(horizontal: true, vertical: false)
+                        }.frame(width: 146, height: 100)
+                    }
+                    .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section,
+                        isSelected: selection == section, magnification: magnification(for: section)))
+                    .focused($navigationFocus, equals: section)
+                    .accessibilityAddTraits(selection == section ? .isSelected : [])
+                }
+            }
+            Spacer(minLength: 70)
+        }
+        .padding(.vertical, 20).frame(width: 170)
+        .background {
+            LinearGradient(colors: [theme.surface.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
+                .ignoresSafeArea()
+        }
+        .focusSection()
+        .defaultFocus($navigationFocus, .tonight)
+        .onChange(of: focusRequest) { navigationFocus = selection }
+        .task(id: navigationFocus) {
+            guard let focused = navigationFocus, focused != selection else { return }
+            do { try await Task.sleep(for: .milliseconds(120)) } catch { return }
+            guard !Task.isCancelled else { return }
+            selection = focused
+        }
+    }
+
+    private func magnification(for section: AppleTVSection) -> CGFloat {
+        guard let focused = navigationFocus,
+              let focusIndex = AppleTVSection.allCases.firstIndex(of: focused),
+              let index = AppleTVSection.allCases.firstIndex(of: section) else {
+            return section == selection ? 1.12 : 1
+        }
+        switch abs(index - focusIndex) {
+        case 0: return 1.18
+        case 1: return 1.06
+        default: return 1
         }
     }
 }
