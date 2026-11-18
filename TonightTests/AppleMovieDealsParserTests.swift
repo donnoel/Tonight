@@ -142,6 +142,7 @@ final class AppleMovieDealsPaginationTests: XCTestCase {
             "id": collectionID,
             "items": ids.map { [
                 "id": "umc.cmc.\($0)", "type": "Movie", "title": $0,
+                "releaseDate": 717379200000,
                 "url": "https://tv.apple.com/us/movie/\($0)/umc.cmc.\($0)?ctx_price=tvs.vds.9023_\(price)_\(price)_1",
                 "images": ["shelfItemImage": [
                     "url": "https://is1-ssl.mzstatic.com/image/thumb/Video/\($0)/{w}x{h}.{f}",
@@ -176,6 +177,9 @@ final class AppleMovieDealsPaginationTests: XCTestCase {
         let deals = try await provider.fetchDeals()
         XCTAssertEqual(deals.map(\.id), ["umc.cmc.one", "umc.cmc.two", "umc.cmc.three"])
         XCTAssertEqual(deals.map(\.position), [0, 1, 2])
+        XCTAssertNil(deals[0].releaseYear)
+        XCTAssertEqual(deals[1].releaseYear, 1992)
+        XCTAssertEqual(deals[2].releaseYear, 1992)
         XCTAssertEqual(Set(deals.map(\.retrievedAt)).count, 1)
         XCTAssertEqual(
             deals[1].artworkURL?.absoluteString,
@@ -247,6 +251,43 @@ final class AppleMovieDealsPaginationTests: XCTestCase {
         )
 
         XCTAssertFalse(snapshot.isFresh(at: .now, lifetime: 21_600))
+    }
+
+    func testPosterOnlyVersionThreeCacheNeedsYearRefresh() {
+        let snapshot = DealCatalogSnapshot(
+            catalogVersion: 3, items: [], lastSuccessfulRefresh: .now, enrichmentState: .complete
+        )
+        XCTAssertFalse(snapshot.isFresh(at: .now, lifetime: 21_600))
+    }
+
+    func testAppleYearFallbackKeepsTMDBMatchStateSeparate() throws {
+        let data = Self.page(ids: ["two"])
+        let appleDeal = try XCTUnwrap(AppleMovieDealsParser.parsePage(
+            data: data, collectionID: Self.collectionID, retrievedAt: .now
+        ).deals.first)
+        let unresolved = CachedMovieDeal(
+            appleDeal: appleDeal, metadata: nil, matchStatus: .unavailable, matchNote: nil
+        )
+        XCTAssertEqual(unresolved.releaseYear, 1992)
+        XCTAssertEqual(unresolved.matchStatus, .unavailable)
+        let matched = CachedMovieDeal(
+            appleDeal: appleDeal, metadata: DealsTestSupport.metadata(year: 1993),
+            matchStatus: .matched, matchNote: nil
+        )
+        XCTAssertEqual(matched.releaseYear, 1993)
+    }
+
+    func testOldDealsWithoutAppleYearRemainReadable() throws {
+        let original = DealsTestSupport.appleDeal()
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(original)
+        ) as? [String: Any])
+        json.removeValue(forKey: "releaseYear")
+        let decoded = try JSONDecoder().decode(
+            AppleMovieDeal.self, from: JSONSerialization.data(withJSONObject: json)
+        )
+        XCTAssertEqual(decoded.id, original.id)
+        XCTAssertNil(decoded.releaseYear)
     }
 
     func testCancellationPropagates() async {

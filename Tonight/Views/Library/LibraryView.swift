@@ -378,7 +378,11 @@ private struct MovieCard: View {
             Text(movie.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
+                #if os(tvOS)
+                .lineLimit(2, reservesSpace: true)
+                #else
                 .lineLimit(2)
+                #endif
 
             Text(movie.releaseYear.map(String.init) ?? "Year unknown")
                 .font(.subheadline)

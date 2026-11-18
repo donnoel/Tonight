@@ -73,6 +73,7 @@ struct AppleMovieDealsProvider: AppleMovieDealsProviding, Sendable {
             for deal in page.deals where seenIDs.insert(deal.id).inserted {
                 deals.append(AppleMovieDeal(
                     title: deal.title, appleURL: deal.appleURL, artworkURL: deal.artworkURL,
+                    releaseYear: deal.releaseYear,
                     priceInCents: deal.priceInCents,
                     contentIdentifier: deal.contentIdentifier, position: deals.count,
                     retrievedAt: retrievedAt, priceEvidence: deal.priceEvidence
@@ -177,6 +178,7 @@ enum AppleMovieDealsParser {
                 let title: String
                 let url: URL
                 let images: Images?
+                let releaseDate: Double?
             }
             let data: Payload
         }
@@ -196,6 +198,7 @@ enum AppleMovieDealsParser {
                     sourceWidth: item.images?.shelfItemImage?.width,
                     sourceHeight: item.images?.shelfItemImage?.height
                 ),
+                releaseYear: item.releaseDate.flatMap(releaseYear(fromMilliseconds:)),
                 priceInCents: 499,
                 contentIdentifier: item.id, position: deals.count, retrievedAt: retrievedAt,
                 priceEvidence: .buyCollectionAndLinkContext
@@ -281,6 +284,14 @@ enum AppleMovieDealsParser {
             throw AppleMovieDealsError.pageFormatChanged
         }
         return deals
+    }
+
+    private static func releaseYear(fromMilliseconds value: Double) -> Int? {
+        guard value.isFinite else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let year = calendar.component(.year, from: Date(timeIntervalSince1970: value / 1_000))
+        return (1888...2100).contains(year) ? year : nil
     }
 
     private static func isUSMovieURL(_ url: URL) -> Bool {

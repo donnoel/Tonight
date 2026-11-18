@@ -153,6 +153,7 @@ struct DealsView: View {
                                     DealMovieCard(
                                         item: item,
                                         isInLibrary: libraryMovie != nil,
+                                        showsRationale: selectedFilter == .recommended,
                                         rationale: selectedFilter == .recommended
                                             ? recommendation?.rationale
                                             : nil
@@ -336,6 +337,7 @@ struct DealsView: View {
 private struct DealMovieCard: View {
     let item: CachedMovieDeal
     let isInLibrary: Bool
+    let showsRationale: Bool
     let rationale: String?
 
     var body: some View {
@@ -362,31 +364,44 @@ private struct DealMovieCard: View {
             Text(item.metadata?.title ?? item.appleDeal.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
+                #if os(tvOS)
+                .lineLimit(2, reservesSpace: true)
+                #else
                 .lineLimit(2)
+                #endif
 
-            Text(item.metadata?.releaseYear.map(String.init) ?? "Year unavailable")
+            Text(item.releaseYear.map(String.init) ?? " ")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            #if os(tvOS)
+            Label("In Library", systemImage: "checkmark.circle.fill")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1, reservesSpace: true)
+                .opacity(isInLibrary ? 1 : 0)
+                .accessibilityHidden(!isInLibrary)
+
+            if showsRationale {
+                Text(rationale ?? " ")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(4, reservesSpace: true)
+            }
+            #else
             if isInLibrary {
                 Label("In Library", systemImage: "checkmark.circle.fill")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            if item.matchStatus != .matched {
-                Label("TMDB match unresolved", systemImage: "questionmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             if let rationale {
                 Text(rationale)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(4)
             }
+            #endif
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
@@ -397,11 +412,10 @@ private struct DealMovieCard: View {
     private var accessibilityLabel: String {
         var parts = [
             item.metadata?.title ?? item.appleDeal.title,
-            item.metadata?.releaseYear.map(String.init) ?? "Year unavailable",
+            item.releaseYear.map(String.init) ?? "Year unavailable",
             "Buy for \(item.appleDeal.formattedPrice)"
         ]
         if isInLibrary { parts.append("Already in Library") }
-        if item.matchStatus != .matched { parts.append("TMDB match unresolved") }
         return parts.joined(separator: ", ")
     }
 }
@@ -429,6 +443,8 @@ private struct DealDestinationView: View {
             displayMovie = Movie(
                 title: item.appleDeal.title,
                 importedTitle: item.appleDeal.title,
+                importedYear: item.releaseYear,
+                releaseYear: item.releaseYear,
                 resolutionStatus: .unresolved,
                 resolutionNote: item.matchNote ?? "TMDB metadata is unavailable."
             )

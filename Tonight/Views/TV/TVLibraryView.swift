@@ -44,11 +44,27 @@ struct TVLibraryView: View {
                             NavigationLink { TVShowDetailView(showID: show.id) } label: {
                                 VStack(alignment: .leading, spacing: 8) {
                                     RemoteArtworkView(url: TMDBImageURL.make(path: show.posterPath, size: .posterCard), aspectRatio: 2 / 3)
+                                    #if os(tvOS)
+                                    Text(show.title).font(.headline).foregroundStyle(.primary)
+                                        .lineLimit(2, reservesSpace: true)
+                                    Text(show.ownershipLabel).font(.caption).foregroundStyle(.secondary)
+                                        .lineLimit(2, reservesSpace: true)
+                                    Label("Paused", systemImage: "pause.circle").font(.caption)
+                                        .lineLimit(1, reservesSpace: true)
+                                        .opacity(show.isPaused ? 1 : 0)
+                                        .accessibilityHidden(!show.isPaused)
+                                    Label(show.tmdbID == nil ? "Choose a match" : "Details pending",
+                                          systemImage: show.tmdbID == nil ? "questionmark.circle" : "arrow.down.circle")
+                                        .font(.caption).lineLimit(1, reservesSpace: true)
+                                        .opacity(show.tmdbID == nil || !show.metadataComplete ? 1 : 0)
+                                        .accessibilityHidden(show.tmdbID != nil && show.metadataComplete)
+                                    #else
                                     Text(show.title).font(.headline).foregroundStyle(.primary)
                                     Text(show.ownershipLabel).font(.caption).foregroundStyle(.secondary)
                                     if show.isPaused { Label("Paused", systemImage: "pause.circle").font(.caption) }
                                     if show.tmdbID == nil { Label("Choose a match", systemImage: "questionmark.circle").font(.caption) }
                                     else if !show.metadataComplete { Label("Details pending", systemImage: "arrow.down.circle").font(.caption) }
+                                    #endif
                                 }
                             }
                             #if os(tvOS)

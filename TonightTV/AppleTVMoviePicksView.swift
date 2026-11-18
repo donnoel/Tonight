@@ -158,10 +158,10 @@ private struct AppleTVMoviePoster: View {
             }
             Text(movie.title)
                 .font(.system(size: 32, weight: .semibold, design: .rounded))
-                .lineLimit(2).multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(2).multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, 12)
-                .frame(height: 80, alignment: .topLeading)
+                .frame(height: 80, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

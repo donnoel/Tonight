@@ -8,6 +8,7 @@ struct AppleMovieDeal: Codable, Hashable, Identifiable, Sendable {
     let title: String
     let appleURL: URL
     let artworkURL: URL?
+    let releaseYear: Int?
     let priceInCents: Int
     let contentIdentifier: String?
     let position: Int
@@ -18,6 +19,7 @@ struct AppleMovieDeal: Codable, Hashable, Identifiable, Sendable {
         title: String,
         appleURL: URL,
         artworkURL: URL? = nil,
+        releaseYear: Int? = nil,
         priceInCents: Int,
         contentIdentifier: String?,
         position: Int,
@@ -27,6 +29,7 @@ struct AppleMovieDeal: Codable, Hashable, Identifiable, Sendable {
         self.title = title
         self.appleURL = appleURL
         self.artworkURL = artworkURL
+        self.releaseYear = releaseYear
         self.priceInCents = priceInCents
         self.contentIdentifier = contentIdentifier
         self.position = position
@@ -137,6 +140,8 @@ struct CachedMovieDeal: Codable, Hashable, Identifiable, Sendable {
     let matchNote: String?
 
     var id: String { appleDeal.id }
+
+    var releaseYear: Int? { metadata?.releaseYear ?? appleDeal.releaseYear }
 }
 
 enum DealCatalogEnrichmentState: String, Codable, Sendable {
@@ -156,7 +161,7 @@ struct DealCatalogSnapshot: Codable, Equatable, Sendable {
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,
-        catalogVersion: Int? = 3,
+        catalogVersion: Int? = 4,
         items: [CachedMovieDeal],
         lastSuccessfulRefresh: Date,
         enrichmentState: DealCatalogEnrichmentState
@@ -169,7 +174,7 @@ struct DealCatalogSnapshot: Codable, Equatable, Sendable {
     }
 
     func isFresh(at date: Date, lifetime: TimeInterval) -> Bool {
-        catalogVersion == 3 && date.timeIntervalSince(lastSuccessfulRefresh) < lifetime
+        catalogVersion == 4 && date.timeIntervalSince(lastSuccessfulRefresh) < lifetime
     }
 }
 
