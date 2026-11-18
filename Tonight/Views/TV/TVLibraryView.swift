@@ -18,6 +18,16 @@ struct TVLibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                #if os(tvOS)
+                HStack(spacing: 24) {
+                    Text("\(store.shows.count) shows").font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Search", systemImage: "magnifyingglass") { showsSearch = true }
+                        .disabled(store.shows.isEmpty)
+                    Button("Load Details", systemImage: "arrow.down.circle") { Task { await store.loadDetails() } }
+                        .disabled(store.isBusy || store.needsDetails == 0)
+                }.focusSection()
+                #endif
                 TVStatusView()
                 if store.shows.isEmpty {
                     #if os(tvOS)
@@ -42,7 +52,7 @@ struct TVLibraryView: View {
                                 }
                             }
                             #if os(tvOS)
-                            .buttonStyle(.card)
+                            .buttonStyle(AppleTVCardButtonStyle())
                             #else
                             .buttonStyle(.plain)
                             #endif
@@ -56,7 +66,9 @@ struct TVLibraryView: View {
             .padding(24)
             #endif
         }
+        #if !os(tvOS)
         .navigationTitle("TV Library")
+        #endif
         #if os(tvOS)
         .sheet(isPresented: $showsSearch) {
             AppleTVSearchView(title: "Search TV Shows", prompt: "Show title", text: $search)
@@ -64,6 +76,7 @@ struct TVLibraryView: View {
         #else
         .searchable(text: $search, prompt: "Search your shows")
         #endif
+        #if !os(tvOS)
         .toolbar {
             #if os(tvOS)
             ToolbarItem(placement: .primaryAction) {
@@ -83,6 +96,7 @@ struct TVLibraryView: View {
             }
             #endif
         }
+        #endif
         #if !os(tvOS)
         .sheet(isPresented: $showsImport) { TVImportView() }
         #endif
@@ -92,6 +106,28 @@ struct TVLibraryView: View {
 struct TVHistoryView: View {
     @Environment(TVLibraryStore.self) private var store
     var body: some View {
+        #if os(tvOS)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 24) {
+                if store.document.history.isEmpty {
+                    ContentUnavailableView("A New Chapter", systemImage: "clock",
+                        description: Text("Sessions appear here when you mark episodes watched."))
+                } else {
+                    Button("Undo Last Watched Session", systemImage: "arrow.uturn.backward") { store.undoLastWatch() }
+                    ForEach(store.document.history.reversed()) { watch in
+                        AppleTVPanel(title: watch.showTitle) {
+                            Text(watch.watchedAt, format: .dateTime.month().day().hour().minute())
+                                .font(.callout).foregroundStyle(.secondary)
+                            ForEach(watch.episodes) { Text("\($0.position.label)  \($0.name)").font(.callout) }
+                        }
+                        .focusable()
+                    }
+                }
+            }
+            .padding(.horizontal, AppleTVTheme.pageInset)
+            .padding(.vertical, 24)
+        }
+        #else
         List {
             if store.document.history.isEmpty {
                 ContentUnavailableView("A New Chapter", systemImage: "clock", description: Text("Your next viewing sessions will appear here when you mark episodes watched. Your shows start as previously seen, without inventing past viewing dates."))
@@ -110,5 +146,6 @@ struct TVHistoryView: View {
             }
         }
         .navigationTitle("TV History")
+        #endif
     }
 }

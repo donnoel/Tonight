@@ -14,12 +14,17 @@ struct MovieDealContext {
 struct MovieRecommendationContext {
     let event: RecommendationEvent
     let onChoose: () -> Void
+    var onRespond: ((RecommendationResponse) -> Void)? = nil
 }
 
 struct MovieDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #if os(tvOS)
+    @Environment(\.colorScheme) private var televisionScheme
+    @Environment(\.colorSchemeContrast) private var televisionContrast
+    #endif
     @State private var saveError: String?
     @State private var movieToMatch: Movie?
     @State private var isUSStorefront = Locale.current.region?.identifier == "US"
@@ -30,10 +35,9 @@ struct MovieDetailView: View {
 
     var body: some View {
         detailContent
-        .navigationTitle(movie.title)
         #if !os(tvOS)
+        .navigationTitle(movie.title)
         .navigationBarTitleDisplayMode(.inline)
-        #endif
         .toolbar {
             if showsPersonalization {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -46,6 +50,7 @@ struct MovieDetailView: View {
                 }
             }
         }
+        #endif
         .alert("Couldn’t Save Your Taste", isPresented: saveErrorIsPresented) {
             Button("OK", role: .cancel) {
                 saveError = nil
@@ -68,18 +73,7 @@ struct MovieDetailView: View {
     @ViewBuilder
     private var detailContent: some View {
         #if os(tvOS)
-        ScrollView {
-            HStack(alignment: .top, spacing: 70) {
-                poster(width: 300)
-                details
-            }
-            .padding(70)
-            .focusSection()
-        }
-        .background {
-            RemoteArtworkView(url: backdropArtworkURL, aspectRatio: 16 / 9, cornerRadius: 0, maxPixelSize: 1920)
-                .opacity(0.12).ignoresSafeArea()
-        }
+        televisionDetail
         #else
         ScrollView {
             VStack(spacing: 0) {
@@ -106,6 +100,109 @@ struct MovieDetailView: View {
         }
         #endif
     }
+
+    #if os(tvOS)
+    private var televisionDetail: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                Button("Back", systemImage: "chevron.left") { dismiss() }
+                    .buttonStyle(AppleTVActionButtonStyle())
+                HStack(alignment: .top, spacing: 64) {
+                    poster(width: 290)
+                    VStack(alignment: .leading, spacing: 24) {
+                        Text(movie.title).font(.largeTitle.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !movie.televisionMetadata.isEmpty {
+                            Text(movie.televisionMetadata).font(.callout).foregroundStyle(.secondary)
+                        }
+                        televisionActions
+                        if showsMatchRecovery {
+                            Text(movie.resolutionNote ?? "This title needs a TMDB match. Choose Find Match under More to load its details.")
+                                .font(.callout).foregroundStyle(.secondary)
+                        }
+                        if let context = dealContext {
+                            Label("\(context.price) purchase\(context.isInLibrary ? " · In Library" : "")", systemImage: "tag")
+                                .font(.headline)
+                            Text("Listed by Apple as of \(context.lastRefreshed.formatted(date: .abbreviated, time: .shortened)). Confirm the price before purchasing.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        if !movie.overviewText.isEmpty {
+                            Text(movie.overviewText).font(.body).lineSpacing(4)
+                                .fixedSize(horizontal: false, vertical: true).focusable()
+                        }
+                        if let context = recommendationContext {
+                            Text(RecommendationEngine.rationale(for: movie, kind: context.event.kind, mood: context.event.mood))
+                                .font(.callout).foregroundStyle(.secondary).focusable()
+                        } else if let rationale = dealContext?.recommendationRationale {
+                            Text(rationale).font(.callout).foregroundStyle(.secondary).focusable()
+                        }
+                        if let originalTitle = movie.originalTitle, originalTitle != movie.title {
+                            detailSection(title: "Original Title") { Text(originalTitle).font(.callout) }
+                        }
+                        if let average = movie.tmdbVoteAverage, let count = movie.tmdbVoteCount {
+                            detailSection(title: "TMDB Rating") {
+                                Text("\(average.formatted(.number.precision(.fractionLength(1)))) / 10 · \(count.formatted()) votes").font(.callout)
+                            }
+                        }
+                        if let director = movie.director {
+                            detailSection(title: "Director") { Text(director).font(.callout) }
+                        }
+                        if !movie.primaryCast.isEmpty {
+                            detailSection(title: "Cast") { Text(movie.primaryCast.joined(separator: ", ")).font(.callout) }
+                        }
+                        if let language = movie.originalLanguage, !language.isEmpty {
+                            detailSection(title: "Original Language") { Text(language.uppercased()).font(.callout) }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.horizontal, AppleTVTheme.pageInset)
+            .padding(.top, 12).padding(.bottom, 40)
+        }
+        .background(AppleTVTheme(scheme: televisionScheme, contrast: televisionContrast).background)
+    }
+
+    private var televisionActions: some View {
+        HStack(spacing: 24) {
+            if let context = recommendationContext {
+                if context.event.response == .pending {
+                    Button("Choose", systemImage: "checkmark") {
+                        context.onChoose()
+                        if context.event.response == .accepted { dismiss() }
+                    }
+                    .buttonStyle(AppleTVActionButtonStyle(prominent: true))
+                    .accessibilityHint("Chooses this recommendation and marks it watched")
+                } else if context.event.response == .accepted {
+                    Label("Chosen for Tonight", systemImage: "checkmark.circle").font(.callout)
+                }
+            } else if showsPersonalization {
+                watchedButton.buttonStyle(AppleTVActionButtonStyle(prominent: true))
+            }
+            if let context = dealContext, isUSStorefront {
+                Link("View on Apple TV", destination: context.appleURL)
+                    .buttonStyle(AppleTVActionButtonStyle())
+                    .accessibilityHint("Leaves Tonight and opens Apple’s movie page")
+            }
+            if showsPersonalization {
+                Menu("More", systemImage: "ellipsis") {
+                    if let context = recommendationContext, context.event.response == .pending, let onRespond = context.onRespond {
+                        ForEach([RecommendationResponse.notTonight, .watched, .rejected], id: \.self) { response in
+                            Button(response == .notTonight ? "Not Tonight" : (response == .watched ? "Already Watched" : "Not Interested")) {
+                                onRespond(response)
+                                if context.event.response == response { dismiss() }
+                            }
+                        }
+                    }
+                    watchedButton
+                    Button(showsMatchRecovery ? "Find Match" : "Change Movie Match", systemImage: "link") { movieToMatch = movie }
+                }
+                .buttonStyle(AppleTVActionButtonStyle())
+            }
+        }
+        .focusSection()
+    }
+    #endif
 
     private var backdrop: some View {
         ZStack(alignment: .bottom) {
@@ -330,6 +427,21 @@ struct MovieDetailView: View {
                 )
             }
 
+            #if os(tvOS)
+            Text(RecommendationEngine.rationale(for: movie, kind: context.event.kind, mood: context.event.mood))
+                .font(.callout).foregroundStyle(.secondary)
+            if context.event.response == .pending, let onRespond = context.onRespond {
+                Menu("Other Options", systemImage: "ellipsis.circle") {
+                    ForEach([RecommendationResponse.notTonight, .watched, .rejected], id: \.self) { response in
+                        Button(response == .notTonight ? "Not Tonight" : (response == .watched ? "Already Watched" : "Not Interested")) {
+                            onRespond(response)
+                            if context.event.response == response { dismiss() }
+                        }
+                    }
+                }
+            }
+            #endif
+
             Text("Choosing records this recommendation as your selection for tonight and marks the movie watched.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -373,7 +485,11 @@ struct MovieDetailView: View {
                 systemImage: movie.isWatched ? "eye.circle.fill" : "eye.circle"
             )
         }
+        #if os(tvOS)
+        .buttonStyle(AppleTVActionButtonStyle(prominent: true))
+        #else
         .buttonStyle(.bordered)
+        #endif
         .accessibilityValue(movie.isWatched ? "Selected" : "Not selected")
     }
 

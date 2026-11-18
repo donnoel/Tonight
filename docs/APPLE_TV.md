@@ -2,6 +2,8 @@
 
 The `TonightTV` target is a native tvOS app sharing Tonight’s existing local models, recommendation engines, and private CloudKit sync. It uses poster grids, a compact row of up to three movie picks, native focusable cards, and separate Movies / TV Shows collections. Minimum deployment is tvOS 18.
 
+The November 17 owner review changed the initial warm-accent design to blue and prioritized movie artwork over controls. Tonight uses three large portrait posters with titles and a short lane/year caption. Mood and tuning share one sheet. The main screen gives its remaining height to the three cards, without a repeated Tonight heading or response footer. Select a card to open its details, recommendation rationale, Choose action, and other response options. Navigation uses text tabs with explicit contrasting blue focus treatment. Poster focus outlines hug the artwork. Movie details use a TV-specific poster/text composition, compact primary actions, and a More menu for secondary actions; additional credits and ratings remain below the overview.
+
 ## Library setup
 
 Use the same iCloud account as the iPhone or iPad containing the current library. Both collections fetch automatically at launch and foreground entry. **Get Libraries from iCloud**, shown on empty collections and in Settings, explicitly retries both collections and reports each sync status and local count separately.
@@ -10,9 +12,15 @@ This downloads existing CloudKit library records, including matched metadata, ar
 
 An empty fetch does not replace a populated library. Existing account isolation, independent field revisions, durable outboxes, membership tombstones, and local backups remain in use. See [movie sync](LIBRARY_SYNC.md) and [TV sync](TV_SYNC.md). [Apple documents tvOS storage as purgeable](https://developer.apple.com/library/archive/documentation/General/Conceptual/AppleTV_PG/iCloudStorage.html); the private iCloud collection is important for restoring the TV’s local copy. Keep the original imported libraries on the iPhone and iPad.
 
+## Shared television theme
+
+`TonightTV/AppleTVTheme.swift` owns the adaptive cinema palette, page margins, panels, page header, and fixed card focus outline. Every main section uses the same root background and typography. Tonight’s movie view has one inviting heading and compact controls above the cards; other sections use the shared page header. Movie/TV collection selection is a menu in the page header. Dark appearance uses neutral charcoal surfaces with light-blue accents; light appearance uses off-white/white surfaces and a readable blue accent. Text uses semantic system styles and primary/secondary colors.
+
+TV Library and Deals have explicit, readable action rows. Movie and TV History use spaced panels/cards, and Settings uses scrollable sections rather than dense full-width native form rows. iPhone/iPad keep their established presentation. Artwork crop policy, performance qualification, and deeper navigation features remain owned by their separate issues. The theme work is tracked by [#4](https://github.com/donnoel/Tonight/issues/4); physical visual acceptance is recorded there.
+
 ## Controls
 
-- Tonight: select Movies or TV Shows. Pick a mood, tune the movie filters, and use **Find My Picks** / **More Ideas**. Movie **Choose** records the selection and marks it watched, matching iOS behavior. It does not start playback.
+- Tonight: select Movies or TV Shows. Pick a mood, tune the movie filters, and use **Find My Picks** / **More Ideas**. Select a movie card for its details and response controls. Movie **Choose** records the selection and marks it watched, matching iOS behavior. It does not start playback.
 - Library: search, shuffle, filter, sort, and open movie or TV details. Movie watch changes and TV viewing-state changes use the same sync path as iOS.
 - TV sessions: select a time and mood, plan an owned episode session, record the first episode or full session afterward, or continue from an explicit saved position. Planning alone does not mark episodes watched.
 - Deals: the separate current Apple U.S. $4.99 candidate pool, including existing ownership detection, cache fallback, and local taste ranking. Only the explicit deal page can open Apple’s purchase destination.

@@ -59,46 +59,30 @@ struct LibraryView: View {
     var body: some View {
         let displayedMovies = displayedMovies
         let unresolvedCount = unresolvedCount
-        return Group {
-            if movies.isEmpty {
-                #if os(tvOS)
-                ScrollView { AppleTVCloudLibraryView().padding(60) }
-                #else
-                ContentUnavailableView {
-                    Label("Your Library Is Empty", systemImage: "rectangle.stack")
-                } description: {
-                    Text("Import movie titles to build the collection Tonight will recommend from.")
-                } actions: {
-                    Button("Import Library") {
-                        presentedSheet = .importLibrary
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                #endif
-            } else if displayedMovies.isEmpty {
-                filteredEmptyState
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 28) {
-                        ForEach(displayedMovies) { movie in
-                            NavigationLink {
-                                MovieDetailView(movie: movie)
-                            } label: {
-                                MovieCard(movie: movie)
-                            }
-                            #if os(tvOS)
-                            .buttonStyle(.card)
-                            #else
-                            .buttonStyle(.plain)
-                            #endif
-                        }
-                    }
-                    .padding(.horizontal, libraryPadding)
-                    .padding(.vertical, libraryPadding)
+        return VStack(spacing: 0) {
+            #if os(tvOS)
+            HStack(spacing: 24) {
+                Text("\(displayedMovies.count.formatted()) movies").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Search", systemImage: "magnifyingglass") { showsSearch = true }.disabled(movies.isEmpty)
+                Button("Shuffle", systemImage: "shuffle") { shuffleMovies() }.disabled(movies.isEmpty)
+                Button("Filter & Sort", systemImage: "slider.horizontal.3") { presentedSheet = .libraryOptions }
+                    .disabled(movies.isEmpty)
+                if unresolvedCount > 0 {
+                    Button("Match Movies", systemImage: "link") { presentedSheet = .matchLibrary }
                 }
             }
+            .font(.callout)
+            .padding(.horizontal, AppleTVTheme.pageInset)
+            .padding(.bottom, 16)
+            .focusSection()
+            #endif
+            libraryContent(displayedMovies: displayedMovies)
         }
+
+        #if !os(tvOS)
         .navigationTitle("Library")
+        #endif
         #if os(tvOS)
         .sheet(isPresented: $showsSearch) {
             AppleTVSearchView(title: "Search Movies", prompt: "Title, cast, director, or genre", text: $searchText)
@@ -106,13 +90,8 @@ struct LibraryView: View {
         #else
         .searchable(text: $searchText, prompt: "Search your library")
         #endif
+        #if !os(tvOS)
         .toolbar {
-            #if os(tvOS)
-            ToolbarItem(placement: .primaryAction) {
-                Button("Search Movies", systemImage: "magnifyingglass") { showsSearch = true }
-                    .disabled(movies.isEmpty)
-            }
-            #endif
             if !movies.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -164,6 +143,7 @@ struct LibraryView: View {
             }
             #endif
         }
+        #endif
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .importLibrary:
@@ -186,6 +166,49 @@ struct LibraryView: View {
         }
         .onChange(of: movies.map(\.id), initial: true) { _, movieIDs in
             updateShuffleRanks(for: movieIDs)
+        }
+    }
+
+    @ViewBuilder
+    private func libraryContent(displayedMovies: [Movie]) -> some View {
+        Group {
+            if movies.isEmpty {
+                #if os(tvOS)
+                ScrollView { AppleTVCloudLibraryView().padding(60) }
+                #else
+                ContentUnavailableView {
+                    Label("Your Library Is Empty", systemImage: "rectangle.stack")
+                } description: {
+                    Text("Import movie titles to build the collection Tonight will recommend from.")
+                } actions: {
+                    Button("Import Library") {
+                        presentedSheet = .importLibrary
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                #endif
+            } else if displayedMovies.isEmpty {
+                filteredEmptyState
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 28) {
+                        ForEach(displayedMovies) { movie in
+                            NavigationLink {
+                                MovieDetailView(movie: movie)
+                            } label: {
+                                MovieCard(movie: movie)
+                            }
+                            #if os(tvOS)
+                            .buttonStyle(AppleTVCardButtonStyle())
+                            #else
+                            .buttonStyle(.plain)
+                            #endif
+                        }
+                    }
+                    .padding(.horizontal, libraryPadding)
+                    .padding(.vertical, libraryPadding)
+                }
+            }
         }
     }
 

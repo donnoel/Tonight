@@ -12,125 +12,109 @@ struct AppleTVMoviePicksView: View {
     @Binding var moreAdventurous: Bool
     let refresh: () -> Void
     let respond: (RecommendationEvent, RecommendationResponse) -> Void
+    @AppStorage("tonightMedia") private var media = TonightMedia.movies
     @State private var showsTuning = false
 
     var body: some View {
-        GeometryReader { geometry in
-            if totalCount == 0 {
-                ScrollView { AppleTVCloudLibraryView().padding(50) }
-            } else {
-                VStack(alignment: .leading, spacing: 22) {
-                    HStack(spacing: 30) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Make a night of it.").font(.title2.bold())
-                            Text("Great movies. Already yours.").font(.callout).foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 20)
-                        Picker("In the mood for", selection: $mood) {
-                            ForEach(RecommendationMood.allCases) { Text($0.title).tag($0.rawValue) }
-                        }
-                        .pickerStyle(.menu)
-                        Button("Tune Picks", systemImage: "slider.horizontal.3") { showsTuning = true }
-                        Button(events.isEmpty ? "Find My Picks" : "More Ideas", systemImage: "arrow.clockwise", action: refresh)
-                            .disabled(isLoading || (events.isEmpty && remainingCount == 0))
-                    }
-                    .focusSection()
-
-                    if isLoading {
-                        ProgressView("Loading your picks…").frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if events.isEmpty {
-                        ContentUnavailableView("An evening of possibilities", systemImage: "movieclapper",
-                            description: Text("Choose Find My Picks, or try a different mood and tuning if no movies fit."))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        HStack(alignment: .top, spacing: 36) {
-                            ForEach(events.prefix(3)) { event in
-                                if let movie = event.movie {
-                                    AppleTVMovieNightCard(event: event, movie: movie,
-                                        artworkHeight: min(230, max(100, geometry.size.height - 520))) {
-                                            respond(event, $0)
-                                        }
-                                        .frame(maxWidth: 600)
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    }
-                    Text("\(remainingCount.formatted()) movies left to browse · \(totalCount.formatted()) in your library")
-                        .font(.caption).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("tonight.eligibleMovieCount")
+        VStack(spacing: 20) {
+            HStack(spacing: 24) {
+                Text("Your movie night").font(.title2.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 12)
+                Picker("Collection", selection: $media) {
+                    ForEach(TonightMedia.allCases) { Text($0.title).tag($0) }
                 }
-                .padding(.horizontal, 60)
-                .padding(.vertical, 24)
+                .pickerStyle(.menu).labelsHidden()
+                .accessibilityIdentifier("mediaPicker")
+                Button { showsTuning = true } label: {
+                    Image(systemName: "slider.horizontal.3").frame(width: 48, height: 48)
+                }
+                .accessibilityLabel("Mood and Filters")
+                Button(action: refresh) {
+                    Image(systemName: "arrow.clockwise").frame(width: 48, height: 48)
+                }
+                .accessibilityLabel(events.isEmpty ? "Find My Picks" : "More Ideas")
+                .disabled(isLoading || (events.isEmpty && remainingCount == 0))
+            }
+            .focusSection()
+
+            if totalCount == 0 {
+                ScrollView { AppleTVCloudLibraryView() }
+            } else if isLoading {
+                ProgressView("Loading your picks…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if events.isEmpty {
+                ContentUnavailableView("An evening of possibilities", systemImage: "movieclapper",
+                    description: Text("Use More Ideas to find a movie, or change Mood and Filters."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                HStack(alignment: .top, spacing: 40) {
+                    ForEach(events.prefix(3)) { event in
+                        if let movie = event.movie {
+                            NavigationLink {
+                                MovieDetailView(movie: movie, recommendationContext: .init(
+                                    event: event,
+                                    onChoose: { respond(event, .accepted) },
+                                    onRespond: { respond(event, $0) }
+                                ))
+                            } label: {
+                                AppleTVMoviePoster(event: event, movie: movie)
+                            }
+                            .buttonStyle(AppleTVPosterButtonStyle())
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .accessibilityLabel("\(event.kind.title): \(movie.title). Open details and choose")
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .padding(.horizontal, AppleTVTheme.pageInset)
+        .padding(.top, 12)
+        .padding(.bottom, 20)
         .sheet(isPresented: $showsTuning) {
             NavigationStack {
                 Form {
+                    Picker("Mood", selection: $mood) {
+                        ForEach(RecommendationMood.allCases) { Text($0.title).tag($0.rawValue) }
+                    }.pickerStyle(.menu)
                     Toggle("Under Two Hours", isOn: $underTwoHours)
                     Toggle("Unwatched Only", isOn: $unwatchedOnly)
                     Toggle("Something Older", isOn: $somethingOlder)
                     Toggle("More Adventurous", isOn: $moreAdventurous)
+                    Text("\(remainingCount.formatted()) movies left to browse · \(totalCount.formatted()) in your library")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("tonight.eligibleMovieCount")
                     Button("Done") { showsTuning = false }
                 }
-                .navigationTitle("Tune Your Picks")
+                .navigationTitle("Mood & Filters")
             }
         }
-        .preference(key: TonightArtworkPreferenceKey.self, value: events.prefix(3).compactMap { event in
-            guard let movie = event.movie else { return nil }
-            return TMDBImageURL.make(path: movie.backdropPath ?? movie.posterPath, size: .backdrop)
-        })
     }
 }
 
-private struct AppleTVMovieNightCard: View {
+private struct AppleTVMoviePoster: View {
     let event: RecommendationEvent
     let movie: Movie
-    let artworkHeight: CGFloat
-    let respond: (RecommendationResponse) -> Void
+    @Environment(\.appleTVPosterIsFocused) private var isFocused
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(event.kind.title, systemImage: event.kind.systemImage)
-                .font(.callout).foregroundStyle(.tint)
-            NavigationLink {
-                MovieDetailView(movie: movie, recommendationContext: .init(event: event, onChoose: { respond(.accepted) }))
-            } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    GeometryReader { size in
-                        RemoteArtworkView(url: TMDBImageURL.make(path: movie.backdropPath ?? movie.posterPath, size: .backdrop),
-                            aspectRatio: size.size.width / max(size.size.height, 1), cornerRadius: 14, maxPixelSize: 1000)
-                    }
-                    .frame(height: artworkHeight)
-                    Text(movie.title).font(.headline).lineLimit(2)
-                        .frame(height: 76, alignment: .topLeading)
-                    Text(movie.televisionMetadata).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                .padding(12)
+        VStack(alignment: .leading, spacing: 10) {
+            GeometryReader { available in
+                RemoteArtworkView(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
+                    aspectRatio: 2 / 3, cornerRadius: 12, maxPixelSize: 1000)
+                    .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(isFocused ? Color.primary : .clear, lineWidth: 3) }
+                    .shadow(color: .black.opacity(0.16), radius: 10, y: 5)
+                    .frame(width: available.size.width, height: available.size.height)
             }
-            .buttonStyle(.card)
-            .accessibilityLabel("\(event.kind.title): \(movie.title). Open details")
-            Text(RecommendationEngine.rationale(for: movie, kind: event.kind, mood: event.mood))
-                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                .frame(height: 60, alignment: .topLeading)
-            if event.response == .accepted {
-                Label("Chosen · Marked watched", systemImage: "checkmark.circle.fill").font(.callout)
-            } else {
-                HStack(spacing: 22) {
-                    Button("Choose", systemImage: "checkmark.circle.fill") { respond(.accepted) }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityHint("Chooses this movie, marks it watched, and records it in History")
-                    Menu("Options", systemImage: "ellipsis.circle") {
-                        Button("Not Tonight") { respond(.notTonight) }
-                        Button("Already Watched") { respond(.watched) }
-                        Button("Not Interested") { respond(.rejected) }
-                    }
-                }
-                .controlSize(.small)
-                .font(.callout)
-            }
+            Text(movie.title).font(.headline).lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .frame(height: 76, alignment: .top)
+            Text("\(event.kind.title) · \(movie.releaseYear.map(String.init) ?? "Year unknown")")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .frame(maxWidth: .infinity)
         }
-        .focusSection()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

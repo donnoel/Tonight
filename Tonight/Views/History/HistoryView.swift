@@ -20,6 +20,28 @@ struct HistoryView: View {
                 }
             } else {
                 let days = Dictionary(grouping: history) { Calendar.current.startOfDay(for: $0.date) }
+                #if os(tvOS)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 20) {
+                        ForEach(days.keys.sorted(by: >), id: \.self) { day in
+                            Text(day, format: .dateTime.weekday(.wide).month().day())
+                                .font(.headline).foregroundStyle(.secondary)
+                                .padding(.top, 12).accessibilityAddTraits(.isHeader)
+                            ForEach(days[day] ?? []) { entry in
+                                if let movie = entry.movie {
+                                    NavigationLink { MovieDetailView(movie: movie) } label: {
+                                        ViewingHistoryRow(entry: entry).frame(maxWidth: .infinity, alignment: .leading)
+                                    }.buttonStyle(AppleTVCardButtonStyle())
+                                } else {
+                                    AppleTVPanel { ViewingHistoryRow(entry: entry) }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, AppleTVTheme.pageInset)
+                    .padding(.vertical, 24)
+                }
+                #else
                 List {
                     ForEach(days.keys.sorted(by: >), id: \.self) { day in
                         Section {
@@ -45,9 +67,12 @@ struct HistoryView: View {
                         }
                     }
                 }
+                #endif
             }
         }
+        #if !os(tvOS)
         .navigationTitle("History")
+        #endif
     }
 }
 

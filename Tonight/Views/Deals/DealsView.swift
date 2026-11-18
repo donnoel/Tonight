@@ -55,6 +55,7 @@ struct DealsView: View {
         #if !os(tvOS)
         .navigationTitle("Deals")
         #endif
+        #if !os(tvOS)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -66,6 +67,7 @@ struct DealsView: View {
                 .accessibilityHint("Checks Apple for the current Buy for $4.99 collection")
             }
         }
+        #endif
         .task {
             await model.load(library: librarySnapshots)
         }
@@ -146,7 +148,7 @@ struct DealsView: View {
                                     )
                                 }
                                 #if os(tvOS)
-                                .buttonStyle(.card)
+                                .buttonStyle(AppleTVCardButtonStyle())
                                 #else
                                 .buttonStyle(.plain)
                                 #endif
@@ -156,7 +158,7 @@ struct DealsView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, catalogPadding)
+            .padding(.horizontal, catalogHorizontalPadding)
             .padding(.vertical, compactHeight ? 12 : catalogPadding)
         }
         .refreshable {
@@ -168,20 +170,27 @@ struct DealsView: View {
     }
 
     private func catalogHeader(_ snapshot: DealCatalogSnapshot) -> some View {
+        #if os(tvOS)
+        HStack(spacing: 24) {
+            Label("$4.99 Movies", systemImage: "tag").font(.headline)
+            Text("Updated \(snapshot.lastSuccessfulRefresh.formatted(date: .abbreviated, time: .shortened))")
+                .font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            if model.isRefreshing { ProgressView("Refreshing…").font(.callout) }
+            Button("Refresh Deals", systemImage: "arrow.clockwise") { manualRefreshRequest = UUID() }
+                .disabled(model.isRefreshing)
+        }
+        .focusSection()
+        #else
         VStack(alignment: .leading, spacing: 8) {
             Label("$4.99 Movies", systemImage: "tag.fill")
                 .font(compactHeight ? .title.bold() : .largeTitle.bold())
                 .foregroundStyle(.tint)
 
-            #if os(tvOS)
-            Text("Current U.S. Apple TV purchase deals · Ranked with your taste")
-                .font(.callout).foregroundStyle(.secondary)
-            #else
             Text("Current U.S. Apple TV purchase deals, enriched and ranked with Tonight’s local taste signals.")
                 .font(compactHeight ? .body : .title3)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 760, alignment: .leading)
-            #endif
 
             HStack(spacing: 6) {
                 Text("Updated")
@@ -197,6 +206,7 @@ struct DealsView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        #endif
     }
 
     private func statusBanner(_ message: String, systemImage: String) -> some View {
@@ -282,9 +292,17 @@ struct DealsView: View {
         verticalSizeClass == .compact
     }
 
+    private var catalogHorizontalPadding: CGFloat {
+        #if os(tvOS)
+        AppleTVTheme.pageInset
+        #else
+        24
+        #endif
+    }
+
     private var catalogPadding: CGFloat {
         #if os(tvOS)
-        60
+        24
         #else
         24
         #endif

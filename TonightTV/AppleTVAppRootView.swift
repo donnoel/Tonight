@@ -18,6 +18,9 @@ private enum AppleTVSection: String, CaseIterable, Identifiable {
 
 /// The TV presentation shares the exact local stores and private CloudKit zones with iOS.
 struct AppleTVAppRootView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @AppStorage("tonightMedia") private var media = TonightMedia.movies
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var tvLibrary = TVLibraryStore.shared
@@ -25,34 +28,45 @@ struct AppleTVAppRootView: View {
     @FocusState private var navigationFocus: AppleTVSection?
 
     var body: some View {
+        let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
         VStack(spacing: 0) {
             HStack(spacing: 24) {
                 ForEach(AppleTVSection.allCases) { section in
                     Button { selection = section } label: {
-                        Label(section.rawValue, systemImage: section.symbol)
-                            .font(.headline)
-                            .frame(width: 210, height: 48)
+                        Text(section.rawValue)
+                            .font(.callout.weight(.semibold))
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
                     }
-                    .buttonStyle(.bordered)
-                    .foregroundStyle(selection == section ? Color.accentColor : Color.primary)
+                    .buttonStyle(AppleTVNavigationButtonStyle(isFocused: navigationFocus == section, isSelected: selection == section))
                     .focused($navigationFocus, equals: section)
                     .accessibilityAddTraits(selection == section ? .isSelected : [])
                 }
             }
             .padding(.horizontal, 60)
-            .padding(.vertical, 28)
+            .padding(.vertical, 14)
             .frame(maxWidth: .infinity)
-            .background(.thinMaterial)
+            .background(theme.surface)
             .focusSection()
+
+            if selection != .tonight || media == .tv {
+                AppleTVPageHeader(title: selection == .tonight ? "A little time. A great show." : selection.rawValue,
+                    subtitle: pageSubtitle, collection: selection == .deals || selection == .settings ? nil : $media)
+            }
 
             NavigationStack {
                 sectionContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(theme.background)
                     // This handler belongs to the root page; detail destinations keep native Back.
                     .onExitCommand { navigationFocus = selection }
             }
             .id(selection)
         }
-        .background(.background)
+        .background(theme.background)
+        .tint(theme.accent)
+        .buttonStyle(.bordered)
         .environment(tvLibrary)
         .defaultFocus($navigationFocus, .tonight)
         .task(id: navigationFocus) {
@@ -86,6 +100,16 @@ struct AppleTVAppRootView: View {
         }
     }
 
+    private var pageSubtitle: String {
+        switch selection {
+        case .tonight: media == .movies ? "Great movies. Already yours." : "A little time. A great show."
+        case .library: "Your collection, ready to rediscover."
+        case .deals: "Apple’s $4.99 movies, ranked with your taste."
+        case .history: "The evenings you’ve made time for."
+        case .settings: "Your libraries, iCloud, and metadata."
+        }
+    }
+
     @ViewBuilder private var sectionContent: some View {
         switch selection {
         case .tonight: TVMediaView(page: .tonight)
@@ -105,7 +129,7 @@ struct AppleTVCloudLibraryView: View {
     @State private var isFetching = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        AppleTVPanel {
             Label("Your collection. On the big screen.", systemImage: "icloud")
                 .font(.title2.bold())
             Text("Use the same iCloud account as your iPhone or iPad to bring your movies, shows, owned seasons, and viewing progress to Apple TV.")
@@ -146,9 +170,7 @@ struct AppleTVCloudLibraryView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(40)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 28))
+        .font(.callout)
         .focusSection()
     }
 }

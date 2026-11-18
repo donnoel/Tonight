@@ -11,10 +11,12 @@ struct TVTonightView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 10) {
+                    #if !os(tvOS)
                     Label("A little time. A great show.", systemImage: "tv")
                         .font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
                     Text("Find a fresh way into the shows you love. Tonight plans the episodes; you settle in.")
                         .font(.title3).foregroundStyle(.secondary)
+                    #endif
                     HStack(spacing: 16) {
                         Text("\(store.shows.count) shows · From your own collection")
                             .font(.subheadline).foregroundStyle(.secondary)
@@ -80,7 +82,9 @@ struct TVTonightView: View {
             .frame(maxWidth: contentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        #if !os(tvOS)
         .navigationTitle("Tonight")
+        #endif
         .preference(key: TonightArtworkPreferenceKey.self, value: backdropArtwork)
         .onChange(of: sessionCount, initial: true) { _, count in store.setSessionCount(count) }
         #if !os(tvOS)
@@ -213,7 +217,7 @@ private struct TVSessionCard: View {
                 .aspectRatio(16 / 9, contentMode: .fit)
             }
             #if os(tvOS)
-            .buttonStyle(.card)
+            .buttonStyle(AppleTVCardButtonStyle())
             #else
             .buttonStyle(.plain)
             #endif

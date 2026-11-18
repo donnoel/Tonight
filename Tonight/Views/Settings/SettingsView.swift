@@ -60,6 +60,56 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        settingsContent
+
+        #if !os(tvOS)
+        .navigationTitle("Settings")
+        #endif
+        #if !os(tvOS)
+        .fileExporter(isPresented: $showsMovieExport, document: movieExport,
+                      contentType: .plainText, defaultFilename: "Tonight-Movies") { result in
+            if case .failure(let error) = result,
+               (error as? CocoaError)?.code != .userCancelled {
+                presentedAlert = .error("Tonight couldn’t export the movie list. Please try another location.")
+            }
+        }
+        #endif
+        .task {
+            await refreshCredentialStatus()
+        }
+        .alert(item: $presentedAlert) { destination in
+            switch destination {
+            case .clearLibrary:
+                Alert(
+                    title: Text("Clear Library?"),
+                    message: Text("This removes all movies, including unresolved imports, from this device and your other synced devices. Pending removals will sync when iCloud is available."),
+                    primaryButton: .destructive(Text("Clear Library"), action: clearLibrary),
+                    secondaryButton: .cancel()
+                )
+            case .removeCredential:
+                Alert(
+                    title: Text("Remove TMDB Credential?"),
+                    message: Text("Movie imports will be unavailable until a new token is saved."),
+                    primaryButton: .destructive(Text("Remove")) {
+                        Task { await removeCredential() }
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .error(let message):
+                Alert(
+                    title: Text("Something Went Wrong"),
+                    message: Text(message),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var settingsContent: some View {
+        #if os(tvOS)
+        televisionSettings
+        #else
         Form {
             #if os(tvOS)
             Section("Your iCloud Collections") {
@@ -186,46 +236,90 @@ struct SettingsView: View {
                 .disabled(movies.isEmpty)
             }
         }
-        .navigationTitle("Settings")
-        #if !os(tvOS)
-        .fileExporter(isPresented: $showsMovieExport, document: movieExport,
-                      contentType: .plainText, defaultFilename: "Tonight-Movies") { result in
-            if case .failure(let error) = result,
-               (error as? CocoaError)?.code != .userCancelled {
-                presentedAlert = .error("Tonight couldn’t export the movie list. Please try another location.")
-            }
-        }
         #endif
-        .task {
-            await refreshCredentialStatus()
-        }
-        .alert(item: $presentedAlert) { destination in
-            switch destination {
-            case .clearLibrary:
-                Alert(
-                    title: Text("Clear Library?"),
-                    message: Text("This removes all movies, including unresolved imports, from this device and your other synced devices. Pending removals will sync when iCloud is available."),
-                    primaryButton: .destructive(Text("Clear Library"), action: clearLibrary),
-                    secondaryButton: .cancel()
-                )
-            case .removeCredential:
-                Alert(
-                    title: Text("Remove TMDB Credential?"),
-                    message: Text("Movie imports will be unavailable until a new token is saved."),
-                    primaryButton: .destructive(Text("Remove")) {
-                        Task { await removeCredential() }
-                    },
-                    secondaryButton: .cancel()
-                )
-            case .error(let message):
-                Alert(
-                    title: Text("Something Went Wrong"),
-                    message: Text(message),
-                    dismissButton: .default(Text("OK"))
-                )
+    }
+
+    #if os(tvOS)
+    private var televisionSettings: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppleTVTheme.sectionSpacing) {
+                AppleTVCloudLibraryView()
+                AppleTVPanel(title: "TMDB Metadata") {
+                    LabeledContent("Authentication") { credentialStatusLabel }
+                    if isCredentialEditorVisible {
+                        SecureField("Read Access Token", text: $tokenInput)
+                            .textContentType(.password).textInputAutocapitalization(.never)
+                            .autocorrectionDisabled().keyboardType(.asciiCapable)
+                            .focused($isTokenFieldFocused).privacySensitive()
+                            .accessibilityHint("Stored only in this device's Keychain")
+                            .onSubmit {
+                                guard normalizedTokenInput != nil, !isSavingCredential else { return }
+                                Task { await saveCredential() }
+                            }
+                        HStack(spacing: 24) {
+                            Button(saveButtonTitle) { Task { await saveCredential() } }
+                                .disabled(normalizedTokenInput == nil || isSavingCredential)
+                            if credentialStatus == .configured {
+                                Button("Cancel") { cancelCredentialEditing() }.disabled(isSavingCredential)
+                            }
+                        }
+                    } else if credentialStatus == .configured {
+                        Button("Update Credential") {
+                            credentialNotice = nil; isEditingCredential = true; isTokenFieldFocused = true
+                        }.disabled(isSavingCredential)
+                    }
+                    if credentialStatus == .configured {
+                        Button("Remove Credential", role: .destructive) { presentedAlert = .removeCredential }
+                            .disabled(isSavingCredential)
+                    }
+                    if let credentialNotice { Label(credentialNotice, systemImage: "checkmark.circle") }
+                    Text("Synced libraries work without a key. Save a Read Access Token here for metadata lookups and Deals enrichment. It stays in this Apple TV’s Keychain.")
+                        .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                AppleTVPanel(title: "iCloud Sync Details") {
+                    HStack(alignment: .top, spacing: 60) {
+                        VStack(alignment: .leading, spacing: 20) {
+                            Text("Movies").font(.headline)
+                            Text(LibrarySyncCoordinator.shared.status)
+                                .accessibilityIdentifier("settings.librarySyncStatus")
+                            if let date = LibrarySyncCoordinator.shared.lastSync {
+                                LabeledContent("Last sync") { Text(date, style: .relative) }
+                            }
+                            Button("Sync Movies") { Task { await LibrarySyncCoordinator.shared.syncNow() } }
+                                .disabled(LibrarySyncCoordinator.shared.isSyncing || LibrarySyncCoordinator.shared.isPaused)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 20) {
+                            Text("TV Shows").font(.headline)
+                            Text(TVSyncCoordinator.shared.status).accessibilityIdentifier("settings.tvSyncStatus")
+                            if let date = TVSyncCoordinator.shared.lastSync {
+                                LabeledContent("Last sync") { Text(date, style: .relative) }
+                            }
+                            if TVSyncCoordinator.shared.pendingCount > 0 {
+                                LabeledContent("Pending changes", value: TVSyncCoordinator.shared.pendingCount, format: .number)
+                            }
+                            Button("Sync TV Shows") { Task { await TVSyncCoordinator.shared.syncNow() } }
+                                .disabled(TVSyncCoordinator.shared.isSyncing)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Text("Your collections and personal viewing state sync privately through iCloud. Mood, layout, and planned sessions stay on this device.")
+                        .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                AppleTVPanel(title: "Movie Library") {
+                    HStack(spacing: 60) {
+                        LabeledContent("Movies", value: movies.count, format: .number)
+                        LabeledContent("Unresolved", value: unresolvedCount, format: .number)
+                    }
+                    Text("Add movies and shows on your iPhone or iPad. They will sync here automatically.")
+                        .foregroundStyle(.secondary)
+                    Button("Clear Library", role: .destructive) { presentedAlert = .clearLibrary }.disabled(movies.isEmpty)
+                }
             }
+            .font(.callout)
+            .padding(.horizontal, AppleTVTheme.pageInset)
+            .padding(.vertical, 24)
         }
     }
+    #endif
 
     @ViewBuilder
     private var credentialStatusLabel: some View {
