@@ -21,7 +21,7 @@ struct AppleTVMoviePicksView: View {
     private enum PickFocus: Hashable { case collection, mood, refresh, poster(UUID) }
 
     var body: some View {
-        VStack(spacing: 26) {
+        VStack(spacing: 50) {
             HStack(alignment: .center, spacing: 36) {
                 AppleTVCinemaMarquee()
                     .frame(maxWidth: .infinity, alignment: .leading)
