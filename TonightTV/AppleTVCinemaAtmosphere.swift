@@ -1,29 +1,43 @@
 import SwiftUI
 import UIKit
 
-/// A small film identity and a daily invitation, without another page heading.
+/// A local rotating invitation. Its fixed height keeps movie artwork stable as text changes.
 struct AppleTVCinemaGreeting: View {
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { timeline in
-            Text(Self.phrase(for: timeline.date))
-                .font(.system(.title, design: .serif).weight(.regular))
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-        }
+    @State private var phraseIndex = 0
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+
+    private static let phrases = [
+        "A good night for a great film.",
+        "Let the opening credits roll.",
+        "Something worth staying in for.",
+        "Tonight, somewhere else.",
+        "A little escape. A great story.",
+        "The evening’s main attraction."
+    ]
+
+    init() {
+        _phraseIndex = State(initialValue: Int(Date.now.timeIntervalSinceReferenceDate / 24) % Self.phrases.count)
     }
-    private static func phrase(for date: Date) -> String {
-        let phrases = [
-            "A good night for a great film.",
-            "Let the opening credits roll.",
-            "Your seat is waiting.",
-            "Something worth staying in for.",
-            "The evening’s main attraction.",
-            "A little escape. A great story.",
-            "Make room for a movie.",
-            "The best seat in the house."
-        ]
-        let day = Calendar.current.ordinality(of: .day, in: .era, for: date) ?? 1
-        return phrases[day % phrases.count]
+
+    var body: some View {
+        let rotates = scenePhase == .active && !voiceOverEnabled
+        Text(Self.phrases[phraseIndex])
+            .font(.system(.title, design: .serif).weight(.regular))
+            .lineLimit(1).minimumScaleFactor(0.85)
+            .contentTransition(.opacity)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.65), value: phraseIndex)
+            .frame(height: 60, alignment: .leading)
+            .accessibilityAddTraits(.isHeader)
+            .task(id: rotates) {
+                guard rotates else { return }
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .seconds(24)) } catch { return }
+                    guard !Task.isCancelled else { return }
+                    phraseIndex = (phraseIndex + 1) % Self.phrases.count
+                }
+            }
     }
 }
 

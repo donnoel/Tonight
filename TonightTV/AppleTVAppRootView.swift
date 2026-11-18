@@ -48,7 +48,8 @@ struct AppleTVAppRootView: View {
                             }
                             .frame(width: 146, height: 100)
                         }
-                        .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section, isSelected: selection == section))
+                        .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section,
+                            isSelected: selection == section, magnification: railMagnification(for: section)))
                         .focused($navigationFocus, equals: section)
                         .accessibilityAddTraits(selection == section ? .isSelected : [])
                     }
@@ -116,6 +117,19 @@ struct AppleTVAppRootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: LibrarySyncStore.didSave)) { _ in
             LibrarySyncCoordinator.shared.localDidSave()
+        }
+    }
+
+    private func railMagnification(for section: AppleTVSection) -> CGFloat {
+        guard let focused = navigationFocus,
+              let focusIndex = AppleTVSection.allCases.firstIndex(of: focused),
+              let index = AppleTVSection.allCases.firstIndex(of: section) else {
+            return section == selection ? 1.12 : 1
+        }
+        switch abs(index - focusIndex) {
+        case 0: return 1.18
+        case 1: return 1.06
+        default: return 1
         }
     }
 

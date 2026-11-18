@@ -113,7 +113,7 @@ private struct AppleTVMoviePoster: View {
     @Environment(\.appleTVPosterIsFocused) private var isFocused
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 22) {
             GeometryReader { available in
                 let height = max(0, min(available.size.height - 16, (available.size.width - 16) * 1.5))
                 AppleTVFloatingArtwork(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),

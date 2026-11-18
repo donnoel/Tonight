@@ -89,25 +89,23 @@ struct AppleTVPageHeader: View {
     }
 }
 
-/// A stable cinema rail, with a selection marker and a separate focus outline.
+/// Dock-like magnification stays inside the rail's fixed layout slots.
 struct AppleTVCinemaRailButtonStyle: ButtonStyle {
     let isFocused: Bool
     let isSelected: Bool
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
+    let magnification: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
-        let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
         configuration.label
             .foregroundStyle(Color.primary)
             .opacity(isFocused || isSelected ? 1 : 0.75)
-            .overlay(alignment: .leading) {
-                Capsule().fill(isSelected ? theme.accent : .clear)
-                    .frame(width: 4, height: 42)
-            }
             .overlay {
                 RoundedRectangle(cornerRadius: 18)
                     .strokeBorder(isFocused ? Color.primary : .clear, lineWidth: 2)
+            }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { label in
+                label.scaleEffect(magnification)
             }
             .opacity(configuration.isPressed ? 0.75 : 1)
             .focusEffectDisabled()
