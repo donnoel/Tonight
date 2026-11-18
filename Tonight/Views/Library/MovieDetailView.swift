@@ -24,6 +24,8 @@ struct MovieDetailView: View {
     #if os(tvOS)
     @Environment(\.colorScheme) private var televisionScheme
     @Environment(\.colorSchemeContrast) private var televisionContrast
+    @FocusState private var televisionActionFocus: TelevisionAction?
+    private enum TelevisionAction: Hashable { case back, primary, storefront, more }
     #endif
     @State private var saveError: String?
     @State private var movieToMatch: Movie?
@@ -107,6 +109,10 @@ struct MovieDetailView: View {
             VStack(alignment: .leading, spacing: 28) {
                 Button("Back", systemImage: "chevron.left") { dismiss() }
                     .buttonStyle(AppleTVActionButtonStyle())
+                    .focused($televisionActionFocus, equals: .back)
+                    .onMoveCommand { direction in
+                        if direction == .down { televisionActionFocus = preferredTelevisionAction }
+                    }
                 HStack(alignment: .top, spacing: 64) {
                     poster(width: 290)
                     VStack(alignment: .leading, spacing: 24) {
@@ -161,6 +167,15 @@ struct MovieDetailView: View {
             .padding(.top, 12).padding(.bottom, 40)
         }
         .background(AppleTVTheme(scheme: televisionScheme, contrast: televisionContrast).background)
+        .defaultFocus($televisionActionFocus, preferredTelevisionAction, priority: .userInitiated)
+        .task(id: movie.id) { televisionActionFocus = preferredTelevisionAction }
+    }
+
+    private var preferredTelevisionAction: TelevisionAction {
+        if recommendationContext?.event.response == .pending { return .primary }
+        if recommendationContext == nil && showsPersonalization { return .primary }
+        if dealContext != nil && isUSStorefront { return .storefront }
+        return showsPersonalization ? .more : .back
     }
 
     private var televisionActions: some View {
@@ -172,16 +187,28 @@ struct MovieDetailView: View {
                         if context.event.response == .accepted { dismiss() }
                     }
                     .buttonStyle(AppleTVActionButtonStyle(prominent: true))
+                    .focused($televisionActionFocus, equals: .primary)
+                    .onMoveCommand { direction in
+                        if direction == .up { televisionActionFocus = .back }
+                    }
                     .accessibilityHint("Chooses this recommendation and marks it watched")
                 } else if context.event.response == .accepted {
                     Label("Chosen for Tonight", systemImage: "checkmark.circle").font(.callout)
                 }
             } else if showsPersonalization {
                 watchedButton.buttonStyle(AppleTVActionButtonStyle(prominent: true))
+                    .focused($televisionActionFocus, equals: .primary)
+                    .onMoveCommand { direction in
+                        if direction == .up { televisionActionFocus = .back }
+                    }
             }
             if let context = dealContext, isUSStorefront {
                 Link("View on Apple TV", destination: context.appleURL)
                     .buttonStyle(AppleTVActionButtonStyle())
+                    .focused($televisionActionFocus, equals: .storefront)
+                    .onMoveCommand { direction in
+                        if direction == .up { televisionActionFocus = .back }
+                    }
                     .accessibilityHint("Leaves Tonight and opens Apple’s movie page")
             }
             if showsPersonalization {
@@ -198,6 +225,7 @@ struct MovieDetailView: View {
                     Button(showsMatchRecovery ? "Find Match" : "Change Movie Match", systemImage: "link") { movieToMatch = movie }
                 }
                 .buttonStyle(AppleTVActionButtonStyle())
+                .focused($televisionActionFocus, equals: .more)
             }
         }
         .focusSection()

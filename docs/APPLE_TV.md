@@ -30,6 +30,8 @@ TV Library and Deals have explicit, readable action rows. Movie and TV History u
 
 The fixed left rail switches sections when focus rests on a button, without requiring a click. A short cancellable delay skips intermediate page loads during a quick vertical swipe. The rail never expands or shifts content during focus changes. Back from a root page returns focus to its navigation button; detail destinations keep native Back. Library search opens only after selecting Search, so entering Library does not capture focus in the TV keyboard. Native tvOS controls and card focus effects handle selection. Artwork is decorative to VoiceOver; titles and actions have semantic labels. Detail text can receive focus for remote scrolling.
 
+Movie details initially focus Choose for a pending pick, the watched-state action for a library movie, or the available store/More action in other contexts. Down from the onscreen Back button routes directly to that primary action; Up from Choose/watch/store routes back to Back. Native navigation between More and the primary action, scrolling, and the remote Back button remain available. These are focus routes only; entering details never chooses or marks a movie watched.
+
 ## Section switching
 
 The rail owns focus and magnification independently of the content area. Moving its highlight does not invalidate the whole page. Each visited section retains its root page, navigation container, data state, and loaded artwork for the app session; sections are created on first use. Hidden pages are disabled, excluded from accessibility, and receive an inactive scene phase so decorative motion stops. Leaving a detail destination resets that section’s navigation stack to preserve the established return-to-root behavior.
