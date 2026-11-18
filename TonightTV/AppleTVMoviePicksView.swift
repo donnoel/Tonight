@@ -15,6 +15,10 @@ struct AppleTVMoviePicksView: View {
     @AppStorage("tonightMedia") private var media = TonightMedia.movies
     @State private var showsTuning = false
     @State private var showsCollection = false
+    @State private var lastPosterID: UUID?
+    @State private var lastHeaderControl = PickFocus.mood
+    @FocusState private var pickFocus: PickFocus?
+    private enum PickFocus: Hashable { case collection, mood, refresh, poster(UUID) }
 
     var body: some View {
         VStack(spacing: 26) {
@@ -29,21 +33,32 @@ struct AppleTVMoviePicksView: View {
                         }
                     }
                     .buttonStyle(AppleTVCinemaControlStyle())
+                    .focused($pickFocus, equals: .collection)
                     .accessibilityLabel("Collection")
                     .accessibilityValue(media.title)
                     .accessibilityIdentifier("mediaPicker")
                     Button("Mood", systemImage: "slider.horizontal.3") { showsTuning = true }
                     .buttonStyle(AppleTVCinemaControlStyle())
+                    .focused($pickFocus, equals: .mood)
                     .accessibilityLabel("Mood and Filters")
                     .accessibilityValue(RecommendationMood(rawValue: mood)?.title ?? RecommendationMood.anything.title)
                     Button(action: refresh) {
                         Image(systemName: "arrow.clockwise").frame(width: 32, height: 32)
                     }
                     .buttonStyle(AppleTVCinemaControlStyle())
+                    .focused($pickFocus, equals: .refresh)
                     .accessibilityLabel(events.isEmpty ? "Find My Picks" : "More Ideas")
                     .disabled(isLoading || (events.isEmpty && remainingCount == 0))
                 }
                 .focusSection()
+                .onMoveCommand { direction in
+                    guard direction == .down, !showsCollection, !showsTuning,
+                          !isLoading, totalCount > 0 else { return }
+                    let displayedEvents = events.prefix(3)
+                    let target = displayedEvents.first { $0.id == lastPosterID && $0.movie != nil }
+                        ?? displayedEvents.first { $0.movie != nil }
+                    if let target { pickFocus = .poster(target.id) }
+                }
             }
             .padding(.top, 20)
             .padding(.bottom, 8)
@@ -70,6 +85,13 @@ struct AppleTVMoviePicksView: View {
                                 AppleTVMoviePoster(movie: movie, position: position)
                             }
                             .buttonStyle(AppleTVPosterButtonStyle())
+                            .focused($pickFocus, equals: .poster(event.id))
+                            .onMoveCommand { direction in
+                                if direction == .up {
+                                    lastPosterID = event.id
+                                    pickFocus = lastHeaderControl
+                                }
+                            }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .accessibilityLabel("\(event.kind.title): \(movie.title). Open details and choose")
                         }
@@ -81,6 +103,14 @@ struct AppleTVMoviePicksView: View {
         .padding(.horizontal, 40)
         .padding(.top, 12)
         .padding(.bottom, 20)
+        .onChange(of: pickFocus) { _, focus in
+            switch focus {
+            case .poster(let id): lastPosterID = id
+            case .collection, .mood, .refresh:
+                if let focus { lastHeaderControl = focus }
+            case nil: break
+            }
+        }
         .confirmationDialog("What would you like to watch?", isPresented: $showsCollection, titleVisibility: .visible) {
             ForEach(TonightMedia.allCases) { collection in
                 Button(collection.title) { media = collection }
@@ -126,18 +156,12 @@ private struct AppleTVMoviePoster: View {
                         transaction.disablesAnimations = true
                     }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("0\(position + 1)")
-                    .font(.system(size: 22, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                Text(movie.title)
-                    .font(.system(size: 32, weight: .semibold, design: .rounded))
-                    .lineLimit(2).multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 80, alignment: .topLeading)
+            Text(movie.title)
+                .font(.system(size: 32, weight: .semibold, design: .rounded))
+                .lineLimit(2).multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .frame(height: 80, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
