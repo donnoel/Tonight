@@ -4,7 +4,16 @@ private enum AppleTVPageActivityKey: EnvironmentKey {
     static let defaultValue = true
 }
 
+private enum AppleTVPageFocusRequestKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
 extension EnvironmentValues {
+    var appleTVPageFocusRequest: Int {
+        get { self[AppleTVPageFocusRequestKey.self] }
+        set { self[AppleTVPageFocusRequestKey.self] = newValue }
+    }
+
     var appleTVPageIsActive: Bool {
         get { self[AppleTVPageActivityKey.self] }
         set { self[AppleTVPageActivityKey.self] = newValue }

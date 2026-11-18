@@ -318,6 +318,7 @@ struct SettingsView: View {
             .padding(.horizontal, AppleTVTheme.pageInset)
             .padding(.vertical, 24)
         }
+        .focusSection()
     }
     #endif
 

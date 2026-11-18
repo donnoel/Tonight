@@ -373,7 +373,7 @@ enum LibrarySyncStore {
             for event in events where event.movie?.id == movie.id { event.movie = canonical }
             remove(movie)
         }
-        if !removedIDs.isEmpty { TonightWidgetSnapshotPublisher.removeMovies(ids: removedIDs) }
+        if !removedIDs.isEmpty { TonightWidgetSnapshotPublisher.removeMovies(ids: removedIDs, in: context) }
     }
 
     static func backupDirectory() throws -> URL {

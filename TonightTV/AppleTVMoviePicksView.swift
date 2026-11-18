@@ -12,6 +12,8 @@ struct AppleTVMoviePicksView: View {
     @Binding var moreAdventurous: Bool
     let refresh: () -> Void
     let respond: (RecommendationEvent, RecommendationResponse) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @AppStorage("tonightMedia") private var media = TonightMedia.movies
     @State private var showsTuning = false
     @State private var showsCollection = false
@@ -71,6 +73,9 @@ struct AppleTVMoviePicksView: View {
                 ContentUnavailableView("An evening of possibilities", systemImage: "movieclapper",
                     description: Text("Use the refresh button to find a movie, or choose a different mood."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if events.count == 1, let event = events.first,
+                      event.response == .accepted, let movie = event.movie {
+                chosenFeature(event: event, movie: movie)
             } else {
                 HStack(alignment: .top, spacing: 40) {
                     ForEach(Array(events.prefix(3).enumerated()), id: \.element.id) { position, event in
@@ -116,25 +121,73 @@ struct AppleTVMoviePicksView: View {
                 Button(collection.title) { media = collection }
             }
         }
-        .sheet(isPresented: $showsTuning) {
-            NavigationStack {
-                Form {
-                    Picker("Mood", selection: $mood) {
-                        ForEach(RecommendationMood.allCases) { Text($0.title).tag($0.rawValue) }
-                    }.pickerStyle(.menu)
-                    Toggle("Under Two Hours", isOn: $underTwoHours)
-                    Toggle("Unwatched Only", isOn: $unwatchedOnly)
-                    Toggle("Something Older", isOn: $somethingOlder)
-                    Toggle("More Adventurous", isOn: $moreAdventurous)
-                    Text("\(remainingCount.formatted()) movies left to browse · \(totalCount.formatted()) in your library")
-                        .font(.caption).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("tonight.eligibleMovieCount")
-                    Button("Done") { showsTuning = false }
-                }
-                .navigationTitle("Mood & Filters")
-            }
+        .fullScreenCover(isPresented: $showsTuning) {
+            AppleTVMoodAndFiltersView(mood: $mood, underTwoHours: $underTwoHours,
+                unwatchedOnly: $unwatchedOnly, somethingOlder: $somethingOlder,
+                moreAdventurous: $moreAdventurous, remainingCount: remainingCount, totalCount: totalCount)
         }
     }
+
+    private func chosenFeature(event: RecommendationEvent, movie: Movie) -> some View {
+        let theme = AppleTVTheme(scheme: colorScheme, contrast: contrast)
+        return GeometryReader { space in
+            let posterHeight = max(0, min(space.size.height - 64, space.size.width * 0.5))
+            HStack(alignment: .center, spacing: 80) {
+                NavigationLink {
+                    MovieDetailView(movie: movie, recommendationContext: .init(event: event,
+                        onChoose: { respond(event, .accepted) },
+                        onRespond: { respond(event, $0) }))
+                } label: {
+                    AppleTVFloatingArtwork(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
+                        position: 0, isFocused: pickFocus == .poster(event.id))
+                        .frame(width: posterHeight * 2 / 3, height: posterHeight)
+                        .shadow(color: .black.opacity(0.22), radius: 16, y: 10)
+                }
+                .buttonStyle(AppleTVPosterButtonStyle())
+                .focused($pickFocus, equals: .poster(event.id))
+                .onMoveCommand { direction in
+                    if direction == .up { lastPosterID = event.id; pickFocus = lastHeaderControl }
+                }
+                .accessibilityLabel("Chosen for tonight: \(movie.title). Open movie details")
+
+                VStack(alignment: .leading, spacing: 26) {
+                    Label("Chosen for tonight", systemImage: "checkmark.circle.fill")
+                        .font(.title3.weight(.medium)).foregroundStyle(theme.accent)
+                    Text(movie.title)
+                        .font(.system(size: 64, weight: .semibold, design: .rounded))
+                        .lineLimit(3).minimumScaleFactor(0.75)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(movie.televisionMetadata)
+                        .font(.title3).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Enjoy the show.")
+                        .font(.title2.weight(.light)).padding(.top, 18)
+                }
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 48)
+            .frame(width: space.size.width, height: space.size.height)
+            .background {
+                if movie.backdropPath != nil {
+                    RemoteArtworkView(url: TMDBImageURL.make(path: movie.backdropPath, size: .backdrop),
+                        aspectRatio: 16 / 9, cornerRadius: 32)
+                        .frame(width: space.size.width, height: space.size.height)
+                        .opacity(contrast == .increased ? 0.08 : 0.22)
+                        .overlay {
+                            LinearGradient(colors: [theme.surface.opacity(0.45), theme.surface.opacity(0.88)],
+                                startPoint: .leading, endPoint: .trailing)
+                        }
+                        .allowsHitTesting(false).accessibilityHidden(true)
+                } else {
+                    LinearGradient(colors: [Color.cyan.opacity(0.12), Color.pink.opacity(0.16)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 32))
+        }
+    }
+
 }
 
 private struct AppleTVMoviePoster: View {

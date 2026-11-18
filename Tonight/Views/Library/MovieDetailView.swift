@@ -22,6 +22,8 @@ struct MovieDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #if os(tvOS)
+    @Environment(\.openURL) private var openURL
+    @State private var appleTVMovieURL: URL?
     @Environment(\.colorScheme) private var televisionScheme
     @Environment(\.colorSchemeContrast) private var televisionContrast
     @FocusState private var televisionActionFocus: TelevisionAction?
@@ -63,6 +65,21 @@ struct MovieDetailView: View {
         .sheet(item: $movieToMatch) { unresolvedMovie in
             MatchLibraryView(movie: unresolvedMovie, onConsolidated: { dismiss() })
         }
+        #if os(tvOS)
+        .task(id: movie.id) {
+            guard showsPersonalization, movie.resolutionStatus == .resolved else { return }
+            let query = AppleTVMovieLinkQuery(title: movie.title, year: movie.releaseYear ?? movie.importedYear)
+            do {
+                let url = try await AppleTVMovieLinkResolver.shared.link(for: query)
+                guard !Task.isCancelled else { return }
+                appleTVMovieURL = url
+            } catch is CancellationError {
+                return
+            } catch {
+                appleTVMovieURL = nil
+            }
+        }
+        #endif
         .task(id: dealContext?.appleURL) {
             guard dealContext != nil else { return }
             if let storefront = await Storefront.current, !Task.isCancelled {
@@ -172,7 +189,7 @@ struct MovieDetailView: View {
     }
 
     private var preferredTelevisionAction: TelevisionAction {
-        if recommendationContext?.event.response == .pending { return .primary }
+        if recommendationContext?.event.response == .pending || appleTVMovieURL != nil { return .primary }
         if recommendationContext == nil && showsPersonalization { return .primary }
         if dealContext != nil && isUSStorefront { return .storefront }
         return showsPersonalization ? .more : .back
@@ -182,18 +199,31 @@ struct MovieDetailView: View {
         HStack(spacing: 24) {
             if let context = recommendationContext {
                 if context.event.response == .pending {
-                    Button("Choose", systemImage: "checkmark") {
+                    Button(appleTVMovieURL == nil ? "Choose" : "Open in Apple TV",
+                           systemImage: appleTVMovieURL == nil ? "checkmark" : "tv") {
                         context.onChoose()
-                        if context.event.response == .accepted { dismiss() }
+                        guard context.event.response == .accepted else { return }
+                        if let url = appleTVMovieURL { openURL(url) }
+                        dismiss()
                     }
                     .buttonStyle(AppleTVActionButtonStyle(prominent: true))
                     .focused($televisionActionFocus, equals: .primary)
                     .onMoveCommand { direction in
                         if direction == .up { televisionActionFocus = .back }
                     }
-                    .accessibilityHint("Chooses this recommendation and marks it watched")
+                    .accessibilityHint(appleTVMovieURL == nil
+                        ? "Chooses this recommendation and marks it watched"
+                        : "Chooses this recommendation, marks it watched, and opens its Apple TV page")
                 } else if context.event.response == .accepted {
-                    Label("Chosen for Tonight", systemImage: "checkmark.circle").font(.callout)
+                    if let url = appleTVMovieURL {
+                        Link("Open in Apple TV", destination: url)
+                            .buttonStyle(AppleTVActionButtonStyle(prominent: true))
+                            .focused($televisionActionFocus, equals: .primary)
+                            .onMoveCommand { if $0 == .up { televisionActionFocus = .back } }
+                            .accessibilityHint("Opens this chosen movie’s page in Apple TV")
+                    } else {
+                        Label("Chosen for Tonight", systemImage: "checkmark.circle").font(.callout)
+                    }
                 }
             } else if showsPersonalization {
                 watchedButton.buttonStyle(AppleTVActionButtonStyle(prominent: true))
@@ -504,7 +534,7 @@ struct MovieDetailView: View {
             if savePersonalization() {
                 LibrarySyncCoordinator.shared.localDidSave()
                 if movie.isWatched {
-                    TonightWidgetSnapshotPublisher.removeMovie(id: movie.id)
+                    TonightWidgetSnapshotPublisher.removeMovie(id: movie.id, in: modelContext)
                 }
             }
         } label: {

@@ -356,7 +356,7 @@ final class WatchedStateSyncCoordinator {
             if !changedMovies.isEmpty {
                 try modelContext.save()
                 TonightWidgetSnapshotPublisher.removeMovies(
-                    ids: Set(changedMovies.filter(\.isWatched).map(\.id))
+                    ids: Set(changedMovies.filter(\.isWatched).map(\.id)), in: modelContext
                 )
             }
 

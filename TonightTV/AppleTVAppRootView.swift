@@ -28,6 +28,7 @@ struct AppleTVAppRootView: View {
     @State private var visitedSections: Set<AppleTVSection> = [.tonight]
     @State private var visibleRoots: Set<AppleTVSection> = []
     @State private var railFocusRequest = 0
+    @State private var settingsFocusRequest = 0
     @State private var shelfResetRequest = 0
     @State private var shelfSelection: TonightTopShelfMovieSelection?
     @State private var shelfRouteError: String?
@@ -35,7 +36,8 @@ struct AppleTVAppRootView: View {
     var body: some View {
         let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
         HStack(spacing: 0) {
-            AppleTVCinemaRail(selection: $selection, focusRequest: railFocusRequest)
+            AppleTVCinemaRail(selection: $selection, focusRequest: railFocusRequest,
+                onEnterSettings: { selection = .settings; settingsFocusRequest += 1 })
 
             VStack(spacing: 0) {
                 if selection != .tonight || media == .tv {
@@ -129,7 +131,7 @@ struct AppleTVAppRootView: View {
         case .library: TVMediaView(page: .library)
         case .deals: DealsView()
         case .history: TVMediaView(page: .history)
-        case .settings: SettingsView()
+        case .settings: SettingsView().environment(\.appleTVPageFocusRequest, settingsFocusRequest)
         }
     }
 }
@@ -138,6 +140,7 @@ struct AppleTVAppRootView: View {
 private struct AppleTVCinemaRail: View {
     @Binding var selection: AppleTVSection
     let focusRequest: Int
+    let onEnterSettings: () -> Void
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
     @FocusState private var navigationFocus: AppleTVSection?
@@ -152,7 +155,10 @@ private struct AppleTVCinemaRail: View {
             Spacer(minLength: 0)
             VStack(spacing: 14) {
                 ForEach(AppleTVSection.allCases) { section in
-                    Button { selection = section } label: {
+                    Button {
+                        if section == .settings && selection == .settings { onEnterSettings() }
+                        else { selection = section }
+                    } label: {
                         VStack(spacing: 9) {
                             Image(systemName: section.symbol).font(.system(size: 32, weight: .regular))
                             Text(section.rawValue).font(.system(size: 24, weight: .medium))
@@ -162,6 +168,9 @@ private struct AppleTVCinemaRail: View {
                     .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section,
                         isSelected: selection == section, magnification: magnification(for: section)))
                     .focused($navigationFocus, equals: section)
+                    .onMoveCommand { direction in
+                        if direction == .right && section == .settings { onEnterSettings() }
+                    }
                     .accessibilityAddTraits(selection == section ? .isSelected : [])
                 }
             }
@@ -203,6 +212,9 @@ struct AppleTVCloudLibraryView: View {
     @Environment(TVLibraryStore.self) private var tvLibrary
     @Query private var movies: [Movie]
     @State private var isFetching = false
+    @Environment(\.appleTVPageFocusRequest) private var pageFocusRequest
+    @Environment(\.appleTVPageIsActive) private var pageIsActive
+    @FocusState private var cloudButtonIsFocused: Bool
 
     var body: some View {
         AppleTVPanel {
@@ -226,6 +238,13 @@ struct AppleTVCloudLibraryView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(isFetching || LibrarySyncCoordinator.shared.isSyncing || TVSyncCoordinator.shared.isSyncing)
+            .focused($cloudButtonIsFocused)
+            .task(id: pageFocusRequest) {
+                guard pageFocusRequest > 0, pageIsActive else { return }
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                cloudButtonIsFocused = true
+            }
             .accessibilityIdentifier("tvOS.getCloudLibraries")
             .accessibilityHint("Merges your current movie and TV collections from private iCloud without replacing saved libraries")
             HStack(alignment: .top, spacing: 60) {

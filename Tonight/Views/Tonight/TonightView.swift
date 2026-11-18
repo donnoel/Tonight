@@ -850,7 +850,7 @@ struct TonightView: View {
             }
             if response.removesMovieFromActivePicks,
                let movieID = event.movie?.id {
-                TonightWidgetSnapshotPublisher.removeMovie(id: movieID)
+                TonightWidgetSnapshotPublisher.removeMovie(id: movieID, in: modelContext)
             }
         }
     }

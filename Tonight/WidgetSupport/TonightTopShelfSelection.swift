@@ -15,24 +15,36 @@ enum TonightTopShelfSelection {
     }
 
     static func picks(events: [RecommendationEvent], library: [Movie],
-                      preferences: RecommendationPreferences, now: Date = .now) -> [RecommendationPick] {
+                      preferences: RecommendationPreferences, now: Date = .now,
+                      preferredMovieIDs: [UUID] = [], excluding excludedIDs: Set<UUID> = []) -> [RecommendationPick] {
+        let eligibleLibrary = library.filter {
+            !excludedIDs.contains($0.id) && !$0.isWatched
+                && RecommendationEngine.isEligible($0, preferences: preferences)
+        }
+        let eligibleIDs = Set(eligibleLibrary.map(\.id))
         let latestDate = events.map(\.recommendedAt).max()
         let active = events.filter { event in
             guard event.recommendedAt == latestDate, event.response == .pending,
                   let movie = event.movie,
                   movie.browsingEventID == nil || movie.browsingEventID == event.id else { return false }
-            return !movie.isWatched && RecommendationEngine.isEligible(movie, preferences: preferences)
+            return eligibleIDs.contains(movie.id)
         }.sorted { $0.kind.sortOrder < $1.kind.sortOrder }
         var seen: Set<UUID> = []
-        var picks = active.compactMap { event -> RecommendationPick? in
-            guard let movie = event.movie, seen.insert(movie.id).inserted else { return nil }
+        let primaryPicks = active.compactMap { event -> RecommendationPick? in
+            guard let movie = event.movie else { return nil }
             return RecommendationPick(kind: event.kind, movie: movie,
                 rationale: RecommendationEngine.rationale(for: movie, kind: event.kind, mood: event.mood))
         }
-        guard !picks.isEmpty else { return [] }
+        let preservedPicks = preferredMovieIDs.compactMap { id -> RecommendationPick? in
+            guard let movie = eligibleLibrary.first(where: { $0.id == id }) else { return nil }
+            return primaryPicks.first(where: { $0.id == id })
+                ?? RecommendationPick(kind: .wildcard, movie: movie,
+                    rationale: RecommendationEngine.rationale(for: movie, kind: .wildcard, mood: preferences.mood))
+        }
+        var picks = (preservedPicks + primaryPicks).filter { seen.insert($0.id).inserted }
         while picks.count < 5 {
             let alternatives = RecommendationEngine.recommendations(
-                from: library.filter { !seen.contains($0.id) && !$0.isWatched },
+                from: eligibleLibrary.filter { !seen.contains($0.id) },
                 history: events, preferences: preferences, now: now)
             guard !alternatives.isEmpty else { break }
             let additions = alternatives.prefix(5 - picks.count)
@@ -84,7 +96,7 @@ final class TonightTopShelfMovieSelection: Identifiable {
         do {
             try LibrarySyncStore.save(context)
             if response.removesMovieFromActivePicks {
-                TonightWidgetSnapshotPublisher.removeMovie(id: movie.id)
+                TonightWidgetSnapshotPublisher.removeMovie(id: movie.id, in: context)
             }
         } catch {
             context.rollback()

@@ -38,7 +38,7 @@ final class TonightTopShelfTests: XCTestCase {
         let result = TonightTopShelfSelection.picks(events: [event],
             library: [first, unresolved, disliked, watched, horror], preferences: .init(mood: .funAndEasy))
         XCTAssertEqual(result.map(\.id), [first.id])
-        XCTAssertTrue(TonightTopShelfSelection.picks(events: [], library: [first], preferences: .init()).isEmpty)
+        XCTAssertEqual(TonightTopShelfSelection.picks(events: [], library: [first], preferences: .init()).map(\.id), [first.id])
     }
 
     @MainActor func testOpeningSupplementalMovieDoesNotCreateHistoryOrMarkWatched() throws {
@@ -102,6 +102,45 @@ final class TonightTopShelfTests: XCTestCase {
         let result = TonightTopShelfSelection.picks(events: [event], library: movies, preferences: .init())
         XCTAssertEqual(result.count, 5)
         XCTAssertEqual(Set(result.map(\.id)).count, 5)
+    }
+
+    @MainActor func testChoosingShelfMovieRefillsFiveAndPreservesRemainingOrder() throws {
+        let container = try container()
+        defer { withExtendedLifetime(container) {} }
+        let context = container.mainContext
+        let movies = (0..<8).map { movie("Movie \($0)", id: $0 + 1) }
+        for movie in movies { context.insert(movie) }
+        let event = RecommendationEvent(movie: movies[0], kind: .bestMatch)
+        context.insert(event); try context.save()
+        let original = TonightTopShelfSelection.picks(events: [event], library: movies, preferences: .init())
+        let selected = try XCTUnwrap(original.last)
+        let selection = TonightTopShelfMovieSelection(movie: selected.movie, history: [event], preferences: .init())
+        selection.respond(.accepted, in: context)
+        let history = try context.fetch(FetchDescriptor<RecommendationEvent>())
+        let remaining = original.filter { $0.id != selected.id }.map(\.id)
+        let result = TonightTopShelfSelection.picks(events: history, library: movies, preferences: .init(),
+            preferredMovieIDs: remaining, excluding: [selected.id])
+        XCTAssertEqual(result.count, 5)
+        XCTAssertEqual(Array(result.prefix(4).map(\.id)), remaining)
+        XCTAssertEqual(Set(result.map(\.id)).count, 5)
+        XCTAssertFalse(result.contains { $0.id == selected.id })
+        XCTAssertTrue(result.allSatisfy { !$0.movie.isWatched })
+        XCTAssertEqual(history.filter { $0.response == .accepted }.count, 1)
+    }
+
+    func testNoPendingPicksStillProducesFiveAndNoEligibleLibraryProducesNone() {
+        let movies = (0..<6).map { movie("Movie \($0)", id: $0 + 1) }
+        XCTAssertEqual(TonightTopShelfSelection.picks(events: [], library: movies, preferences: .init()).count, 5)
+        for movie in movies { movie.isWatched = true }
+        XCTAssertTrue(TonightTopShelfSelection.picks(events: [], library: movies, preferences: .init()).isEmpty)
+    }
+
+    func testRefillDoesNotImmediatelyReofferSkippedMovie() {
+        let movies = (0..<7).map { movie("Movie \($0)", id: $0 + 1) }
+        let result = TonightTopShelfSelection.picks(events: [], library: movies, preferences: .init(),
+            preferredMovieIDs: movies.prefix(4).map(\.id), excluding: [movies[4].id])
+        XCTAssertEqual(result.count, 5)
+        XCTAssertFalse(result.contains { $0.id == movies[4].id })
     }
 
     private func movie(_ title: String, id: Int) -> Movie {

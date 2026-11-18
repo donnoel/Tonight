@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import SwiftData
 #if os(tvOS)
 import TVServices
 #else
@@ -28,8 +29,13 @@ enum TonightWidgetSnapshotPublisher {
 
     static func publish(events: [RecommendationEvent], library: [Movie] = []) {
         #if os(tvOS)
+        let preferences = TonightTopShelfSelection.preferences
+        let hasPendingPicks = RecommendationEngine.activeEvents(from: events, preferences: preferences)
+            .contains { $0.response == .pending }
+        let previous = latestSnapshot ?? (try? TonightWidgetSnapshotStore().load())
         let picks = TonightTopShelfSelection.picks(events: events, library: library,
-            preferences: TonightTopShelfSelection.preferences)
+            preferences: preferences,
+            preferredMovieIDs: hasPendingPicks ? [] : previous?.picks.map(\.id) ?? [])
         publish(snapshot: TonightWidgetSnapshot(
             generatedAt: events.map(\.recommendedAt).max() ?? .now,
             picks: picks.map { widgetPick(movie: $0.movie, kind: $0.kind, rationale: $0.rationale) }))
@@ -67,11 +73,11 @@ enum TonightWidgetSnapshotPublisher {
         #endif
     }
 
-    static func removeMovie(id: UUID) {
-        removeMovies(ids: [id])
+    static func removeMovie(id: UUID, in context: ModelContext? = nil) {
+        removeMovies(ids: [id], in: context)
     }
 
-    static func removeMovies(ids: Set<UUID>) {
+    static func removeMovies(ids: Set<UUID>, in context: ModelContext? = nil) {
         guard !ids.isEmpty else { return }
         let snapshot: TonightWidgetSnapshot
         if let latestSnapshot {
@@ -84,6 +90,23 @@ enum TonightWidgetSnapshotPublisher {
             snapshot = storedSnapshot
         }
         let updated = snapshot.removingMovies(ids: ids)
+        #if os(tvOS)
+        if let context {
+            do {
+                let events = try context.fetch(FetchDescriptor<RecommendationEvent>())
+                let library = try context.fetch(FetchDescriptor<Movie>())
+                let picks = TonightTopShelfSelection.picks(events: events, library: library,
+                    preferences: TonightTopShelfSelection.preferences,
+                    preferredMovieIDs: updated.picks.map(\.id), excluding: ids)
+                publish(snapshot: TonightWidgetSnapshot(generatedAt: snapshot.generatedAt,
+                    picks: picks.map { widgetPick(movie: $0.movie, kind: $0.kind, rationale: $0.rationale) }))
+                return
+            } catch {
+                Logger(subsystem: "com.donnoel.Tonight", category: "TonightWidget")
+                    .error("Top Shelf could not refill after a library change.")
+            }
+        }
+        #endif
         guard updated != snapshot else { return }
         publish(snapshot: updated)
     }
