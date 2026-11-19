@@ -353,32 +353,50 @@ private struct DealMovieCard: View {
                 )
                 .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
 
+                #if !os(tvOS)
                 Text(item.appleDeal.formattedPrice)
                     .font(.caption.weight(.bold))
                     .padding(.horizontal, 9)
                     .padding(.vertical, 6)
                     .background(.regularMaterial, in: Capsule())
                     .padding(9)
+                #endif
             }
 
+            #if os(tvOS)
+            ZStack {
+                // Reserve the same three-line area, centering shorter names within it.
+                Text(verbatim: "M\nM\nM")
+                    .hidden().accessibilityHidden(true)
+                Text(item.metadata?.title ?? item.appleDeal.title)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.9)
+                    .multilineTextAlignment(.center)
+            }
+            .font(.system(.callout, design: .rounded).weight(.semibold))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 4)
+            #else
             Text(item.metadata?.title ?? item.appleDeal.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
-                #if os(tvOS)
-                .lineLimit(2, reservesSpace: true)
-                #else
                 .lineLimit(2)
-                #endif
+            #endif
 
             Text(item.releaseYear.map(String.init) ?? " ")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                #if os(tvOS)
+                .frame(maxWidth: .infinity)
+                #endif
 
             #if os(tvOS)
             Label("In Library", systemImage: "checkmark.circle.fill")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1, reservesSpace: true)
+                .frame(maxWidth: .infinity)
                 .opacity(isInLibrary ? 1 : 0)
                 .accessibilityHidden(!isInLibrary)
 
@@ -387,6 +405,8 @@ private struct DealMovieCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(4, reservesSpace: true)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
             }
             #else
             if isInLibrary {
