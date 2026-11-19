@@ -157,7 +157,7 @@ private struct AppleTVCinemaRail: View {
                 .foregroundStyle(LinearGradient(colors: [.cyan, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .frame(height: 70).accessibilityHidden(true)
             Spacer(minLength: 0)
-            VStack(spacing: 14) {
+            VStack(spacing: 22) {
                 ForEach(AppleTVSection.allCases) { section in
                     if section == .tonight && allowsMovieEntry {
                         railButton(section)
@@ -169,6 +169,7 @@ private struct AppleTVCinemaRail: View {
             }
             Spacer(minLength: 70)
         }
+        .padding(.trailing, 16)
         .padding(.vertical, 20).frame(width: 170)
         .background {
             LinearGradient(colors: [theme.surface.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
@@ -191,10 +192,10 @@ private struct AppleTVCinemaRail: View {
             else { selection = section }
         } label: {
             VStack(spacing: 9) {
-                Image(systemName: section.symbol).font(.system(size: 32, weight: .regular))
+                Image(systemName: section.symbol).font(.system(size: 38, weight: .regular))
                 Text(section.rawValue).font(.system(size: 24, weight: .medium))
                     .fixedSize(horizontal: true, vertical: false)
-            }.frame(width: 146, height: 100)
+            }.frame(width: 146, height: 108)
         }
         .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section,
             isSelected: selection == section, magnification: magnification(for: section)))
