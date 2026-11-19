@@ -12,6 +12,8 @@ struct AppleTVMoviePicksView: View {
     @Binding var moreAdventurous: Bool
     let refresh: () -> Void
     let respond: (RecommendationEvent, RecommendationResponse) -> Void
+    @Environment(\.appleTVPageFocusRequest) private var pageFocusRequest
+    @Environment(\.appleTVPageIsActive) private var pageIsActive
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
     @AppStorage("tonightMedia") private var media = TonightMedia.movies
@@ -50,16 +52,24 @@ struct AppleTVMoviePicksView: View {
                     .buttonStyle(AppleTVCinemaControlStyle())
                     .focused($pickFocus, equals: .refresh)
                     .accessibilityLabel(events.isEmpty ? "Find My Picks" : "More Ideas")
-                    .disabled(isLoading || (events.isEmpty && remainingCount == 0))
+                    .disabled(!canFocusRefresh)
                 }
                 .focusSection()
                 .onMoveCommand { direction in
-                    guard direction == .down, !showsCollection, !showsTuning,
-                          !isLoading, totalCount > 0 else { return }
-                    let displayedEvents = events.prefix(3)
-                    let target = displayedEvents.first { $0.id == lastPosterID && $0.movie != nil }
-                        ?? displayedEvents.first { $0.movie != nil }
-                    if let target { pickFocus = .poster(target.id) }
+                    guard !showsCollection, !showsTuning else { return }
+                    switch (direction, pickFocus) {
+                    case (.right, .collection): pickFocus = .mood
+                    case (.right, .mood) where canFocusRefresh: pickFocus = .refresh
+                    case (.left, .refresh): pickFocus = .mood
+                    case (.left, .mood): pickFocus = .collection
+                    case (.down, _):
+                        guard !isLoading, totalCount > 0 else { return }
+                        let displayedEvents = events.prefix(3)
+                        let target = displayedEvents.first { $0.id == lastPosterID && $0.movie != nil }
+                            ?? displayedEvents.first { $0.movie != nil }
+                        if let target { pickFocus = .poster(target.id) }
+                    default: break
+                    }
                 }
             }
             .padding(.top, 20)
@@ -108,6 +118,12 @@ struct AppleTVMoviePicksView: View {
         .padding(.horizontal, 40)
         .padding(.top, 12)
         .padding(.bottom, 20)
+        .task(id: pageFocusRequest) {
+            guard pageFocusRequest > 0, pageIsActive, !showsCollection, !showsTuning else { return }
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            pickFocus = canFocusRefresh ? .refresh : .collection
+        }
         .onChange(of: pickFocus) { _, focus in
             switch focus {
             case .poster(let id): lastPosterID = id
@@ -126,6 +142,10 @@ struct AppleTVMoviePicksView: View {
                 unwatchedOnly: $unwatchedOnly, somethingOlder: $somethingOlder,
                 moreAdventurous: $moreAdventurous, remainingCount: remainingCount, totalCount: totalCount)
         }
+    }
+
+    private var canFocusRefresh: Bool {
+        !isLoading && (!events.isEmpty || remainingCount > 0)
     }
 
     private func chosenFeature(event: RecommendationEvent, movie: Movie) -> some View {
@@ -196,28 +216,23 @@ private struct AppleTVMoviePoster: View {
     @Environment(\.appleTVPosterIsFocused) private var isFocused
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            GeometryReader { available in
-                let height = max(0, min(available.size.height - 16, (available.size.width - 16) * 1.5))
-                AppleTVFloatingArtwork(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
-                                       position: position, isFocused: isFocused)
-                    .frame(width: height * 2 / 3, height: height)
-                    .shadow(color: .black.opacity(0.16), radius: 10, y: 5)
-                    .frame(width: available.size.width, height: available.size.height)
-                    .transaction { transaction in
-                        transaction.animation = nil
-                        transaction.disablesAnimations = true
-                    }
-            }
-            Text(movie.title)
-                .font(.system(size: 32, weight: .semibold, design: .rounded))
-                .lineLimit(2).multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, 12)
-                .frame(height: 80, alignment: .top)
+        GeometryReader { available in
+            let height = max(0, min(available.size.height - 16, (available.size.width - 16) * 1.5))
+            AppleTVFloatingArtwork(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
+                                   position: position, isFocused: isFocused)
+                .frame(width: height * 2 / 3, height: height)
+                .shadow(color: .black.opacity(0.16), radius: 10, y: 5)
+                .frame(width: available.size.width, height: available.size.height)
+                .transaction { transaction in
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
         }
+        // Keep the existing artwork area and bottom breathing room as captions disappear.
+        .padding(.bottom, 102)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
 }
 
 extension Movie {

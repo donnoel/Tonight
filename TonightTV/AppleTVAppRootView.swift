@@ -28,6 +28,7 @@ struct AppleTVAppRootView: View {
     @State private var visitedSections: Set<AppleTVSection> = [.tonight]
     @State private var visibleRoots: Set<AppleTVSection> = []
     @State private var railFocusRequest = 0
+    @State private var movieFocusRequest = 0
     @State private var settingsFocusRequest = 0
     @State private var shelfResetRequest = 0
     @State private var shelfSelection: TonightTopShelfMovieSelection?
@@ -37,6 +38,8 @@ struct AppleTVAppRootView: View {
         let theme = AppleTVTheme(scheme: scheme, contrast: contrast)
         HStack(spacing: 0) {
             AppleTVCinemaRail(selection: $selection, focusRequest: railFocusRequest,
+                allowsMovieEntry: media == .movies,
+                onEnterTonight: { selection = .tonight; movieFocusRequest += 1 },
                 onEnterSettings: { selection = .settings; settingsFocusRequest += 1 })
 
             VStack(spacing: 0) {
@@ -127,7 +130,7 @@ struct AppleTVAppRootView: View {
 
     @ViewBuilder private func sectionContent(_ section: AppleTVSection) -> some View {
         switch section {
-        case .tonight: TVMediaView(page: .tonight)
+        case .tonight: TVMediaView(page: .tonight).environment(\.appleTVPageFocusRequest, movieFocusRequest)
         case .library: TVMediaView(page: .library)
         case .deals: DealsView()
         case .history: TVMediaView(page: .history)
@@ -140,6 +143,8 @@ struct AppleTVAppRootView: View {
 private struct AppleTVCinemaRail: View {
     @Binding var selection: AppleTVSection
     let focusRequest: Int
+    let allowsMovieEntry: Bool
+    let onEnterTonight: () -> Void
     let onEnterSettings: () -> Void
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
@@ -155,23 +160,15 @@ private struct AppleTVCinemaRail: View {
             Spacer(minLength: 0)
             VStack(spacing: 14) {
                 ForEach(AppleTVSection.allCases) { section in
-                    Button {
-                        if section == .settings && selection == .settings { onEnterSettings() }
-                        else { selection = section }
-                    } label: {
-                        VStack(spacing: 9) {
-                            Image(systemName: section.symbol).font(.system(size: 32, weight: .regular))
-                            Text(section.rawValue).font(.system(size: 24, weight: .medium))
-                                .fixedSize(horizontal: true, vertical: false)
-                        }.frame(width: 146, height: 100)
+                    if section == .settings {
+                        railButton(section)
+                            .onMoveCommand { if $0 == .right { onEnterSettings() } }
+                    } else if section == .tonight && allowsMovieEntry {
+                        railButton(section)
+                            .onMoveCommand { if $0 == .right { onEnterTonight() } }
+                    } else {
+                        railButton(section)
                     }
-                    .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section,
-                        isSelected: selection == section, magnification: magnification(for: section)))
-                    .focused($navigationFocus, equals: section)
-                    .onMoveCommand { direction in
-                        if direction == .right && section == .settings { onEnterSettings() }
-                    }
-                    .accessibilityAddTraits(selection == section ? .isSelected : [])
                 }
             }
             Spacer(minLength: 70)
@@ -190,6 +187,24 @@ private struct AppleTVCinemaRail: View {
             guard !Task.isCancelled else { return }
             selection = focused
         }
+    }
+
+    private func railButton(_ section: AppleTVSection) -> some View {
+        Button {
+            if section == .settings && selection == .settings { onEnterSettings() }
+            else if section == .tonight && selection == .tonight && allowsMovieEntry { onEnterTonight() }
+            else { selection = section }
+        } label: {
+            VStack(spacing: 9) {
+                Image(systemName: section.symbol).font(.system(size: 32, weight: .regular))
+                Text(section.rawValue).font(.system(size: 24, weight: .medium))
+                    .fixedSize(horizontal: true, vertical: false)
+            }.frame(width: 146, height: 100)
+        }
+        .buttonStyle(AppleTVCinemaRailButtonStyle(isFocused: navigationFocus == section,
+            isSelected: selection == section, magnification: magnification(for: section)))
+        .focused($navigationFocus, equals: section)
+        .accessibilityAddTraits(selection == section ? .isSelected : [])
     }
 
     private func magnification(for section: AppleTVSection) -> CGFloat {

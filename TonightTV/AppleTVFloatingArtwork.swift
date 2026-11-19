@@ -17,7 +17,8 @@ struct AppleTVFloatingArtwork: View {
     var body: some View {
         PosterSurface(image: image, position: position, isFocused: isFocused,
                       focusColor: scheme == .dark ? .white : .black,
-                      isMoving: isVisible && !reduceMotion && scenePhase == .active)
+                      allowsMotion: !reduceMotion,
+                      isMoving: isVisible && scenePhase == .active)
             .overlay {
                 if image == nil {
                     if isLoading { ProgressView().controlSize(.small) }
@@ -50,13 +51,14 @@ private struct PosterSurface: UIViewRepresentable {
     let position: Int
     let isFocused: Bool
     let focusColor: UIColor
+    let allowsMotion: Bool
     let isMoving: Bool
 
     func makeUIView(context: Context) -> FloatingPosterView { FloatingPosterView() }
 
     func updateUIView(_ view: FloatingPosterView, context: Context) {
         view.configure(image: image, position: position, isFocused: isFocused,
-                       focusColor: focusColor, isMoving: isMoving)
+                       focusColor: focusColor, allowsMotion: allowsMotion, isMoving: isMoving)
     }
 }
 
@@ -64,6 +66,7 @@ private final class FloatingPosterView: UIView {
     private let artwork = UIImageView()
     private var displayedImage: CGImage?
     private var motionEnabled = false
+    private var isMoving = false
     private var position = 0
 
     override init(frame: CGRect) {
@@ -80,7 +83,7 @@ private final class FloatingPosterView: UIView {
 
     required init?(coder: NSCoder) { nil }
 
-    func configure(image: CGImage?, position: Int, isFocused: Bool, focusColor: UIColor, isMoving: Bool) {
+    func configure(image: CGImage?, position: Int, isFocused: Bool, focusColor: UIColor, allowsMotion: Bool, isMoving: Bool) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         if displayedImage !== image {
@@ -90,9 +93,10 @@ private final class FloatingPosterView: UIView {
         artwork.layer.borderWidth = isFocused ? 3 : 0
         artwork.layer.borderColor = focusColor.cgColor
         CATransaction.commit()
-        if self.position != position { artwork.layer.removeAnimation(forKey: "posterFloat") }
+        if self.position != position { resetMotion() }
         self.position = position
-        motionEnabled = isMoving && image != nil
+        motionEnabled = allowsMotion && image != nil
+        self.isMoving = isMoving
         updateMotion()
     }
 
@@ -111,27 +115,53 @@ private final class FloatingPosterView: UIView {
     }
 
     private func updateMotion() {
-        guard motionEnabled, window != nil, !bounds.isEmpty else {
-            artwork.layer.removeAnimation(forKey: "posterFloat")
-            return
+        guard motionEnabled else { resetMotion(); return }
+        guard window != nil, !bounds.isEmpty else { pauseMotion(); return }
+        if artwork.layer.animation(forKey: "posterFloat") == nil {
+            let duration = (16 + Double(position) * 3) * 2
+            let direction: CGFloat = position.isMultiple(of: 2) ? 1 : -1
+            let horizontal = CAKeyframeAnimation(keyPath: "transform.translation.x")
+            horizontal.values = [0, 5 * direction, 0, -5 * direction, 0]
+            let vertical = CAKeyframeAnimation(keyPath: "transform.translation.y")
+            vertical.values = [0, -7, 0, 7, 0]
+            for animation in [horizontal, vertical] {
+                animation.keyTimes = [0, 0.25, 0.5, 0.75, 1]
+                animation.timingFunctions = Array(repeating: CAMediaTimingFunction(name: .easeInEaseOut), count: 4)
+                animation.duration = duration
+            }
+            let float = CAAnimationGroup()
+            float.animations = [horizontal, vertical]
+            float.duration = duration
+            float.repeatCount = .infinity
+            float.isRemovedOnCompletion = false
+            artwork.layer.add(float, forKey: "posterFloat")
         }
-        guard artwork.layer.animation(forKey: "posterFloat") == nil else { return }
-        let duration = 16 + Double(position) * 3
-        let direction: CGFloat = position.isMultiple(of: 2) ? 1 : -1
-        let horizontal = CABasicAnimation(keyPath: "transform.translation.x")
-        horizontal.fromValue = -5 * direction
-        horizontal.toValue = 5 * direction
-        horizontal.duration = duration
-        let vertical = CABasicAnimation(keyPath: "transform.translation.y")
-        vertical.fromValue = 7
-        vertical.toValue = -7
-        vertical.duration = duration
-        let float = CAAnimationGroup()
-        float.animations = [horizontal, vertical]
-        float.duration = duration
-        float.autoreverses = true
-        float.repeatCount = .infinity
-        float.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        artwork.layer.add(float, forKey: "posterFloat")
+        if isMoving { resumeMotion() } else { pauseMotion() }
+    }
+
+    private func pauseMotion() {
+        let layer = artwork.layer
+        guard layer.animation(forKey: "posterFloat") != nil, layer.speed != 0 else { return }
+        let pausedTime = layer.convertTime(CACurrentMediaTime(), from: nil)
+        layer.speed = 0
+        layer.timeOffset = pausedTime
+    }
+
+    private func resumeMotion() {
+        let layer = artwork.layer
+        guard layer.speed == 0 else { return }
+        let pausedTime = layer.timeOffset
+        layer.speed = 1
+        layer.timeOffset = 0
+        layer.beginTime = 0
+        layer.beginTime = layer.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
+    }
+
+    private func resetMotion() {
+        let layer = artwork.layer
+        layer.removeAnimation(forKey: "posterFloat")
+        layer.speed = 1
+        layer.timeOffset = 0
+        layer.beginTime = 0
     }
 }
