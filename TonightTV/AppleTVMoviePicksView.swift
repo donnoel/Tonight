@@ -16,17 +16,10 @@ struct AppleTVMoviePicksView: View {
     @Environment(\.appleTVPageIsActive) private var pageIsActive
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.openURL) private var openURL
-    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("tonightMedia") private var media = TonightMedia.movies
     @State private var showsTuning = false
     @State private var showsCollection = false
     @State private var lastPosterID: UUID?
-    @State private var openingEventID: UUID?
-    @State private var detailsEvent: RecommendationEvent?
-    @State private var linkEditorEvent: RecommendationEvent?
-    @State private var failedEvent: RecommendationEvent?
-    @State private var handoffError: String?
     @State private var lastHeaderControl = PickFocus.mood
     @FocusState private var pickFocus: PickFocus?
     private enum PickFocus: Hashable { case collection, mood, refresh, poster(UUID) }
@@ -97,15 +90,16 @@ struct AppleTVMoviePicksView: View {
                 HStack(alignment: .top, spacing: 40) {
                     ForEach(Array(events.prefix(3).enumerated()), id: \.element.id) { position, event in
                         if let movie = event.movie {
-                            Button {
-                                openingEventID = event.id
+                            NavigationLink {
+                                MovieDetailView(movie: movie, recommendationContext: .init(
+                                    event: event,
+                                    onChoose: { respond(event, .accepted) },
+                                    onRespond: { respond(event, $0) }
+                                ))
                             } label: {
                                 AppleTVMoviePoster(movie: movie, position: position)
-                                    .overlay { openingIndicator(for: event) }
                             }
                             .buttonStyle(AppleTVPosterButtonStyle())
-                            .disabled(openingEventID != nil)
-                            .contextMenu { detailsAction(for: event) }
                             .focused($pickFocus, equals: .poster(event.id))
                             .onMoveCommand { direction in
                                 if direction == .up {
@@ -114,8 +108,7 @@ struct AppleTVMoviePicksView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .accessibilityLabel("\(event.kind.title): \(movie.title)")
-                            .accessibilityHint("Chooses this movie, marks it watched, and opens its page in Apple TV. Hold Select for Tonight details.")
+                            .accessibilityLabel("\(event.kind.title): \(movie.title). Open details and choose")
                         }
                     }
                 }
@@ -125,67 +118,6 @@ struct AppleTVMoviePicksView: View {
         .padding(.horizontal, 40)
         .padding(.top, 12)
         .padding(.bottom, 20)
-        .task(id: openingEventID) {
-            guard let id = openingEventID,
-                  let event = events.first(where: { $0.id == id }), let movie = event.movie else { return }
-            let title = movie.title
-            defer { if openingEventID == id { openingEventID = nil } }
-            do {
-                let outcome = try await AppleTVMovieHandoff.open(
-                    query: .init(title: title, year: movie.releaseYear ?? movie.importedYear),
-                    resolve: { try await AppleTVMovieLinkResolver.shared.link(for: $0) },
-                    choose: {
-                        if event.response == .pending { respond(event, .accepted) }
-                        return event.response == .accepted
-                    },
-                    launch: { url in
-                        await withCheckedContinuation { continuation in
-                            openURL(url) { continuation.resume(returning: $0) }
-                        }
-                    })
-                guard !Task.isCancelled else { return }
-                switch outcome {
-                case .opened, .saveFailed: break // The owning Tonight view presents save failures.
-                case .unavailable:
-                    failedEvent = event
-                    handoffError = "Apple’s public catalog couldn’t identify an exact listing for \(title). Save its Apple TV sharing link once, or open Tonight details."
-                case .openFailed:
-                    failedEvent = event
-                    handoffError = "Your choice was saved, but Apple TV couldn’t open \(title). Please try again."
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                guard !Task.isCancelled else { return }
-                failedEvent = event
-                handoffError = "The Apple TV page for \(title) couldn’t be loaded. Please try again."
-            }
-        }
-        .onChange(of: pageIsActive) { _, active in
-            if !active { openingEventID = nil; handoffError = nil; failedEvent = nil }
-        }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { openingEventID = nil } }
-        .onChange(of: events.map(\.id)) { _, ids in
-            if let id = openingEventID, !ids.contains(id) { openingEventID = nil }
-        }
-        .navigationDestination(item: $detailsEvent) { event in
-            if let movie = event.movie {
-                MovieDetailView(movie: movie, recommendationContext: .init(event: event,
-                    onChoose: { respond(event, .accepted) }, onRespond: { respond(event, $0) }))
-            }
-        }
-        .alert("Couldn’t Open Apple TV", isPresented: Binding(
-            get: { handoffError != nil }, set: { if !$0 { handoffError = nil } })) {
-            Button("Try Again") { openingEventID = failedEvent?.id }
-            Button("Link Apple TV Page") { linkEditorEvent = failedEvent }
-            Button("Tonight Details") { detailsEvent = failedEvent }
-            Button("Cancel", role: .cancel) { failedEvent = nil }
-        } message: { Text(handoffError ?? "") }
-        .fullScreenCover(item: $linkEditorEvent) { event in
-            if let movie = event.movie {
-                AppleTVMovieLinkEditor(query: .init(title: movie.title, year: movie.releaseYear ?? movie.importedYear))
-            }
-        }
         .task(id: pageFocusRequest) {
             guard pageFocusRequest > 0, pageIsActive, !showsCollection, !showsTuning else { return }
             await Task.yield()
@@ -216,43 +148,27 @@ struct AppleTVMoviePicksView: View {
         !isLoading && (!events.isEmpty || remainingCount > 0)
     }
 
-    @ViewBuilder private func openingIndicator(for event: RecommendationEvent) -> some View {
-        if openingEventID == event.id {
-            ProgressView("Opening Apple TV…")
-                .font(.callout).padding(20)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                .accessibilityLabel("Opening Apple TV")
-        }
-    }
-
-    @ViewBuilder private func detailsAction(for event: RecommendationEvent) -> some View {
-        Button("Tonight Details", systemImage: "info.circle") { detailsEvent = event }
-        Button("Link Apple TV Page", systemImage: "link") { linkEditorEvent = event }
-    }
-
     private func chosenFeature(event: RecommendationEvent, movie: Movie) -> some View {
         let theme = AppleTVTheme(scheme: colorScheme, contrast: contrast)
         return GeometryReader { space in
             let posterHeight = max(0, min(space.size.height - 64, space.size.width * 0.5))
             HStack(alignment: .center, spacing: 80) {
-                Button {
-                    openingEventID = event.id
+                NavigationLink {
+                    MovieDetailView(movie: movie, recommendationContext: .init(event: event,
+                        onChoose: { respond(event, .accepted) },
+                        onRespond: { respond(event, $0) }))
                 } label: {
                     AppleTVFloatingArtwork(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
                         position: 0, isFocused: pickFocus == .poster(event.id))
                         .frame(width: posterHeight * 2 / 3, height: posterHeight)
                         .shadow(color: .black.opacity(0.22), radius: 16, y: 10)
-                        .overlay { openingIndicator(for: event) }
                 }
                 .buttonStyle(AppleTVPosterButtonStyle())
-                .disabled(openingEventID != nil)
-                .contextMenu { detailsAction(for: event) }
                 .focused($pickFocus, equals: .poster(event.id))
                 .onMoveCommand { direction in
                     if direction == .up { lastPosterID = event.id; pickFocus = lastHeaderControl }
                 }
-                .accessibilityLabel("Chosen for tonight: \(movie.title)")
-                .accessibilityHint("Opens this movie’s page in Apple TV. Hold Select for Tonight details.")
+                .accessibilityLabel("Chosen for tonight: \(movie.title). Open movie details")
 
                 VStack(alignment: .leading, spacing: 26) {
                     Label("Chosen for tonight", systemImage: "checkmark.circle.fill")
