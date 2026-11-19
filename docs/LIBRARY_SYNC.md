@@ -36,6 +36,14 @@ Physical-device migration backups from September 6, 2026 were also retained outs
 
 For recovery, preserve both the current store and its pending edits before any restore. Do not delete the cloud zone, clear the library, or overwrite the current store as a routine retry. Original backups predate later edits; restoring them must be a deliberate recovery action. A future App Store release must validate the corresponding production CloudKit schema and signing environment separately from development-device qualification.
 
+## Comparing an updated movie export
+
+1. Read the CSV with a CSV parser so quoted commas stay in movie titles. Compare the source title and year against the saved library, including imported and alternate titles. Check director, runtime, and edition when a storefront year or title differs from the film metadata.
+2. Import only confirmed missing titles through the existing iPhone or iPad import flow. Keep existing library entries even if the export omits them. Apple TV receives additions through iCloud.
+3. Relaunch Tonight on the target devices. Verify the same movie identities and editions on each device and check for pending uploads. Keep personal exports and database snapshots outside Git.
+
+On November 19, 2026, all 966 CSV rows matched existing movies, and the library contained 12 additional entries. After relaunching build **1.1 (34)** on iPhone, iPad, and Living Room Apple TV, all three stores had the same 978 resolved movie identities, including separate editions, with zero duplicate identity keys and zero pending uploads. The reconciliation required no import or new build.
+
 ## September 6, 2026 device qualification
 
 Final build: **1.0 (7)**. App, widget, and generated system Settings version row agree. Both physical devices installed and launched successfully. Warning-as-error simulator tests and signed device builds passed with zero build warnings; all **119 unit tests** passed.
