@@ -228,8 +228,8 @@ private struct AppleTVMoviePoster: View {
                     transaction.disablesAnimations = true
                 }
         }
-        // Keep the existing artwork area and bottom breathing room as captions disappear.
-        .padding(.bottom, 102)
+        // Reclaim some caption space for larger artwork, retaining room for its gentle float.
+        .padding(.bottom, 46)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

@@ -67,6 +67,7 @@ struct AppleTVPageHeader: View {
     let title: String
     let subtitle: String
     var collection: Binding<TonightMedia>?
+    var openSettings: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: 40) {
@@ -80,6 +81,12 @@ struct AppleTVPageHeader: View {
                 .pickerStyle(.menu)
                 .frame(width: 280)
                 .accessibilityIdentifier("mediaPicker")
+            }
+            if let openSettings {
+                Button("Settings", systemImage: "gearshape") { openSettings() }
+                    .buttonStyle(AppleTVCinemaControlStyle())
+                    .accessibilityIdentifier("tvOS.librarySettings")
+                    .accessibilityHint("Manage iCloud sync and this Apple TV’s metadata credential")
             }
         }
         .padding(.horizontal, AppleTVTheme.pageInset)

@@ -3,7 +3,7 @@ import SwiftData
 import SwiftUI
 
 private enum AppleTVSection: String, CaseIterable, Identifiable {
-    case tonight = "Tonight", library = "Library", deals = "Deals", history = "History", settings = "Settings"
+    case tonight = "Tonight", library = "Library", deals = "Deals", history = "History"
     var id: Self { self }
     var symbol: String {
         switch self {
@@ -11,7 +11,6 @@ private enum AppleTVSection: String, CaseIterable, Identifiable {
         case .library: "rectangle.stack.fill"
         case .deals: "tag.fill"
         case .history: "clock.arrow.circlepath"
-        case .settings: "gearshape.fill"
         }
     }
 }
@@ -29,7 +28,7 @@ struct AppleTVAppRootView: View {
     @State private var visibleRoots: Set<AppleTVSection> = []
     @State private var railFocusRequest = 0
     @State private var movieFocusRequest = 0
-    @State private var settingsFocusRequest = 0
+    @State private var showsSettings = false
     @State private var shelfResetRequest = 0
     @State private var shelfSelection: TonightTopShelfMovieSelection?
     @State private var shelfRouteError: String?
@@ -39,13 +38,13 @@ struct AppleTVAppRootView: View {
         HStack(spacing: 0) {
             AppleTVCinemaRail(selection: $selection, focusRequest: railFocusRequest,
                 allowsMovieEntry: media == .movies,
-                onEnterTonight: { selection = .tonight; movieFocusRequest += 1 },
-                onEnterSettings: { selection = .settings; settingsFocusRequest += 1 })
+                onEnterTonight: { selection = .tonight; movieFocusRequest += 1 })
 
             VStack(spacing: 0) {
                 if selection != .tonight || media == .tv {
                     AppleTVPageHeader(title: selection == .tonight ? "A little time. A great show." : selection.rawValue,
-                        subtitle: pageSubtitle, collection: selection == .deals || selection == .settings ? nil : $media)
+                        subtitle: pageSubtitle, collection: selection == .deals ? nil : $media,
+                        openSettings: selection == .library ? { showsSettings = true } : nil)
                 }
 
                 ZStack {
@@ -102,6 +101,9 @@ struct AppleTVAppRootView: View {
         .fullScreenCover(item: $shelfSelection) { selection in
             AppleTVTopShelfMovieView(selection: selection)
         }
+        .fullScreenCover(isPresented: $showsSettings) {
+            AppleTVLibrarySettingsView()
+        }
         .alert("Movie Unavailable", isPresented: Binding(
             get: { shelfRouteError != nil }, set: { if !$0 { shelfRouteError = nil } })) {
             Button("OK") { shelfRouteError = nil }
@@ -124,7 +126,6 @@ struct AppleTVAppRootView: View {
         case .library: "Your collection, ready to rediscover."
         case .deals: "Apple’s $4.99 movies, ranked with your taste."
         case .history: "The evenings you’ve made time for."
-        case .settings: "Your libraries, iCloud, and metadata."
         }
     }
 
@@ -134,7 +135,6 @@ struct AppleTVAppRootView: View {
         case .library: TVMediaView(page: .library)
         case .deals: DealsView()
         case .history: TVMediaView(page: .history)
-        case .settings: SettingsView().environment(\.appleTVPageFocusRequest, settingsFocusRequest)
         }
     }
 }
@@ -145,7 +145,6 @@ private struct AppleTVCinemaRail: View {
     let focusRequest: Int
     let allowsMovieEntry: Bool
     let onEnterTonight: () -> Void
-    let onEnterSettings: () -> Void
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
     @FocusState private var navigationFocus: AppleTVSection?
@@ -160,10 +159,7 @@ private struct AppleTVCinemaRail: View {
             Spacer(minLength: 0)
             VStack(spacing: 14) {
                 ForEach(AppleTVSection.allCases) { section in
-                    if section == .settings {
-                        railButton(section)
-                            .onMoveCommand { if $0 == .right { onEnterSettings() } }
-                    } else if section == .tonight && allowsMovieEntry {
+                    if section == .tonight && allowsMovieEntry {
                         railButton(section)
                             .onMoveCommand { if $0 == .right { onEnterTonight() } }
                     } else {
@@ -191,8 +187,7 @@ private struct AppleTVCinemaRail: View {
 
     private func railButton(_ section: AppleTVSection) -> some View {
         Button {
-            if section == .settings && selection == .settings { onEnterSettings() }
-            else if section == .tonight && selection == .tonight && allowsMovieEntry { onEnterTonight() }
+            if section == .tonight && selection == .tonight && allowsMovieEntry { onEnterTonight() }
             else { selection = section }
         } label: {
             VStack(spacing: 9) {
@@ -218,6 +213,29 @@ private struct AppleTVCinemaRail: View {
         case 1: return 1.06
         default: return 1
         }
+    }
+}
+
+/// Occasional maintenance stays available from Library, outside the viewing rail.
+private struct AppleTVLibrarySettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Settings").font(.title2.bold()).accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button("Done", systemImage: "checkmark") { dismiss() }
+                    .buttonStyle(AppleTVActionButtonStyle())
+            }
+            .padding(.horizontal, AppleTVTheme.pageInset)
+            .padding(.top, 24)
+            .focusSection()
+            SettingsView()
+                .environment(\.appleTVPageFocusRequest, 1)
+        }
+        .background { AppleTVCinemaBackground(animates: false).ignoresSafeArea() }
+        .onExitCommand { dismiss() }
     }
 }
 
