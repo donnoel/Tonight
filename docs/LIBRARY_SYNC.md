@@ -44,6 +44,8 @@ For recovery, preserve both the current store and its pending edits before any r
 
 On November 19, 2026, all 966 CSV rows matched existing movies, and the library contained 12 additional entries. After relaunching build **1.1 (34)** on iPhone, iPad, and Living Room Apple TV, all three stores had the same 978 resolved movie identities, including separate editions, with zero duplicate identity keys and zero pending uploads. The reconciliation required no import or new build.
 
+On November 20, the refreshed export contained 1,013 rows. The existing importer added 31 missing entries on iPad, including 28 TMDB matches and three entries retained under their imported titles. After iCloud sync and relaunch on the same three devices, build **1.1 (34)** held the same 1,009 movie identities on each device, with zero duplicate identity keys and zero pending uploads. Before-and-after store comparisons verified that the original 978 movie records kept their local IDs, watched state, and ratings.
+
 ## September 6, 2026 device qualification
 
 Final build: **1.0 (7)**. App, widget, and generated system Settings version row agree. Both physical devices installed and launched successfully. Warning-as-error simulator tests and signed device builds passed with zero build warnings; all **119 unit tests** passed.
