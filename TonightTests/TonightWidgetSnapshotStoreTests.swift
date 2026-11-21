@@ -17,8 +17,11 @@ final class TonightWidgetSnapshotStoreTests: XCTestCase {
                     metadata: "2001 · 1h 42m · Drama",
                     rationale: "A focused test pick.",
                     artworkURL: URL(string: "https://image.tmdb.org/t/p/w342/poster.jpg"),
-                    artworkData: Data([0x01, 0x02, 0x03])
-                )
+                    artworkData: Data([0x01, 0x02, 0x03]),
+                    backdropURL: URL(string: "https://image.tmdb.org/t/p/w1280/backdrop.jpg"),
+                    backdropData: Data([0x04, 0x05, 0x06])
+                ),
+                pick(id: UUID(), title: "Poster only")
             ]
         )
 

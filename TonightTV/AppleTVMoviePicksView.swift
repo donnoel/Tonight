@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct AppleTVMoviePicksView: View {
@@ -22,7 +23,7 @@ struct AppleTVMoviePicksView: View {
     @State private var lastPosterID: UUID?
     @State private var lastHeaderControl = PickFocus.mood
     @FocusState private var pickFocus: PickFocus?
-    private enum PickFocus: Hashable { case collection, mood, refresh, poster(UUID) }
+    private enum PickFocus: Hashable { case collection, mood, allPicks, refresh, poster(UUID) }
 
     var body: some View {
         VStack(spacing: 50) {
@@ -46,6 +47,14 @@ struct AppleTVMoviePicksView: View {
                     .focused($pickFocus, equals: .mood)
                     .accessibilityLabel("Mood and Filters")
                     .accessibilityValue(RecommendationMood(rawValue: mood)?.title ?? RecommendationMood.anything.title)
+                    NavigationLink {
+                        AppleTVAllMoviePicksView()
+                    } label: {
+                        Label("All Picks", systemImage: "list.bullet")
+                    }
+                    .buttonStyle(AppleTVCinemaControlStyle())
+                    .focused($pickFocus, equals: .allPicks)
+                    .disabled(!canBrowsePicks)
                     Button(action: refresh) {
                         Image(systemName: "arrow.clockwise").frame(width: 32, height: 32)
                     }
@@ -59,8 +68,11 @@ struct AppleTVMoviePicksView: View {
                     guard !showsCollection, !showsTuning else { return }
                     switch (direction, pickFocus) {
                     case (.right, .collection): pickFocus = .mood
+                    case (.right, .mood) where canBrowsePicks: pickFocus = .allPicks
                     case (.right, .mood) where canFocusRefresh: pickFocus = .refresh
-                    case (.left, .refresh): pickFocus = .mood
+                    case (.right, .allPicks) where canFocusRefresh: pickFocus = .refresh
+                    case (.left, .refresh): pickFocus = canBrowsePicks ? .allPicks : .mood
+                    case (.left, .allPicks): pickFocus = .mood
                     case (.left, .mood): pickFocus = .collection
                     case (.down, _):
                         guard !isLoading, totalCount > 0 else { return }
@@ -127,7 +139,7 @@ struct AppleTVMoviePicksView: View {
         .onChange(of: pickFocus) { _, focus in
             switch focus {
             case .poster(let id): lastPosterID = id
-            case .collection, .mood, .refresh:
+            case .collection, .mood, .allPicks, .refresh:
                 if let focus { lastHeaderControl = focus }
             case nil: break
             }
@@ -147,6 +159,8 @@ struct AppleTVMoviePicksView: View {
     private var canFocusRefresh: Bool {
         !isLoading && (!events.isEmpty || remainingCount > 0)
     }
+
+    private var canBrowsePicks: Bool { !isLoading && totalCount > 0 }
 
     private func chosenFeature(event: RecommendationEvent, movie: Movie) -> some View {
         let theme = AppleTVTheme(scheme: colorScheme, contrast: contrast)
@@ -208,6 +222,62 @@ struct AppleTVMoviePicksView: View {
         }
     }
 
+}
+
+private struct AppleTVAllMoviePicksView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var picks: [TonightWidgetPick] = []
+    @State private var selection: TonightTopShelfMovieSelection?
+    @State private var movieUnavailable = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            Text("All Picks").font(.largeTitle.weight(.semibold)).accessibilityAddTraits(.isHeader)
+            if picks.isEmpty {
+                ContentUnavailableView("No picks available", systemImage: "movieclapper")
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(picks) { pick in
+                            Button { open(pick.id) } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(pick.title).font(.title3.weight(.medium))
+                                        if !pick.metadata.isEmpty { Text(pick.metadata).font(.callout) }
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right").accessibilityHidden(true)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(AppleTVActionButtonStyle())
+                        }
+                    }
+                    .padding(4)
+                }
+            }
+        }
+        .frame(maxWidth: 1080)
+        .padding(48)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear { picks = TonightWidgetSnapshotPublisher.shelfPicks }
+        .onExitCommand { dismiss() }
+        .fullScreenCover(item: $selection, onDismiss: { picks = TonightWidgetSnapshotPublisher.shelfPicks }) { selection in
+            AppleTVTopShelfMovieView(selection: selection)
+        }
+        .alert("Movie Unavailable", isPresented: $movieUnavailable) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("This movie couldn’t be opened. Please try it from your Library.")
+        }
+    }
+
+    private func open(_ id: UUID) {
+        selection = try? TonightTopShelfMovieSelection.open(id: id, in: modelContext,
+            preferences: TonightTopShelfSelection.preferences)
+        movieUnavailable = selection == nil
+    }
 }
 
 private struct AppleTVMoviePoster: View {

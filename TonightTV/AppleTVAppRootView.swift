@@ -305,7 +305,7 @@ struct AppleTVCloudLibraryView: View {
 }
 
 
-private struct AppleTVTopShelfMovieView: View {
+struct AppleTVTopShelfMovieView: View {
     @Environment(\.dismiss) private var dismiss
     let selection: TonightTopShelfMovieSelection
     @Environment(\.modelContext) private var modelContext

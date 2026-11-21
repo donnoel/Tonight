@@ -12,6 +12,12 @@ enum TonightWidgetSnapshotPublisher {
     private static var latestSnapshot: TonightWidgetSnapshot?
     private static var publicationTask: Task<Void, Never>?
 
+    #if os(tvOS)
+    static var shelfPicks: [TonightWidgetPick] {
+        (latestSnapshot ?? (try? TonightWidgetSnapshotStore().load()))?.picks ?? []
+    }
+    #endif
+
     static func publish(picks: [RecommendationPick], generatedAt: Date) {
         publish(
             snapshot: TonightWidgetSnapshot(
@@ -124,14 +130,20 @@ enum TonightWidgetSnapshotPublisher {
         kind: RecommendationKind,
         rationale: String
     ) -> TonightWidgetPick {
-        TonightWidgetPick(
+        #if os(tvOS)
+        let backdropURL = TMDBImageURL.make(path: movie.backdropPath, size: .backdrop)
+        #else
+        let backdropURL: URL? = nil
+        #endif
+        return TonightWidgetPick(
             id: movie.id,
             kindTitle: kind.title,
             title: movie.title,
             metadata: metadata(for: movie),
             rationale: rationale,
             artworkURL: TMDBImageURL.make(path: movie.posterPath, size: .posterCard),
-            artworkData: nil
+            artworkData: nil,
+            backdropURL: backdropURL
         )
     }
 
@@ -185,64 +197,74 @@ private actor TonightWidgetSnapshotWriter {
         }
 
         snapshot = await enrichArtwork(in: snapshot)
-        guard !Task.isCancelled, snapshot != existingSnapshot else { return }
+        guard !Task.isCancelled else { return }
 
-        do {
-            try store.save(snapshot)
-            #if os(tvOS)
-            TVTopShelfContentProvider.topShelfContentDidChange()
-            #else
-            WidgetCenter.shared.reloadTimelines(ofKind: TonightWidgetSnapshotStore.widgetKind)
-            #endif
-        } catch {
-            logger.error(
-                "Widget snapshot update failed: \(error.localizedDescription, privacy: .public)"
-            )
+        if snapshot != existingSnapshot {
+            do {
+                try store.save(snapshot)
+                #if os(tvOS)
+                TVTopShelfContentProvider.topShelfContentDidChange()
+                #else
+                WidgetCenter.shared.reloadTimelines(ofKind: TonightWidgetSnapshotStore.widgetKind)
+                #endif
+            } catch {
+                logger.error("Widget snapshot update failed: \(error.localizedDescription, privacy: .public)")
+                return
+            }
         }
+        #if os(tvOS)
+        await TopShelfMotionWriter.shared.prepare(snapshot)
+        #endif
     }
 
     private func reuseArtwork(
         in snapshot: TonightWidgetSnapshot,
         from existingSnapshot: TonightWidgetSnapshot?
     ) -> TonightWidgetSnapshot {
-        let artworkByID = Dictionary(
-            uniqueKeysWithValues: (existingSnapshot?.picks ?? []).compactMap { pick in
-                pick.artworkData.map { (pick.id, (pick.artworkURL, $0)) }
-            }
-        )
+        let artworkByID = Dictionary(uniqueKeysWithValues: (existingSnapshot?.picks ?? []).map { ($0.id, $0) })
         var snapshot = snapshot
         for index in snapshot.picks.indices {
             let pick = snapshot.picks[index]
-            if let existingArtwork = artworkByID[pick.id],
-               existingArtwork.0 == pick.artworkURL {
-                snapshot.picks[index].artworkData = existingArtwork.1
+            guard let existing = artworkByID[pick.id] else { continue }
+            if existing.artworkURL == pick.artworkURL {
+                snapshot.picks[index].artworkData = existing.artworkData
             }
+            #if os(tvOS)
+            if existing.backdropURL == pick.backdropURL {
+                snapshot.picks[index].backdropData = existing.backdropData
+            }
+            #endif
         }
         return snapshot
     }
 
     private func enrichArtwork(in snapshot: TonightWidgetSnapshot) async -> TonightWidgetSnapshot {
         var snapshot = snapshot
-        for index in snapshot.picks.indices where snapshot.picks[index].artworkData == nil {
-            guard !Task.isCancelled,
-                  let url = snapshot.picks[index].artworkURL else {
-                continue
+        for index in snapshot.picks.indices {
+            guard !Task.isCancelled else { return snapshot }
+            if snapshot.picks[index].artworkData == nil, let url = snapshot.picks[index].artworkURL {
+                snapshot.picks[index].artworkData = await artwork(for: url)
             }
-
-            do {
-                let data = try await LibraryArtworkCache.shared.data(for: url)
-                guard !Task.isCancelled else { return snapshot }
-                if data.count <= 2_000_000 {
-                    snapshot.picks[index].artworkData = data
-                }
-            } catch is CancellationError {
-                return snapshot
-            } catch {
-                logger.error(
-                    "Widget artwork download failed: \(error.localizedDescription, privacy: .public)"
-                )
+            #if os(tvOS)
+            if snapshot.picks[index].backdropData == nil, let url = snapshot.picks[index].backdropURL {
+                snapshot.picks[index].backdropData = await artwork(for: url)
             }
+            #endif
         }
         return snapshot
+    }
+
+    private func artwork(for url: URL) async -> Data? {
+        guard !Task.isCancelled else { return nil }
+        do {
+            let data = try await LibraryArtworkCache.shared.data(for: url)
+            try Task.checkCancellation()
+            return data.count <= 2_000_000 ? data : nil
+        } catch is CancellationError {
+            return nil
+        } catch {
+            logger.error("Widget artwork download failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 }

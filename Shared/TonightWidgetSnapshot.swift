@@ -8,6 +8,8 @@ nonisolated struct TonightWidgetPick: Codable, Equatable, Identifiable, Sendable
     let rationale: String
     let artworkURL: URL?
     var artworkData: Data?
+    var backdropURL: URL? = nil
+    var backdropData: Data? = nil
 }
 
 nonisolated struct TonightWidgetSnapshot: Codable, Equatable, Sendable {
