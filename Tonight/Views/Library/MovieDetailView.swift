@@ -196,30 +196,45 @@ struct MovieDetailView: View {
             }
             .scrollIndicators(.hidden)
             .background {
-                ZStack {
-                    LinearGradient(
-                        colors: [Color(red: 0.10, green: 0.12, blue: 0.34), Color(red: 0.16, green: 0.06, blue: 0.19), .black],
-                        startPoint: .topTrailing, endPoint: .bottomLeading
-                    )
-                    if let artwork = backdropArtworkURL {
-                        RemoteArtworkView(url: artwork, aspectRatio: 16 / 9, cornerRadius: 0,
-                                          contentAlignment: .topTrailing)
-                            .frame(width: screen.size.width, height: screen.size.height, alignment: .topTrailing)
-                            .opacity(televisionContrast == .increased ? 0.26 : 0.6)
-                    }
-                    LinearGradient(colors: [.black.opacity(0.72), .black.opacity(0.42), .clear],
-                                   startPoint: .leading, endPoint: .trailing)
-                    LinearGradient(stops: [.init(color: .clear, location: 0.25),
-                                           .init(color: .black.opacity(0.18), location: 0.5),
-                                           .init(color: .black, location: 1)],
-                                   startPoint: .top, endPoint: .bottom)
-                }
-                .ignoresSafeArea()
-                .accessibilityHidden(true)
+                cinematicTelevisionBackdrop
             }
         }
         .environment(\.colorScheme, .dark)
         .onExitCommand { dismiss() }
+    }
+
+    private var cinematicTelevisionBackdrop: some View {
+        GeometryReader { canvas in
+            ZStack {
+                LinearGradient(
+                    colors: [Color(red: 0.10, green: 0.12, blue: 0.34), Color(red: 0.16, green: 0.06, blue: 0.19), .black],
+                    startPoint: .topTrailing, endPoint: .bottomLeading
+                )
+                if let artwork = backdropArtworkURL {
+                    RemoteArtworkView(url: artwork, aspectRatio: 16 / 9, cornerRadius: 0,
+                                      contentAlignment: .topTrailing)
+                        .frame(width: canvas.size.width, height: canvas.size.height, alignment: .topTrailing)
+                        .mask {
+                            LinearGradient(stops: [.init(color: .clear, location: 0),
+                                                   .init(color: .white.opacity(0.56), location: 0.36),
+                                                   .init(color: .white, location: 0.82),
+                                                   .init(color: .clear, location: 1)],
+                                           startPoint: .leading, endPoint: .trailing)
+                        }
+                        .mask {
+                            LinearGradient(stops: [.init(color: .clear, location: 0),
+                                                   .init(color: .white, location: 0.12),
+                                                   .init(color: .white, location: 0.57),
+                                                   .init(color: .clear, location: 0.97)],
+                                           startPoint: .top, endPoint: .bottom)
+                        }
+                        .opacity(televisionContrast == .increased ? 0.30 : 0.72)
+                }
+                LinearGradient(colors: [.clear, .black], startPoint: .center, endPoint: .bottom)
+            }
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 
     private var standardTelevisionDetail: some View {
