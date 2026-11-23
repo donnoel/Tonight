@@ -36,6 +36,9 @@ struct MovieDetailView: View {
     var showsPersonalization = true
     var dealContext: MovieDealContext?
     var recommendationContext: MovieRecommendationContext?
+    #if os(tvOS)
+    var showsLibraryFeature = false
+    #endif
 
     var body: some View {
         detailContent
@@ -130,11 +133,12 @@ struct MovieDetailView: View {
                     .onMoveCommand { direction in
                         if direction == .down { televisionActionFocus = preferredTelevisionAction }
                     }
-                HStack(alignment: .top, spacing: 64) {
+                HStack(alignment: .top, spacing: showsLibraryFeature ? 48 : 64) {
                     poster(width: 290)
                     VStack(alignment: .leading, spacing: 24) {
                         Text(movie.title).font(.largeTitle.weight(.semibold))
                             .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
                         if !movie.televisionMetadata.isEmpty {
                             Text(movie.televisionMetadata).font(.callout).foregroundStyle(.secondary)
                         }
@@ -179,6 +183,12 @@ struct MovieDetailView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(showsLibraryFeature ? 44 : 0)
+                .background(alignment: .top) {
+                    if showsLibraryFeature {
+                        libraryFeatureSurface
+                    }
+                }
             }
             .padding(.horizontal, AppleTVTheme.pageInset)
             .padding(.top, 12).padding(.bottom, 40)
@@ -186,6 +196,29 @@ struct MovieDetailView: View {
         .background(AppleTVTheme(scheme: televisionScheme, contrast: televisionContrast).background)
         .defaultFocus($televisionActionFocus, preferredTelevisionAction, priority: .userInitiated)
         .task(id: movie.id) { televisionActionFocus = preferredTelevisionAction }
+    }
+
+    private var libraryFeatureSurface: some View {
+        let theme = AppleTVTheme(scheme: televisionScheme, contrast: televisionContrast)
+        let shape = RoundedRectangle(cornerRadius: 36)
+        return shape.fill(theme.surface)
+            .overlay(alignment: .top) {
+                if let artwork = backdropArtworkURL {
+                    RemoteArtworkView(url: artwork, aspectRatio: 16 / 9, cornerRadius: 0,
+                                      contentAlignment: .top)
+                        .frame(height: 420, alignment: .top)
+                        .clipped()
+                        .mask(alignment: .top) {
+                            LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom)
+                        }
+                        .opacity(televisionContrast == .increased ? 0.10 : 0.24)
+                }
+            }
+            .clipShape(shape)
+            .overlay { shape.strokeBorder(theme.border, lineWidth: 1) }
+            .shadow(color: .black.opacity(0.22), radius: 22, y: 12)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private var preferredTelevisionAction: TelevisionAction {

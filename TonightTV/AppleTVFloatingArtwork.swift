@@ -6,6 +6,7 @@ struct AppleTVFloatingArtwork: View {
     let url: URL?
     let position: Int
     let isFocused: Bool
+    var allowsVerticalMotion = true
     @State private var image: CGImage?
     @State private var loadedURL: URL?
     @State private var isLoading = false
@@ -18,6 +19,7 @@ struct AppleTVFloatingArtwork: View {
         PosterSurface(image: image, position: position, isFocused: isFocused,
                       focusColor: scheme == .dark ? .white : .black,
                       allowsMotion: !reduceMotion,
+                      allowsVerticalMotion: allowsVerticalMotion,
                       isMoving: isVisible && scenePhase == .active)
             .overlay {
                 if image == nil {
@@ -52,13 +54,15 @@ private struct PosterSurface: UIViewRepresentable {
     let isFocused: Bool
     let focusColor: UIColor
     let allowsMotion: Bool
+    let allowsVerticalMotion: Bool
     let isMoving: Bool
 
     func makeUIView(context: Context) -> FloatingPosterView { FloatingPosterView() }
 
     func updateUIView(_ view: FloatingPosterView, context: Context) {
         view.configure(image: image, position: position, isFocused: isFocused,
-                       focusColor: focusColor, allowsMotion: allowsMotion, isMoving: isMoving)
+                       focusColor: focusColor, allowsMotion: allowsMotion,
+                       allowsVerticalMotion: allowsVerticalMotion, isMoving: isMoving)
     }
 }
 
@@ -68,13 +72,14 @@ private final class FloatingPosterView: UIView {
     private var motionEnabled = false
     private var isMoving = false
     private var position = 0
+    private var allowsVerticalMotion = true
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
         artwork.isUserInteractionEnabled = false
         artwork.adjustsImageWhenAncestorFocused = false
-        artwork.contentMode = .scaleAspectFill
+        artwork.contentMode = .scaleAspectFit
         artwork.clipsToBounds = true
         artwork.layer.cornerRadius = 12
         artwork.backgroundColor = UIColor(white: 0.5, alpha: 0.18)
@@ -83,7 +88,8 @@ private final class FloatingPosterView: UIView {
 
     required init?(coder: NSCoder) { nil }
 
-    func configure(image: CGImage?, position: Int, isFocused: Bool, focusColor: UIColor, allowsMotion: Bool, isMoving: Bool) {
+    func configure(image: CGImage?, position: Int, isFocused: Bool, focusColor: UIColor,
+                   allowsMotion: Bool, allowsVerticalMotion: Bool, isMoving: Bool) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         if displayedImage !== image {
@@ -93,8 +99,9 @@ private final class FloatingPosterView: UIView {
         artwork.layer.borderWidth = isFocused ? 3 : 0
         artwork.layer.borderColor = focusColor.cgColor
         CATransaction.commit()
-        if self.position != position { resetMotion() }
+        if self.position != position || self.allowsVerticalMotion != allowsVerticalMotion { resetMotion() }
         self.position = position
+        self.allowsVerticalMotion = allowsVerticalMotion
         motionEnabled = allowsMotion && image != nil
         self.isMoving = isMoving
         updateMotion()
@@ -124,13 +131,14 @@ private final class FloatingPosterView: UIView {
             horizontal.values = [0, 5 * direction, 0, -5 * direction, 0]
             let vertical = CAKeyframeAnimation(keyPath: "transform.translation.y")
             vertical.values = [0, -7, 0, 7, 0]
-            for animation in [horizontal, vertical] {
+            let translations = allowsVerticalMotion ? [horizontal, vertical] : [horizontal]
+            for animation in translations {
                 animation.keyTimes = [0, 0.25, 0.5, 0.75, 1]
                 animation.timingFunctions = Array(repeating: CAMediaTimingFunction(name: .easeInEaseOut), count: 4)
                 animation.duration = duration
             }
             let float = CAAnimationGroup()
-            float.animations = [horizontal, vertical]
+            float.animations = translations
             float.duration = duration
             float.repeatCount = .infinity
             float.isRemovedOnCompletion = false

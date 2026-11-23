@@ -342,26 +342,15 @@ private struct DealMovieCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ZStack(alignment: .bottomLeading) {
-                RemoteArtworkView(
-                    url: TMDBImageURL.make(
-                        path: item.metadata?.posterPath,
-                        size: .posterCard
-                    ) ?? item.appleDeal.artworkURL,
-                    aspectRatio: 2 / 3,
-                    cornerRadius: 16
-                )
-                .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
-
-                #if !os(tvOS)
-                Text(item.appleDeal.formattedPrice)
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
-                    .background(.regularMaterial, in: Capsule())
-                    .padding(9)
-                #endif
-            }
+            RemoteArtworkView(
+                url: TMDBImageURL.make(
+                    path: item.metadata?.posterPath,
+                    size: .posterCard
+                ) ?? item.appleDeal.artworkURL,
+                aspectRatio: 2 / 3,
+                cornerRadius: 16
+            )
+            .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
 
             #if os(tvOS)
             ZStack {

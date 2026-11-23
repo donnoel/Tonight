@@ -163,6 +163,8 @@ Movie CloudKit sync is implemented; see [library sync](docs/LIBRARY_SYNC.md) for
 
 - [Repository guidance](AGENTS.md)
 - [Project guide](AGENTS.project.md)
+- [Public release proposal](docs/PUBLIC_RELEASE_PROPOSAL.md)
+- [Owned-library movie-night proposal](docs/MOVIE_NIGHT_PROPOSAL.md)
 
 ---
 

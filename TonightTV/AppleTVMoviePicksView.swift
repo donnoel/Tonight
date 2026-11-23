@@ -288,8 +288,11 @@ private struct AppleTVMoviePoster: View {
     var body: some View {
         GeometryReader { available in
             let height = max(0, min(available.size.height - 16, (available.size.width - 16) * 1.5))
-            AppleTVFloatingArtwork(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
-                                   position: position, isFocused: isFocused)
+            AppleTVFloatingArtwork(
+                url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail)
+                    ?? TMDBImageURL.make(path: movie.backdropPath, size: .backdrop),
+                position: position, isFocused: isFocused, allowsVerticalMotion: false
+            )
                 .frame(width: height * 2 / 3, height: height)
                 .shadow(color: .black.opacity(0.16), radius: 10, y: 5)
                 .frame(width: available.size.width, height: available.size.height)

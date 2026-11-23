@@ -76,6 +76,10 @@ struct LibraryView: View {
             .padding(.horizontal, AppleTVTheme.pageInset)
             .padding(.bottom, 16)
             .focusSection()
+            #else
+            if !movies.isEmpty {
+                libraryBrowsingControls
+            }
             #endif
             libraryContent(displayedMovies: displayedMovies)
         }
@@ -169,6 +173,46 @@ struct LibraryView: View {
         }
     }
 
+    #if !os(tvOS)
+    private var libraryBrowsingControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                sortFieldSelection.wrappedValue = .dateAdded
+            } label: {
+                Label("Recently Added", systemImage: isShowingRecentlyAdded ? "checkmark" : "clock")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityAddTraits(isShowingRecentlyAdded ? .isSelected : [])
+            .accessibilityHint("Sorts by when movies were added to Tonight, newest first")
+
+            if filterOption != .all {
+                Button {
+                    filterOption = .all
+                } label: {
+                    Label("Clear \(filterOption.title) Filter", systemImage: "xmark.circle")
+                }
+                .font(.subheadline)
+            }
+
+            if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Label("Clear Search", systemImage: "xmark.circle")
+                }
+                .font(.subheadline)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, libraryPadding)
+        .padding(.vertical, 8)
+    }
+
+    private var isShowingRecentlyAdded: Bool {
+        !isShuffled && sortField == .dateAdded && sortDirection == .descending
+    }
+    #endif
+
     @ViewBuilder
     private func libraryContent(displayedMovies: [Movie]) -> some View {
         Group {
@@ -194,7 +238,11 @@ struct LibraryView: View {
                     LazyVGrid(columns: columns, spacing: 28) {
                         ForEach(displayedMovies) { movie in
                             NavigationLink {
+                                #if os(tvOS)
+                                MovieDetailView(movie: movie, showsLibraryFeature: true)
+                                #else
                                 MovieDetailView(movie: movie)
+                                #endif
                             } label: {
                                 MovieCard(movie: movie)
                             }
