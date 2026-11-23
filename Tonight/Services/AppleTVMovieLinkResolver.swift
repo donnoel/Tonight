@@ -125,6 +125,19 @@ actor AppleTVMovieLinkResolver {
         links[query] = url
     }
 
+    nonisolated static func applicationURL(for moviePage: URL) -> URL? {
+        let catalogID = moviePage.lastPathComponent
+        guard moviePage.scheme == "https", moviePage.host == "tv.apple.com",
+              moviePage.user == nil, moviePage.password == nil, moviePage.port == nil,
+              moviePage.path.hasPrefix("/us/movie/"),
+              catalogID.range(of: #"^umc\.cmc\.[a-z0-9]+$"#, options: .regularExpression) != nil else { return nil }
+        var route = URLComponents()
+        route.scheme = "com.apple.tv"
+        route.host = "us"
+        route.path = "/movie/\(catalogID)"
+        return route.url
+    }
+
     nonisolated static func match(_ query: AppleTVMovieLinkQuery,
                                  candidates: [AppleTVMovieLinkCandidate]) -> URL? {
         guard let year = query.year else { return nil }

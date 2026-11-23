@@ -74,7 +74,7 @@ struct MovieDetailView: View {
             do {
                 let url = try await AppleTVMovieLinkResolver.shared.link(for: query)
                 guard !Task.isCancelled else { return }
-                appleTVMovieURL = url
+                appleTVMovieURL = url.flatMap(AppleTVMovieLinkResolver.applicationURL)
             } catch is CancellationError {
                 return
             } catch {
@@ -398,7 +398,8 @@ struct MovieDetailView: View {
                 : []
         )
         do {
-            guard let url = try await AppleTVMovieLinkResolver.shared.link(for: query) else {
+            guard let page = try await AppleTVMovieLinkResolver.shared.link(for: query),
+                  let url = AppleTVMovieLinkResolver.applicationURL(for: page) else {
                 try Task.checkCancellation()
                 appleTVOpenError = "Tonight couldn’t confirm the exact Apple TV link for this movie. You can still find it in your Apple TV Library."
                 return

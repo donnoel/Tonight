@@ -101,6 +101,16 @@ final class AppleTVMovieLinkResolverTests: XCTestCase {
         XCTAssertNil(wrongYear)
     }
 
+    func testApplicationRouteUsesVerifiedMovieIDWithoutPlaybackParameters() {
+        let url = URL(string: "https://tv.apple.com/us/movie/movie/umc.cmc.thefilm?playableId=preview")!
+        XCTAssertEqual(AppleTVMovieLinkResolver.applicationURL(for: url)?.absoluteString,
+                       "com.apple.tv://us/movie/umc.cmc.thefilm")
+        let search = URL(string: "https://tv.apple.com/us/search?term=Movie")!
+        let foreign = URL(string: "https://example.org/us/movie/movie/umc.cmc.thefilm")!
+        XCTAssertNil(AppleTVMovieLinkResolver.applicationURL(for: search))
+        XCTAssertNil(AppleTVMovieLinkResolver.applicationURL(for: foreign))
+    }
+
     private func candidate(_ title: String, year: Int, id: String) -> AppleTVMovieLinkCandidate {
         AppleTVMovieLinkCandidate(title: title, year: year,
             url: URL(string: "https://tv.apple.com/us/movie/movie/umc.cmc.\(id)")!)
