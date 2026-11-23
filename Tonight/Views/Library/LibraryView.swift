@@ -19,6 +19,7 @@ struct LibraryView: View {
     @State private var searchText = ""
     #if os(tvOS)
     @State private var showsSearch = false
+    @State private var selectedMovie: Movie?
     #endif
     @State private var isShuffled = false
     @State private var shuffleRanks: [UUID: Int] = [:]
@@ -90,6 +91,9 @@ struct LibraryView: View {
         #if os(tvOS)
         .sheet(isPresented: $showsSearch) {
             AppleTVSearchView(title: "Search Movies", prompt: "Title, cast, director, or genre", text: $searchText)
+        }
+        .fullScreenCover(item: $selectedMovie) { movie in
+            MovieDetailView(movie: movie)
         }
         #else
         .searchable(text: $searchText, prompt: "Search your library")
@@ -237,18 +241,19 @@ struct LibraryView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 28) {
                         ForEach(displayedMovies) { movie in
-                            NavigationLink {
-                                #if os(tvOS)
-                                MovieDetailView(movie: movie, showsLibraryFeature: true)
-                                #else
-                                MovieDetailView(movie: movie)
-                                #endif
+                            #if os(tvOS)
+                            Button {
+                                selectedMovie = movie
                             } label: {
                                 MovieCard(movie: movie)
                             }
-                            #if os(tvOS)
                             .buttonStyle(AppleTVCardButtonStyle())
                             #else
+                            NavigationLink {
+                                MovieDetailView(movie: movie)
+                            } label: {
+                                MovieCard(movie: movie)
+                            }
                             .buttonStyle(.plain)
                             #endif
                         }

@@ -38,7 +38,7 @@ On the movie-picks page, Up from any poster focuses the last-used upper-right co
 
 Movie details initially focus Choose for a pending pick, the watched-state action for a library movie, or the available store/More action in other contexts. Down from the onscreen Back button routes directly to that primary action; Up from Choose/watch/store routes back to Back. Native navigation between More and the primary action, scrolling, and the remote Back button remain available. These are focus routes only; entering details never chooses or marks a movie watched.
 
-Movie details opened from Library use a rounded feature panel with a softly fading still, a legible surface when artwork is missing, and an accessible title heading. The arrangement keeps Back above the panel and the existing movie actions near the title. Increased Contrast reduces the decorative image opacity. [Library movie details](https://github.com/donnoel/Tonight/issues/12)
+Owned movie details open full screen from Library, Tonight, and Top Shelf, with a large poster, softly fading artwork, and a single Back control. The title, metadata, and action appear first. The synopsis and credits follow below. The screen has a color-gradient fallback when artwork is missing, and Increased Contrast reduces backdrop opacity. [Library movie details](https://github.com/donnoel/Tonight/issues/12)
 
 ## Section switching
 
@@ -73,6 +73,8 @@ TV artwork is cached as visible views request it, rather than bulk-prefetching t
 On TV movie details, the primary pending recommendation action becomes **Open in Apple TV** when the app resolves a unique Apple listing with the exact normalized title and release year. Existing cached deal links are checked first, followed by a cancellable request to Apple’s public search page; the resolver accepts only HTTPS Apple TV US movie URLs with a stable catalog ID, strips price context, and caches successful matches in memory. This is a display-page handoff, not an assertion of playback rights or automatic playback. The existing explicit-choice watched/history semantics remain: the choice must save successfully before leaving Tonight. A chosen movie retains an Open in Apple TV link in details.
 
 Apple’s public search can omit titles still present in a purchased library. Unavailable, ambiguous, edition-mismatched, or yearless results retain Choose rather than opening a guessed title. No TMDB credential or ownership lookup is used for this link resolver, and the iPhone/iPad action layout is unchanged. [Apple’s deep-linking guidance](https://developer.apple.com/videos/play/wwdc2017/246/) distinguishes display links from playback links.
+
+In Library movie details, **Open in Apple TV** is always the primary action. Opening details leaves the film’s watch state alone. Pressing the action resolves the exact link, saves watched state, and then opens Apple TV. If the exact link is unavailable, Tonight shows a message and keeps the movie’s watch state. The resolver can check public Apple movie-page hints from the optional U.S. catalog index at `Library/Caches/Tonight/apple-tv-us-movie-catalog.json` in the tvOS App Group. The index is a cached dictionary of title slugs and Apple catalog IDs from the public movie sitemap. The individual movie page must still confirm both title and year before use. [Apple TV movie sitemap](https://tv.apple.com/sitemaps_tv_index_movie_1.xml)
 
 ## Build and delivery
 

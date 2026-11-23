@@ -24,6 +24,8 @@ struct MovieDetailView: View {
     #if os(tvOS)
     @Environment(\.openURL) private var openURL
     @State private var appleTVMovieURL: URL?
+    @State private var appleTVOpenRequest: UUID?
+    @State private var appleTVOpenError: String?
     @Environment(\.colorScheme) private var televisionScheme
     @Environment(\.colorSchemeContrast) private var televisionContrast
     @FocusState private var televisionActionFocus: TelevisionAction?
@@ -36,9 +38,6 @@ struct MovieDetailView: View {
     var showsPersonalization = true
     var dealContext: MovieDealContext?
     var recommendationContext: MovieRecommendationContext?
-    #if os(tvOS)
-    var showsLibraryFeature = false
-    #endif
 
     var body: some View {
         detailContent
@@ -70,7 +69,7 @@ struct MovieDetailView: View {
         }
         #if os(tvOS)
         .task(id: movie.id) {
-            guard showsPersonalization, movie.resolutionStatus == .resolved else { return }
+            guard recommendationContext != nil, movie.resolutionStatus == .resolved else { return }
             let query = AppleTVMovieLinkQuery(title: movie.title, year: movie.releaseYear ?? movie.importedYear)
             do {
                 let url = try await AppleTVMovieLinkResolver.shared.link(for: query)
@@ -81,6 +80,19 @@ struct MovieDetailView: View {
             } catch {
                 appleTVMovieURL = nil
             }
+        }
+        .task(id: appleTVOpenRequest) {
+            guard appleTVOpenRequest != nil else { return }
+            defer { appleTVOpenRequest = nil }
+            await openLibraryMovieInAppleTV()
+        }
+        .alert("Couldn’t Open Apple TV", isPresented: Binding(
+            get: { appleTVOpenError != nil },
+            set: { if !$0 { appleTVOpenError = nil } }
+        )) {
+            Button("OK", role: .cancel) { appleTVOpenError = nil }
+        } message: {
+            Text(appleTVOpenError ?? "")
         }
         #endif
         .task(id: dealContext?.appleURL) {
@@ -125,15 +137,96 @@ struct MovieDetailView: View {
 
     #if os(tvOS)
     private var televisionDetail: some View {
+        Group {
+            if dealContext == nil && showsPersonalization {
+                cinematicTelevisionDetail
+            } else {
+                standardTelevisionDetail
+            }
+        }
+        .defaultFocus($televisionActionFocus, preferredTelevisionAction, priority: .userInitiated)
+        .task(id: movie.id) { televisionActionFocus = preferredTelevisionAction }
+    }
+
+    private var televisionBack: some View {
+        Button("Back", systemImage: "chevron.left") { dismiss() }
+            .buttonStyle(AppleTVCinemaControlStyle())
+            .focused($televisionActionFocus, equals: .back)
+            .onMoveCommand { direction in
+                if direction == .down { televisionActionFocus = preferredTelevisionAction }
+            }
+    }
+
+    private var cinematicTelevisionDetail: some View {
+        GeometryReader { screen in
+            let posterWidth = min(420, screen.size.height * 0.43, screen.size.width * 0.31)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 36) {
+                    televisionBack
+                    HStack(alignment: .center, spacing: 72) {
+                        RemoteArtworkView(url: posterArtworkURL, aspectRatio: 2 / 3,
+                                          cornerRadius: 22, usesContentFit: true)
+                            .frame(width: posterWidth)
+                            .shadow(color: .black.opacity(0.55), radius: 28, y: 18)
+                        VStack(alignment: .leading, spacing: 22) {
+                            Text(movie.title)
+                                .font(.system(size: 76, weight: .semibold, design: .rounded))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityAddTraits(.isHeader)
+                            if !movie.televisionMetadata.isEmpty {
+                                Text(movie.televisionMetadata)
+                                    .font(.title3)
+                                    .foregroundStyle(.white.opacity(0.85))
+                            }
+                            televisionActions
+                        }
+                        .frame(maxWidth: 900, alignment: .leading)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.bottom, 48)
+
+                    VStack(alignment: .leading, spacing: 24) {
+                        televisionFilmNotes
+                    }
+                    .frame(maxWidth: 1000, alignment: .leading)
+                }
+                .padding(.horizontal, 82)
+                .padding(.vertical, 32)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollIndicators(.hidden)
+            .background {
+                ZStack {
+                    LinearGradient(
+                        colors: [Color(red: 0.10, green: 0.12, blue: 0.34), Color(red: 0.16, green: 0.06, blue: 0.19), .black],
+                        startPoint: .topTrailing, endPoint: .bottomLeading
+                    )
+                    if let artwork = backdropArtworkURL {
+                        RemoteArtworkView(url: artwork, aspectRatio: 16 / 9, cornerRadius: 0,
+                                          contentAlignment: .topTrailing)
+                            .frame(width: screen.size.width, height: screen.size.height, alignment: .topTrailing)
+                            .opacity(televisionContrast == .increased ? 0.26 : 0.6)
+                    }
+                    LinearGradient(colors: [.black.opacity(0.72), .black.opacity(0.42), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(stops: [.init(color: .clear, location: 0.25),
+                                           .init(color: .black.opacity(0.18), location: 0.5),
+                                           .init(color: .black, location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                }
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+            }
+        }
+        .environment(\.colorScheme, .dark)
+        .onExitCommand { dismiss() }
+    }
+
+    private var standardTelevisionDetail: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                Button("Back", systemImage: "chevron.left") { dismiss() }
-                    .buttonStyle(AppleTVActionButtonStyle())
-                    .focused($televisionActionFocus, equals: .back)
-                    .onMoveCommand { direction in
-                        if direction == .down { televisionActionFocus = preferredTelevisionAction }
-                    }
-                HStack(alignment: .top, spacing: showsLibraryFeature ? 48 : 64) {
+                televisionBack
+                HStack(alignment: .top, spacing: 64) {
                     poster(width: 290)
                     VStack(alignment: .leading, spacing: 24) {
                         Text(movie.title).font(.largeTitle.weight(.semibold))
@@ -143,82 +236,57 @@ struct MovieDetailView: View {
                             Text(movie.televisionMetadata).font(.callout).foregroundStyle(.secondary)
                         }
                         televisionActions
-                        if showsMatchRecovery {
-                            Text(movie.resolutionNote ?? "This title needs a TMDB match. Choose Find Match under More to load its details.")
-                                .font(.callout).foregroundStyle(.secondary)
-                        }
                         if let context = dealContext {
                             Label("\(context.price) purchase\(context.isInLibrary ? " · In Library" : "")", systemImage: "tag")
                                 .font(.headline)
                             Text("Listed by Apple as of \(context.lastRefreshed.formatted(date: .abbreviated, time: .shortened)). Confirm the price before purchasing.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                        if !movie.overviewText.isEmpty {
-                            Text(movie.overviewText).font(.body).lineSpacing(4)
-                                .fixedSize(horizontal: false, vertical: true).focusable()
-                        }
-                        if let context = recommendationContext {
-                            Text(RecommendationEngine.rationale(for: movie, kind: context.event.kind, mood: context.event.mood))
-                                .font(.callout).foregroundStyle(.secondary).focusable()
-                        } else if let rationale = dealContext?.recommendationRationale {
-                            Text(rationale).font(.callout).foregroundStyle(.secondary).focusable()
-                        }
-                        if let originalTitle = movie.originalTitle, originalTitle != movie.title {
-                            detailSection(title: "Original Title") { Text(originalTitle).font(.callout) }
-                        }
-                        if let average = movie.tmdbVoteAverage, let count = movie.tmdbVoteCount {
-                            detailSection(title: "TMDB Rating") {
-                                Text("\(average.formatted(.number.precision(.fractionLength(1)))) / 10 · \(count.formatted()) votes").font(.callout)
-                            }
-                        }
-                        if let director = movie.director {
-                            detailSection(title: "Director") { Text(director).font(.callout) }
-                        }
-                        if !movie.primaryCast.isEmpty {
-                            detailSection(title: "Cast") { Text(movie.primaryCast.joined(separator: ", ")).font(.callout) }
-                        }
-                        if let language = movie.originalLanguage, !language.isEmpty {
-                            detailSection(title: "Original Language") { Text(language.uppercased()).font(.callout) }
-                        }
+                        televisionFilmNotes
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(showsLibraryFeature ? 44 : 0)
-                .background(alignment: .top) {
-                    if showsLibraryFeature {
-                        libraryFeatureSurface
-                    }
                 }
             }
             .padding(.horizontal, AppleTVTheme.pageInset)
             .padding(.top, 12).padding(.bottom, 40)
         }
         .background(AppleTVTheme(scheme: televisionScheme, contrast: televisionContrast).background)
-        .defaultFocus($televisionActionFocus, preferredTelevisionAction, priority: .userInitiated)
-        .task(id: movie.id) { televisionActionFocus = preferredTelevisionAction }
     }
 
-    private var libraryFeatureSurface: some View {
-        let theme = AppleTVTheme(scheme: televisionScheme, contrast: televisionContrast)
-        let shape = RoundedRectangle(cornerRadius: 36)
-        return shape.fill(theme.surface)
-            .overlay(alignment: .top) {
-                if let artwork = backdropArtworkURL {
-                    RemoteArtworkView(url: artwork, aspectRatio: 16 / 9, cornerRadius: 0,
-                                      contentAlignment: .top)
-                        .frame(height: 420, alignment: .top)
-                        .clipped()
-                        .mask(alignment: .top) {
-                            LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom)
-                        }
-                        .opacity(televisionContrast == .increased ? 0.10 : 0.24)
-                }
+    @ViewBuilder
+    private var televisionFilmNotes: some View {
+        if showsMatchRecovery {
+            Text(movie.resolutionNote ?? "This title needs a TMDB match. Choose Find Match under More to load its details.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+        if !movie.overviewText.isEmpty {
+            detailSection(title: "Synopsis") {
+                Text(movie.overviewText).font(.body).lineSpacing(4).fixedSize(horizontal: false, vertical: true)
             }
-            .clipShape(shape)
-            .overlay { shape.strokeBorder(theme.border, lineWidth: 1) }
-            .shadow(color: .black.opacity(0.22), radius: 22, y: 12)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        }
+        if let context = recommendationContext {
+            Text(RecommendationEngine.rationale(for: movie, kind: context.event.kind, mood: context.event.mood))
+                .font(.callout).foregroundStyle(.secondary).focusable()
+        } else if let rationale = dealContext?.recommendationRationale {
+            Text(rationale).font(.callout).foregroundStyle(.secondary).focusable()
+        }
+        if let originalTitle = movie.originalTitle, originalTitle != movie.title {
+            detailSection(title: "Original Title") { Text(originalTitle).font(.callout) }
+        }
+        if let average = movie.tmdbVoteAverage, let count = movie.tmdbVoteCount {
+            detailSection(title: "TMDB Rating") {
+                Text("\(average.formatted(.number.precision(.fractionLength(1)))) / 10 · \(count.formatted()) votes").font(.callout)
+            }
+        }
+        if let director = movie.director {
+            detailSection(title: "Director") { Text(director).font(.callout) }
+        }
+        if !movie.primaryCast.isEmpty {
+            detailSection(title: "Cast") { Text(movie.primaryCast.joined(separator: ", ")).font(.callout) }
+        }
+        if let language = movie.originalLanguage, !language.isEmpty {
+            detailSection(title: "Original Language") { Text(language.uppercased()).font(.callout) }
+        }
     }
 
     private var preferredTelevisionAction: TelevisionAction {
@@ -258,6 +326,18 @@ struct MovieDetailView: View {
                         Label("Chosen for Tonight", systemImage: "checkmark.circle").font(.callout)
                     }
                 }
+            } else if showsPersonalization && dealContext == nil {
+                Button("Open in Apple TV", systemImage: "tv") {
+                    guard appleTVOpenRequest == nil else { return }
+                    appleTVOpenRequest = UUID()
+                }
+                .buttonStyle(AppleTVActionButtonStyle(prominent: true))
+                .focused($televisionActionFocus, equals: .primary)
+                .onMoveCommand { if $0 == .up { televisionActionFocus = .back } }
+                .accessibilityHint("Marks this movie watched and opens its exact Apple TV page when the link is available")
+                if appleTVOpenRequest != nil {
+                    ProgressView().accessibilityLabel("Finding the Apple TV movie")
+                }
             } else if showsPersonalization {
                 watchedButton.buttonStyle(AppleTVActionButtonStyle(prominent: true))
                     .focused($televisionActionFocus, equals: .primary)
@@ -292,6 +372,34 @@ struct MovieDetailView: View {
             }
         }
         .focusSection()
+    }
+
+    private func openLibraryMovieInAppleTV() async {
+        let query = AppleTVMovieLinkQuery(
+            title: movie.title,
+            year: movie.releaseYear ?? movie.importedYear,
+            alternateTitles: movie.edition == nil
+                ? [movie.importedTitle, movie.originalTitle].compactMap { $0 }.filter { $0 != movie.title }
+                : []
+        )
+        do {
+            guard let url = try await AppleTVMovieLinkResolver.shared.link(for: query) else {
+                try Task.checkCancellation()
+                appleTVOpenError = "Tonight couldn’t confirm the exact Apple TV link for this movie. You can still find it in your Apple TV Library."
+                return
+            }
+            try Task.checkCancellation()
+            guard setWatched(true) else { return }
+            openURL(url) { accepted in
+                if !accepted {
+                    appleTVOpenError = "Your watch was saved. Apple TV couldn’t open the movie link."
+                }
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            appleTVOpenError = "Tonight couldn’t check the Apple TV link. Try again when you have a connection."
+        }
     }
     #endif
 
@@ -554,22 +662,7 @@ struct MovieDetailView: View {
 
     private var watchedButton: some View {
         Button {
-            let changedAt = Date.now
-            movie.isWatched.toggle()
-            if movie.isWatched {
-                movie.dateWatched = movie.dateWatched ?? changedAt
-                movie.lastWatchedDate = changedAt
-            } else {
-                movie.dateWatched = nil
-                movie.lastWatchedDate = nil
-            }
-            movie.watchedStateModifiedAt = changedAt
-            if savePersonalization() {
-                LibrarySyncCoordinator.shared.localDidSave()
-                if movie.isWatched {
-                    TonightWidgetSnapshotPublisher.removeMovie(id: movie.id, in: modelContext)
-                }
-            }
+            _ = setWatched(!movie.isWatched)
         } label: {
             Label(
                 movie.isWatched ? "Watched" : "Mark Watched",
@@ -636,6 +729,20 @@ struct MovieDetailView: View {
             saveError = "Your preference couldn’t be saved. The rest of your library is unchanged."
             return false
         }
+    }
+
+    private func setWatched(_ watched: Bool) -> Bool {
+        let changedAt = Date.now
+        movie.isWatched = watched
+        movie.dateWatched = watched ? movie.dateWatched ?? changedAt : nil
+        movie.lastWatchedDate = watched ? changedAt : nil
+        movie.watchedStateModifiedAt = changedAt
+        guard savePersonalization() else { return false }
+        LibrarySyncCoordinator.shared.localDidSave()
+        if watched {
+            TonightWidgetSnapshotPublisher.removeMovie(id: movie.id, in: modelContext)
+        }
+        return true
     }
 
     private func detailSection<Content: View>(

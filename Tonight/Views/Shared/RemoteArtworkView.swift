@@ -12,6 +12,7 @@ struct RemoteArtworkView: View {
         #endif
     }()
     var contentAlignment: Alignment = .center
+    var usesContentFit = false
 
     @State private var loadState = ArtworkLoadState.idle
 
@@ -23,7 +24,7 @@ struct RemoteArtworkView: View {
                 GeometryReader { proxy in
                     Image(decorative: artwork, scale: 1)
                         .resizable()
-                        .scaledToFill()
+                        .aspectRatio(contentMode: usesContentFit ? .fit : .fill)
                         .frame(
                             width: proxy.size.width,
                             height: proxy.size.height,

@@ -30,7 +30,11 @@ final class AppleTVMovieLinkResolverTests: XCTestCase {
         let base = candidate("Movie", year: 2000, id: "one")
         let priced = AppleTVMovieLinkCandidate(title: "Movie", year: 2000,
             url: URL(string: base.url.absoluteString + "?ctx_price=4.99#details")!)
-        XCTAssertEqual(AppleTVMovieLinkResolver.match(query, candidates: [base, priced]), base.url)
+        let alias = AppleTVMovieLinkCandidate(title: "Movie", year: 2000,
+            url: URL(string: "https://tv.apple.com/us/movie/movie-alias/umc.cmc.one")!)
+        let result = AppleTVMovieLinkResolver.match(query, candidates: [base, priced, alias])
+        XCTAssertEqual(result?.lastPathComponent, base.url.lastPathComponent)
+        XCTAssertNil(result?.query)
     }
 
     func testParsesOnlyMovieRecordsAndLeavesRecommendationsUnmatched() throws {
@@ -77,6 +81,24 @@ final class AppleTVMovieLinkResolverTests: XCTestCase {
             XCTFail("Expected cancellation")
         } catch is CancellationError {
         } catch { XCTFail("Unexpected error: \(error)") }
+    }
+
+    func testCatalogPageRequiresAnExactMovieAndYear() async throws {
+        let url = URL(string: "https://tv.apple.com/us/movie/the-conversation/umc.cmc.catalog")!
+        let html = #"<script type="application/ld+json">{"@type":"Movie","name":"The Conversation","datePublished":"1974-04-07T00:00:00.000Z"}</script>"#
+        let resolver = AppleTVMovieLinkResolver(transport: { request in
+            let body = request.url == url ? html : ""
+            return (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }, cachedDeals: { [] }, catalogURLs: { _ in [url] })
+
+        let exact = try await resolver.link(for: .init(title: "The Conversation", year: 1974))
+        let alternate = try await resolver.link(for: .init(title: "Conversation", year: 1974, alternateTitles: ["The Conversation"]))
+        let otherEdition = try await resolver.link(for: .init(title: "The Conversation Final Cut", year: 1974))
+        let wrongYear = try await resolver.link(for: .init(title: "The Conversation", year: 2024))
+        XCTAssertEqual(exact, url)
+        XCTAssertEqual(alternate, url)
+        XCTAssertNil(otherEdition)
+        XCTAssertNil(wrongYear)
     }
 
     private func candidate(_ title: String, year: Int, id: String) -> AppleTVMovieLinkCandidate {

@@ -15,6 +15,7 @@
 		09F1BFCBEE240C082C526B54 /* TMDBImageURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8994E21E05F3DF61ACB47BF4 /* TMDBImageURL.swift */; };
 		0ACEC764A82FDAD006D5BAE9 /* TVMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C321B5C6847F704877EAF4D7 /* TVMetadataService.swift */; };
 		0C95B413F67351486E7A2B64 /* TonightTopShelfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA5D707AF14A4DCA04ED93B /* TonightTopShelfTests.swift */; };
+		0DA220036BCE0CDD70DC14B5 /* AppleTVPublicMovieCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E08401AEE3C87BEE6391D3 /* AppleTVPublicMovieCatalog.swift */; };
 		0E05AD5BCE3E829D939C75EB /* TopShelfFeatureArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D2B0828F6B0422F7DBB8A8 /* TopShelfFeatureArtwork.swift */; };
 		104BD56AA1FB328335A30B67 /* TMDBDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F9CFEEF5F937F424EAECB3 /* TMDBDTOs.swift */; };
 		11FB799A0DB78840BCCFEA04 /* TVMediaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941CF63A73AC2C8048FD607B /* TVMediaView.swift */; };
@@ -141,6 +142,7 @@
 		B86B4E6A80929D903D756FB3 /* WatchedStateSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A27862D605EBB05E81C523E /* WatchedStateSync.swift */; };
 		B9C2A0699EF8AF6A74B1ED28 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 821E2FA69C6A22F3E76E808B /* LibraryView.swift */; };
 		BAB64457F6E80E5D3932790F /* TonightArtworkBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E9D4AAA4A2E308748121D7 /* TonightArtworkBackground.swift */; };
+		BAE4ACA8EF4BEC3710316933 /* AppleTVPublicMovieCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E08401AEE3C87BEE6391D3 /* AppleTVPublicMovieCatalog.swift */; };
 		BC5F067C8B529E0338CAA259 /* DealLibraryMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EA09265B06EEE4851809278 /* DealLibraryMatcherTests.swift */; };
 		BF14ED18346E81F05AD3FB28 /* TopShelfFeatureArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D2B0828F6B0422F7DBB8A8 /* TopShelfFeatureArtwork.swift */; };
 		BFEEC6C00DB5EC696620A416 /* RecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8857001DC42E1BB90C2EEF55 /* RecommendationEngine.swift */; };
@@ -378,6 +380,7 @@
 		F7DF4CAC765FAE80F58242D9 /* TMDBMatchResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBMatchResolver.swift; sourceTree = "<group>"; };
 		F8DDB0921934E94066C553F7 /* TonightPicksWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonightPicksWidget.swift; sourceTree = "<group>"; };
 		F9099D797A08BAB40BFAF712 /* LibraryDuplicateDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDuplicateDetectorTests.swift; sourceTree = "<group>"; };
+		F9E08401AEE3C87BEE6391D3 /* AppleTVPublicMovieCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTVPublicMovieCatalog.swift; sourceTree = "<group>"; };
 		F9EA16D307D25F407BF4896F /* MovieEdition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieEdition.swift; sourceTree = "<group>"; };
 		FEB9CDF6EBAA40BC701358F9 /* TVSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVSyncTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -579,6 +582,7 @@
 			isa = PBXGroup;
 			children = (
 				92B5B4737C325633F3988D4F /* AppleTVMovieLinkResolver.swift */,
+				F9E08401AEE3C87BEE6391D3 /* AppleTVPublicMovieCatalog.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -1007,6 +1011,7 @@
 				A53E9D827C2CF0F2D83ABAED /* AppleMovieDeal.swift in Sources */,
 				2FC2053A4A6883D494838A4C /* AppleMovieDealsProvider.swift in Sources */,
 				98B6D04B7F22BCB739B1F2A4 /* AppleTVMovieLinkResolver.swift in Sources */,
+				BAE4ACA8EF4BEC3710316933 /* AppleTVPublicMovieCatalog.swift in Sources */,
 				4E7702BAEB2DDEF77910A03E /* ArtworkTint.swift in Sources */,
 				892E4C4E4E05EC7060E205C3 /* DealsView.swift in Sources */,
 				6515A0613CF5FEF02C50A70F /* DealsViewModel.swift in Sources */,
@@ -1103,6 +1108,7 @@
 				89A67DAF1BC127215CA57A1C /* AppleTVMovieLinkResolver.swift in Sources */,
 				DC1F9A5261A0DA18E6D8C890 /* AppleTVMoviePicksView.swift in Sources */,
 				396B16D52EC211273145B587 /* AppleTVPageContainer.swift in Sources */,
+				0DA220036BCE0CDD70DC14B5 /* AppleTVPublicMovieCatalog.swift in Sources */,
 				2F902F964E807DE9B0C79008 /* AppleTVSearchView.swift in Sources */,
 				A7BD35F881F6F498E6B9A754 /* AppleTVTheme.swift in Sources */,
 				A83171F363AFE998D6A8F5C6 /* ArtworkTint.swift in Sources */,
@@ -1345,7 +1351,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 39;
+				CURRENT_PROJECT_VERSION = 40;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1476,7 +1482,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 39;
+				CURRENT_PROJECT_VERSION = 40;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;

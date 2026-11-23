@@ -20,6 +20,7 @@ struct AppleTVMoviePicksView: View {
     @AppStorage("tonightMedia") private var media = TonightMedia.movies
     @State private var showsTuning = false
     @State private var showsCollection = false
+    @State private var selectedEvent: RecommendationEvent?
     @State private var lastPosterID: UUID?
     @State private var lastHeaderControl = PickFocus.mood
     @FocusState private var pickFocus: PickFocus?
@@ -102,12 +103,8 @@ struct AppleTVMoviePicksView: View {
                 HStack(alignment: .top, spacing: 40) {
                     ForEach(Array(events.prefix(3).enumerated()), id: \.element.id) { position, event in
                         if let movie = event.movie {
-                            NavigationLink {
-                                MovieDetailView(movie: movie, recommendationContext: .init(
-                                    event: event,
-                                    onChoose: { respond(event, .accepted) },
-                                    onRespond: { respond(event, $0) }
-                                ))
+                            Button {
+                                selectedEvent = event
                             } label: {
                                 AppleTVMoviePoster(movie: movie, position: position)
                             }
@@ -154,6 +151,15 @@ struct AppleTVMoviePicksView: View {
                 unwatchedOnly: $unwatchedOnly, somethingOlder: $somethingOlder,
                 moreAdventurous: $moreAdventurous, remainingCount: remainingCount, totalCount: totalCount)
         }
+        .fullScreenCover(item: $selectedEvent) { event in
+            if let movie = event.movie {
+                MovieDetailView(movie: movie, recommendationContext: .init(
+                    event: event,
+                    onChoose: { respond(event, .accepted) },
+                    onRespond: { respond(event, $0) }
+                ))
+            }
+        }
     }
 
     private var canFocusRefresh: Bool {
@@ -167,10 +173,8 @@ struct AppleTVMoviePicksView: View {
         return GeometryReader { space in
             let posterHeight = max(0, min(space.size.height - 64, space.size.width * 0.5))
             HStack(alignment: .center, spacing: 80) {
-                NavigationLink {
-                    MovieDetailView(movie: movie, recommendationContext: .init(event: event,
-                        onChoose: { respond(event, .accepted) },
-                        onRespond: { respond(event, $0) }))
+                Button {
+                    selectedEvent = event
                 } label: {
                     AppleTVFloatingArtwork(url: TMDBImageURL.make(path: movie.posterPath, size: .posterDetail),
                         position: 0, isFocused: pickFocus == .poster(event.id))
